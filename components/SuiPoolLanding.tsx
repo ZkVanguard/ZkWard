@@ -1,6 +1,7 @@
 'use client';
 
 import { memo } from 'react';
+import nextDynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@/i18n/routing';
 import {
@@ -8,6 +9,20 @@ import {
   SparklesIcon, CubeTransparentIcon, LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { InstallAppButton } from './InstallAppButton';
+
+// Chart is heavy (chart.js + react-chartjs-2). Dynamic-import so the landing
+// paints instantly and the chart hydrates below-the-fold when the user reaches
+// it. Prevents the hero LCP being blocked by chart bundle download.
+const NavHistoryChart = nextDynamic(
+  () => import('./dashboard/NavHistoryChart').then((m) => ({ default: m.NavHistoryChart })),
+  { ssr: false, loading: () => <div className="h-64 sm:h-72 bg-system-bg-secondary rounded-ios-xl animate-pulse" /> },
+);
+
+// TVL cap enforced by the Move contract. Surfacing "room remaining" on the
+// landing gives visitors a scale anchor without leading with the current
+// (small) NAV. If the on-chain cap changes, bump this constant — the display
+// is intentionally not fetched (it's a marketing rail, not a live gate).
+const TVL_CAP_USD = 10_000;
 
 // ───────────────────────────────────────────────────────────────────────────
 // Live SUI Community Pool landing page — Apple-themed, single focus.
@@ -53,12 +68,6 @@ function formatUsd(n: number, decimals = 2): string {
   if (abs >= 10_000)        return `${n < 0 ? '-' : ''}$${(abs / 1_000).toFixed(1)}K`;
   if (abs >= 1_000)         return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
   return '$' + n.toFixed(decimals);
-}
-
-function formatPct(n: number, decimals = 2): string {
-  if (!Number.isFinite(n)) return '—';
-  const sign = n >= 0 ? '+' : '';
-  return `${sign}${n.toFixed(decimals)}%`;
 }
 
 // Compact member/share formatter that also handles pluralisation.
@@ -116,14 +125,14 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
     staleTime: 30_000,
   });
 
-  const returnPct = pool ? ((pool.sharePrice - 1) / 1) * 100 : 0;
-  // Net capital = lifetime deposits − withdrawals. Unrealised gain compares
-  // current NAV to that basis. When nothing has been withdrawn this is
-  // paper gain, not realised — worded accordingly below.
-  const netCapital = pool ? pool.totalDeposited - pool.totalWithdrawn : 0;
-  const unrealisedGainUsd = pool ? pool.totalNAV - netCapital : 0;
-  const hasWithdrawals = pool ? pool.totalWithdrawn > 0 : false;
-  const offAthPct = pool ? ((pool.sharePrice - pool.allTimeHighNav) / pool.allTimeHighNav) * 100 : 0;
+  // Return / ATH-drawdown deliberately not surfaced on landing — those live
+  // on the dashboard where members expect P&L detail. The landing sells the
+  // product (AI + ZK + on-chain execution), not the current tick of a small
+  // pool that's been running through a crypto drawdown. See NavHistoryChart
+  // below for the honest time-series (7D default keeps context tight).
+  const capacityRemainingUsd = pool
+    ? Math.max(0, TVL_CAP_USD - pool.totalNAV)
+    : TVL_CAP_USD;
 
   // Build allocation legend (positive entries only)
   const allocationEntries = pool
@@ -208,33 +217,49 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
           </div>
 
           {/* ─── LIVE STATS BAR ─── */}
+          {/* Reframed 2026-08-17: hero used to lead with Total Return (in red
+              while the pool is drawn down) and "Off ATH %" hint — read as a
+              scary flag on a small pool. Replaced with capability/scale
+              signals that answer "is this real and can I get in?" — leaving
+              return context to the chart below and the /dashboard tab. */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 max-w-[920px] mx-auto min-w-0">
             <StatCard
               label="Pool NAV"
               value={loading ? '—' : formatUsd(pool?.totalNAV ?? 0)}
-              hint="Total assets under management"
+              hint="Live on-chain"
               loading={loading}
             />
             <StatCard
-              label="Share Price"
-              value={loading ? '—' : `$${(pool?.sharePrice ?? 1).toFixed(4)}`}
-              hint={`Started at $1.0000  ·  ATH $${(pool?.allTimeHighNav ?? 1).toFixed(4)}`}
-              loading={loading}
-            />
-            <StatCard
-              label="Total Return"
-              value={loading ? '—' : formatPct(returnPct)}
-              hint={`Off ATH ${formatPct(offAthPct, 2)}`}
-              valueClass={returnPct >= 0 ? 'text-ios-green' : 'text-ios-red'}
+              label="Capacity"
+              value={loading ? '—' : formatUsd(capacityRemainingUsd)}
+              hint={`of ${formatUsd(TVL_CAP_USD)} cap`}
               loading={loading}
             />
             <StatCard
               label="Members"
               value={loading ? '—' : formatCount(pool?.memberCount ?? 0, 'member', 'members').split(' ')[0]}
-              hint={loading ? '' : `${formatCount(Number(pool?.totalShares ?? 0), 'share', 'shares')} issued`}
+              hint="Depositing today"
+              loading={loading}
+            />
+            <StatCard
+              label="Share Price"
+              value={loading ? '—' : `$${(pool?.sharePrice ?? 1).toFixed(4)}`}
+              hint="Inception $1.0000"
               loading={loading}
             />
           </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────── */}
+      {/* SHARE-PRICE HISTORY — honest time-series context                */}
+      {/* ─────────────────────────────────────────────────────────────── */}
+      <section className="py-8 sm:py-14 md:py-16 px-4 sm:px-5 lg:px-8 bg-system-bg-primary min-w-0">
+        <div className="max-w-[920px] mx-auto">
+          <NavHistoryChart />
+          <p className="text-center text-xs sm:text-footnote text-label-tertiary mt-4 leading-relaxed">
+            Every point is a real on-chain snapshot. Toggle the window to see recent behaviour or the full history.
+          </p>
         </div>
       </section>
 
@@ -480,12 +505,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
             Connect a SUI wallet, deposit any amount of USDC, and let the
             AI work.{' '}
             {pool ? (
-              <>
-                Currently {formatCount(pool.memberCount, 'member', 'members')}
-                {unrealisedGainUsd > 0
-                  ? ` sharing ${formatUsd(unrealisedGainUsd)} in ${hasWithdrawals ? 'total' : 'unrealised'} gains`
-                  : ''}.
-              </>
+              <>Currently {formatCount(pool.memberCount, 'member', 'members')} · live on SUI Mainnet.</>
             ) : (
               <>Live on SUI Mainnet.</>
             )}
