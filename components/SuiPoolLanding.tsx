@@ -481,7 +481,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
             </Link>
             <a
-              href="https://github.com/ZkVanguard/ZkVanguard"
+              href="https://github.com/ZkVanguard/ZkWard"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 h-[52px] sm:h-[56px] px-2 text-headline font-medium text-label-secondary hover:text-ios-blue transition-colors"

@@ -304,7 +304,7 @@ export default function AgentsPage() {
                     <div className="bg-system-bg-secondary rounded-ios p-4">
                       <h4 className="text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-2">Implementation</h4>
                       <a
-                        href={`https://github.com/ZkVanguard/ZkVanguard/blob/main/${selected.implementation}`}
+                        href={`https://github.com/ZkVanguard/ZkWard/blob/main/${selected.implementation}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-subheadline text-ios-blue font-mono break-all hover:underline"
