@@ -417,16 +417,10 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 min-w-0">
             <SurfaceCard
-              href="/dashboard/portfolio"
-              eyebrow="Your position"
-              title="Pool shares + attributed hedges."
-              body="See what you own in the vault and which hedges are covering your risk."
-            />
-            <SurfaceCard
-              href="/dashboard/risk"
-              eyebrow="Platform risk"
-              title="Live vault dashboard."
-              body="Real-time TVL, drawdown, hedge coverage, cron health, ZK attestation feed. Auto-refresh 60s."
+              href="/dashboard"
+              eyebrow="Your dashboard"
+              title="Position, risk, and hedges in one place."
+              body="Pool shares, attributed hedges, live TVL, drawdown, cron health, and the ZK attestation feed. Auto-refresh 60s."
             />
             <SurfaceCard
               href="/rwa"

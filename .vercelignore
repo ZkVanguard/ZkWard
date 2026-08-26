@@ -45,7 +45,8 @@ logs/
 *.log
 
 # Documentation (not needed in deployment)
-docs/
+# Anchor to root only — un-anchored `docs/` would also strip app/[locale]/docs/
+/docs/
 *.md
 !README.md
 !content/*.md
