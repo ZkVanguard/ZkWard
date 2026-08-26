@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { Metadata, Viewport } from 'next';
+import { Space_Grotesk } from 'next/font/google';
 import '../../styles/globals.css';
 import { Providers } from '../providers';
 import { Navbar } from '../../components/Navbar';
@@ -10,6 +11,16 @@ import { PwaProvider } from '../../components/PwaProvider';
 import { LegacyDomainBanner } from '../../components/LegacyDomainBanner';
 import { locales } from '../../i18n/request';
 import { IntlProvider } from '../../components/IntlProvider';
+
+// Display face — self-hosted (no <link> to fonts.googleapis.com), variable
+// CSS var consumed by `font-display` utility in tailwind config. Applied to
+// hero headlines only; body stays on SF for zero-cost native feel.
+const displayFont = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-display',
+  display: 'swap',
+});
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -87,7 +98,7 @@ export default async function LocaleLayout(
   }
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} className={displayFont.variable} suppressHydrationWarning>
       <head>
         {/* Resource hints for faster loading */}
         <link rel="preconnect" href="https://api.crypto.com" crossOrigin="anonymous" />
@@ -117,7 +128,7 @@ export default async function LocaleLayout(
           }}
         />
       </head>
-      <body className="antialiased bg-[#fbfbfd] min-h-screen" suppressHydrationWarning>
+      <body className="antialiased bg-system-bg-primary min-h-screen" suppressHydrationWarning>
         <IntlProvider locale={locale}>
           <Providers>
             <div className="flex flex-col min-h-screen">

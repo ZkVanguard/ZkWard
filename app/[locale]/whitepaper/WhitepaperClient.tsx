@@ -4,7 +4,6 @@ import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Navbar } from '@/components/Navbar';
 
 interface Props {
   frontmatter: {
@@ -160,19 +159,17 @@ export function WhitepaperClient({ frontmatter, body }: Props) {
         }
       `}</style>
 
-      <Navbar />
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 pb-10 sm:pb-16">
         <div className="text-center mb-10 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-[#007AFF]/10 rounded-full text-xs sm:text-sm font-medium mb-4 sm:mb-6 text-[#007AFF]">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-ios-blue/10 rounded-full text-xs sm:text-sm font-medium mb-4 sm:mb-6 text-ios-blue">
             <span>{frontmatter.version}</span>
             <span>•</span>
             <span>{frontmatter.date}</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-[#1d1d1f] mb-4 sm:mb-6 tracking-tight leading-[1.1]">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-label-primary mb-4 sm:mb-6 tracking-tight leading-[1.1]">
             {frontmatter.title}
           </h1>
-          <p className="text-base sm:text-xl text-[#86868b] max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-xl text-label-quaternary max-w-2xl mx-auto leading-relaxed">
             {frontmatter.subtitle}
           </p>
         </div>
@@ -180,7 +177,7 @@ export function WhitepaperClient({ frontmatter, body }: Props) {
         <div className="no-print flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-3 mb-10 sm:mb-16">
           <a
             href={toc[0] ? `#${toc[0].id}` : '#'}
-            className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 bg-[#007AFF] text-white rounded-full font-medium hover:bg-[#0056b3] active:scale-[0.98] transition-all text-sm sm:text-base"
+            className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 bg-ios-blue text-white rounded-full font-medium hover:bg-[#0062CC] active:scale-[0.98] transition-all text-sm sm:text-base"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -190,7 +187,7 @@ export function WhitepaperClient({ frontmatter, body }: Props) {
           <button
             type="button"
             onClick={handleDownload}
-            className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 bg-white border border-[#d2d2d7] text-[#1d1d1f] rounded-full font-medium hover:bg-[#f5f5f7] active:scale-[0.98] transition-all text-sm sm:text-base"
+            className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 bg-system-bg-primary border border-separator-opaque text-label-primary rounded-full font-medium hover:bg-system-bg-secondary active:scale-[0.98] transition-all text-sm sm:text-base"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V4m0 8l-4-4m4 4l4-4" />
@@ -199,13 +196,13 @@ export function WhitepaperClient({ frontmatter, body }: Props) {
           </button>
         </div>
 
-        <nav className="bg-[#f5f5f7] rounded-2xl p-5 sm:p-8 mb-10 sm:mb-16 no-print">
-          <h2 className="text-lg font-semibold text-[#1d1d1f] mb-6">Table of Contents</h2>
+        <nav className="bg-system-bg-secondary rounded-2xl p-5 sm:p-8 mb-10 sm:mb-16 no-print">
+          <h2 className="text-lg font-semibold text-label-primary mb-6">Table of Contents</h2>
           <ol className="space-y-3">
             {toc.map((h, i) => (
               <li key={h.id}>
-                <a href={`#${h.id}`} className="flex items-center gap-4 text-[#424245] hover:text-[#007AFF] transition-colors">
-                  <span className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-sm font-medium text-[#86868b]">
+                <a href={`#${h.id}`} className="flex items-center gap-4 text-label-secondary hover:text-ios-blue transition-colors">
+                  <span className="w-8 h-8 flex items-center justify-center bg-system-bg-primary rounded-lg text-sm font-medium text-label-quaternary">
                     {i + 1}
                   </span>
                   <span>{h.text}</span>
@@ -231,13 +228,13 @@ export function WhitepaperClient({ frontmatter, body }: Props) {
         </article>
 
         <div className="mt-16 text-center no-print">
-          <div className="bg-gradient-to-r from-[#007AFF] to-[#5856D6] rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-ios-blue to-[#5AC8FA] rounded-2xl p-8 text-white">
             <h3 className="text-2xl font-bold mb-4">Ready to Ride the Alpha?</h3>
             <p className="text-white/80 mb-6 max-w-xl mx-auto">
               One-click deposit. Autonomous execution. ZK-attested decisions on SUI mainnet.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#007AFF] rounded-full font-medium hover:bg-white/90 transition-colors">
+              <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-white text-ios-blue rounded-full font-medium hover:bg-white/90 transition-colors">
                 Launch App
               </Link>
               <Link href="/docs" className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors">
