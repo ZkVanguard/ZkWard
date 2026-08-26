@@ -82,8 +82,14 @@ function formatCount(n: number, singular: string, plural: string): string {
 }
 
 async function fetchPoolSummary(): Promise<PoolSummary | null> {
-  const r = await fetch('/api/sui/community-pool?network=mainnet');
-  const j = await r.json();
+  // Fire both in parallel — the volatility fetch's URL doesn't depend on
+  // the main fetch's data, only its result gates the final honestAth
+  // decision below. Sequential await would double the load-time round-trip.
+  const [mainRes, volRes] = await Promise.all([
+    fetch('/api/sui/community-pool?network=mainnet'),
+    fetch('/api/sui/community-pool?action=volatility&network=mainnet').catch(() => null),
+  ]);
+  const j = await mainRes.json();
   if (!j?.success || !j?.data) return null;
   const d = j.data;
   // Overlay DB-verified ATH on top of the on-chain phantom.
@@ -96,11 +102,10 @@ async function fetchPoolSummary(): Promise<PoolSummary | null> {
   const onChainAth = Number(d.allTimeHighNav ?? 1);
   let honestAth = onChainAth;
   try {
-    const vr = await fetch('/api/sui/community-pool?action=volatility&network=mainnet');
-    const vj = await vr.json();
-    const verifiedAth = Number(vj?.data?.verifiedAth?.sharePrice ?? 0);
-    if (verifiedAth > 0 && verifiedAth < onChainAth) {
-      honestAth = verifiedAth;
+    if (volRes) {
+      const vj = await volRes.json();
+      const verifiedAth = Number(vj?.data?.verifiedAth?.sharePrice ?? 0);
+      if (verifiedAth > 0 && verifiedAth < onChainAth) honestAth = verifiedAth;
     }
   } catch {
     /* non-critical — fall back to on-chain value */
