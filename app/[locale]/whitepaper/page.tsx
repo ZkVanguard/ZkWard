@@ -19,7 +19,12 @@ export async function generateMetadata(
         locales.map((l) => [l, l === defaultLocale ? route : `/${l}${route}`]),
       ),
     },
-    openGraph: { title: 'Whitepaper · ZkWard', url: canonical, type: 'article' },
+    openGraph: {
+      title: 'Whitepaper · ZkWard',
+      url: canonical,
+      type: 'article',
+      images: ['/logo-official.svg'],
+    },
     twitter: { card: 'summary_large_image', title: 'Whitepaper · ZkWard' },
   };
 }

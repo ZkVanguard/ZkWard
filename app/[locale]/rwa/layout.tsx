@@ -16,7 +16,12 @@ export async function generateMetadata(
         locales.map((l) => [l, l === defaultLocale ? path : `/${l}${path}`]),
       ),
     },
-    openGraph: { title: 'Real-world assets · ZkWard', url: canonical, type: 'website' },
+    openGraph: {
+      title: 'Real-world assets · ZkWard',
+      url: canonical,
+      type: 'website',
+      images: ['/logo-official.svg'],
+    },
     twitter: { card: 'summary_large_image', title: 'Real-world assets · ZkWard' },
   };
 }

@@ -16,7 +16,12 @@ export async function generateMetadata(
         locales.map((l) => [l, l === defaultLocale ? path : `/${l}${path}`]),
       ),
     },
-    openGraph: { title: 'ZK-STARK proofs · ZkWard', url: canonical, type: 'website' },
+    openGraph: {
+      title: 'ZK-STARK proofs · ZkWard',
+      url: canonical,
+      type: 'website',
+      images: ['/logo-official.svg'],
+    },
     twitter: { card: 'summary_large_image', title: 'ZK-STARK proofs · ZkWard' },
   };
 }
