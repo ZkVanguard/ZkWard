@@ -14,25 +14,13 @@ module.exports = {
         xs: '475px',
       },
       fontFamily: {
+        // Body/UI — SF system stack (fast, familiar, no web-font cost)
         sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'system-ui', 'sans-serif'],
-        // Warm editorial serif for Claude-style display headings (system stack, no web font)
-        serif: ['Iowan Old Style', 'Apple Garamond', 'Palatino Linotype', 'Palatino', 'Georgia', 'Cambria', 'serif'],
+        // Display — Space Grotesk, self-hosted via next/font/google in layout.tsx.
+        // Applied to hero headlines (h1/h2). SF fallback prevents FOUT while loading.
+        display: ['var(--font-display)', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       colors: {
-        // Claude warm palette — comfortable, paper-like canvas + terracotta accent
-        claude: {
-          bg: '#FAF9F5',       // page canvas (warm paper)
-          surface: '#F3F1E9',  // alternating section panel
-          panel: '#FEFDFB',    // card surface (warm white, lifts off canvas)
-          border: '#E8E3D5',   // warm hairline
-          ink: '#2A2722',      // primary text (warm near-black)
-          ink2: '#6D6860',     // secondary text
-          ink3: '#9A9488',     // tertiary / captions
-          orange: '#D97757',   // Claude orange (primary accent)
-          clay: '#CC785C',     // muted terracotta
-          rust: '#BD5B3D',     // strong / hover
-          sky: '#6A9BCC',      // calm secondary accent
-        },
         // Apple iOS System Colors - Light Mode
         ios: {
           blue: '#007AFF',

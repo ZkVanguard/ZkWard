@@ -1,14 +1,15 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@/i18n/routing';
 import {
-  ArrowRightIcon, ShieldCheckIcon, BoltIcon, ChartBarIcon,
-  SparklesIcon, CubeTransparentIcon, LockClosedIcon,
-} from '@heroicons/react/24/outline';
+  ArrowRight, ShieldCheck, Zap, BarChart3,
+  Sparkles, Layers, Lock,
+} from 'lucide-react';
 import { InstallAppButton } from './InstallAppButton';
+import { Reveal, LiveIndicator, StatusPill, TrustBadge } from './ui/landing';
 
 // Chart is heavy (chart.js + react-chartjs-2). Dynamic-import so the landing
 // paints instantly and the chart hydrates below-the-fold when the user reaches
@@ -59,7 +60,7 @@ const ASSET_GRADIENTS: Record<string, string> = {
 };
 
 function formatUsd(n: number, decimals = 2): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '…';
   const abs = Math.abs(n);
   // Compact suffixes above 10k so the stat cards stay readable at scale.
   // ($3,214,857 in a card is a nightmare; $3.21M is fine.)
@@ -72,7 +73,7 @@ function formatUsd(n: number, decimals = 2): string {
 
 // Compact member/share formatter that also handles pluralisation.
 function formatCount(n: number, singular: string, plural: string): string {
-  if (!Number.isFinite(n) || n < 0) return `— ${plural}`;
+  if (!Number.isFinite(n) || n < 0) return `… ${plural}`;
   const rounded = Math.floor(n);
   if (rounded >= 1_000_000) return `${(rounded / 1_000_000).toFixed(1)}M ${plural}`;
   if (rounded >= 10_000)    return `${(rounded / 1_000).toFixed(1)}K ${plural}`;
@@ -118,21 +119,12 @@ async function fetchPoolSummary(): Promise<PoolSummary | null> {
 }
 
 export const SuiPoolLanding = memo(function SuiPoolLanding() {
-  const { data: pool, isPending: loading } = useQuery({
+  const { data: pool, isPending: loading, dataUpdatedAt } = useQuery({
     queryKey: ['sui-pool-landing'],
     queryFn: fetchPoolSummary,
     refetchInterval: 30_000,
     staleTime: 30_000,
   });
-
-  // Return / ATH-drawdown deliberately not surfaced on landing — those live
-  // on the dashboard where members expect P&L detail. The landing sells the
-  // product (AI + ZK + on-chain execution), not the current tick of a small
-  // pool that's been running through a crypto drawdown. See NavHistoryChart
-  // below for the honest time-series (7D default keeps context tight).
-  const capacityRemainingUsd = pool
-    ? Math.max(0, TVL_CAP_USD - pool.totalNAV)
-    : TVL_CAP_USD;
 
   // Build allocation legend (positive entries only)
   const allocationEntries = pool
@@ -160,93 +152,66 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
         <div className="max-w-[1100px] mx-auto">
           {/* Status pill */}
           <div className="flex items-center justify-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-system-bg-grouped border border-separator-opaque/40">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-ios-green opacity-75 animate-ping" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-ios-green" />
-              </span>
-              <span className="text-footnote font-medium text-label-secondary">
-                Live on SUI Mainnet
-              </span>
-              <span className="w-px h-3 bg-separator-opaque/40" />
-              <span className="text-footnote font-semibold text-label-primary tabular-nums">
-                {formatCount(pool?.memberCount ?? 0, 'member', 'members')}
-              </span>
-            </div>
+            <StatusPill
+              left={<LiveIndicator label="Live on SUI Mainnet" />}
+              right={
+                <span className="text-footnote font-semibold text-label-primary tabular-nums">
+                  {formatCount(pool?.memberCount ?? 0, 'member', 'members')}
+                </span>
+              }
+            />
           </div>
 
-          {/* Headline — scales down on tiny screens so it doesn't overflow */}
-          <h1 className="text-center text-[32px] xs:text-[36px] sm:text-[52px] md:text-[64px] lg:text-[80px] font-bold tracking-[-0.03em] leading-[1.05] text-label-primary mb-5 sm:mb-8 break-words">
-            AI-managed USDC vault.
+          {/* Headline — tightened to 2 short lines, no gradient text (the
+              Vault Meter below is the visual signature). Space Grotesk
+              display face gives numbers + short phrases distinctive shape. */}
+          <h1 className="font-display text-center text-[38px] xs:text-[44px] sm:text-[60px] md:text-[72px] lg:text-[84px] font-semibold tracking-[-0.04em] leading-[0.96] text-label-primary mb-4 sm:mb-6 break-words">
+            Your USDC.
             <br />
-            <span className="bg-gradient-to-r from-ios-blue to-[#5AC8FA] bg-clip-text text-transparent">
-              Real returns. On chain.
-            </span>
+            Actively managed on-chain.
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-center text-base sm:text-callout md:text-[20px] text-label-secondary max-w-[640px] mx-auto leading-relaxed sm:leading-[1.5] mb-8 sm:mb-12 px-1">
-            Deposit USDC. A 7-agent system allocates across BTC, ETH, and SUI
-            with auto-hedged perp protection on BlueFin. Verified by ZK-STARK
-            proofs.
+          {/* Subtitle — 15 words, one line's worth on desktop */}
+          <p className="text-center text-base sm:text-[19px] text-label-secondary max-w-[580px] mx-auto leading-relaxed mb-10 sm:mb-14 px-1">
+            A 7-agent AI vault. BTC, ETH, SUI with auto-hedged perps on BlueFin.
+            Verified by ZK-STARK.
           </p>
 
+          {/* ─── VAULT METER (signature element) ─── */}
+          {/* Shows the vault's live state as the hero's real visual, instead
+              of a text hero + stat cards. NAV + composition + capacity in one
+              card. This is "the product IS the pitch". */}
+          <div className="max-w-[720px] mx-auto mb-3 sm:mb-4">
+            <VaultMeter pool={pool} loading={loading} cap={TVL_CAP_USD} />
+          </div>
+          {/* Live-refresh ticker — proves the auto-refresh cadence is real,
+              not marketing copy. Uses useQuery's dataUpdatedAt (client truth). */}
+          <div className="max-w-[720px] mx-auto mb-8 sm:mb-10">
+            <RefreshTicker updatedAt={dataUpdatedAt} intervalMs={30_000} loading={loading} />
+          </div>
+
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-6">
             <Link
               href="/dashboard"
               className="group inline-flex items-center justify-center gap-2 px-8 h-[52px] sm:h-[56px] bg-ios-blue text-white text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] transition-all duration-200 shadow-ios-2 w-full sm:w-auto"
             >
               Deposit USDC
-              <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
             </Link>
             <a
               href="#how-it-works"
               className="inline-flex items-center gap-1 h-[52px] sm:h-[56px] px-2 text-headline font-medium text-label-secondary hover:text-ios-blue transition-colors"
             >
               How it works
-              <ArrowRightIcon className="w-4 h-4" strokeWidth={2.25} />
+              <ArrowRight className="w-4 h-4" strokeWidth={2.25} />
             </a>
           </div>
 
           {/* Install-as-app row — renders nothing when already installed or the
-              browser hasn't emitted beforeinstallprompt yet. Sits below the
-              primary CTA so it doesn't compete with "Deposit USDC". */}
-          <div className="flex justify-center mb-14 sm:mb-16">
+              browser hasn't emitted beforeinstallprompt yet. */}
+          <div className="flex justify-center">
             <InstallAppButton className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white/80 backdrop-blur border border-separator-opaque/40 text-label-secondary text-sm font-medium hover:text-ios-blue hover:border-ios-blue/40 active:scale-[0.98] transition-all" />
-          </div>
-
-          {/* ─── LIVE STATS BAR ─── */}
-          {/* Reframed 2026-08-17: hero used to lead with Total Return (in red
-              while the pool is drawn down) and "Off ATH %" hint — read as a
-              scary flag on a small pool. Replaced with capability/scale
-              signals that answer "is this real and can I get in?" — leaving
-              return context to the chart below and the /dashboard tab. */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 max-w-[920px] mx-auto min-w-0">
-            <StatCard
-              label="Pool NAV"
-              value={loading ? '—' : formatUsd(pool?.totalNAV ?? 0)}
-              hint="Live on-chain"
-              loading={loading}
-            />
-            <StatCard
-              label="Capacity"
-              value={loading ? '—' : formatUsd(capacityRemainingUsd)}
-              hint={`of ${formatUsd(TVL_CAP_USD)} cap`}
-              loading={loading}
-            />
-            <StatCard
-              label="Members"
-              value={loading ? '—' : formatCount(pool?.memberCount ?? 0, 'member', 'members').split(' ')[0]}
-              hint="Depositing today"
-              loading={loading}
-            />
-            <StatCard
-              label="Share Price"
-              value={loading ? '—' : `$${(pool?.sharePrice ?? 1).toFixed(4)}`}
-              hint="Inception $1.0000"
-              loading={loading}
-            />
           </div>
         </div>
       </section>
@@ -267,14 +232,14 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
       {/* LIVE COMPOSITION                                                */}
       {/* ─────────────────────────────────────────────────────────────── */}
       <section className="py-12 sm:py-20 md:py-24 px-4 sm:px-5 lg:px-8 bg-system-bg-secondary min-w-0">
-        <div className="max-w-[1100px] mx-auto">
+        <Reveal className="max-w-[1100px] mx-auto">
           <div className="flex flex-col lg:flex-row gap-8 sm:gap-12 lg:gap-16 items-start min-w-0">
             {/* Left: heading */}
             <div className="lg:max-w-[420px] lg:sticky lg:top-24 min-w-0">
               <p className="text-[11px] sm:text-caption-1 font-semibold uppercase tracking-wide text-ios-blue mb-2 sm:mb-3">
                 Live composition
               </p>
-              <h2 className="text-[26px] sm:text-[34px] md:text-[40px] lg:text-[48px] font-bold tracking-[-0.02em] leading-[1.1] text-label-primary mb-3 sm:mb-5 break-words">
+              <h2 className="text-[26px] sm:text-[34px] md:text-[40px] lg:text-[48px] font-display font-semibold tracking-[-0.03em] leading-[1.05] text-label-primary mb-3 sm:mb-5 break-words">
                 Where your USDC is right now.
               </h2>
               <p className="text-sm sm:text-callout text-label-secondary leading-relaxed sm:leading-[1.55]">
@@ -315,7 +280,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
                           <div>
                             <div className="text-headline font-semibold text-label-primary">{asset}</div>
                             <div className="text-caption-1 text-label-tertiary">
-                              {pool ? formatUsd((pool.totalNAV * Number(pct)) / 100, 2) : '—'}
+                              {pool ? formatUsd((pool.totalNAV * Number(pct)) / 100, 2) : '…'}
                             </div>
                           </div>
                         </div>
@@ -344,19 +309,19 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               )}
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ─────────────────────────────────────────────────────────────── */}
       {/* HOW IT WORKS                                                    */}
       {/* ─────────────────────────────────────────────────────────────── */}
       <section id="how-it-works" className="py-14 sm:py-20 md:py-28 px-4 sm:px-5 lg:px-8 bg-system-bg-primary min-w-0">
-        <div className="max-w-[1100px] mx-auto">
+        <Reveal className="max-w-[1100px] mx-auto">
           <div className="text-center mb-10 sm:mb-14 md:mb-16">
             <p className="text-[11px] sm:text-caption-1 font-semibold uppercase tracking-wide text-ios-blue mb-2 sm:mb-3">
               How it works
             </p>
-            <h2 className="text-[26px] sm:text-[34px] md:text-[44px] lg:text-[52px] font-bold tracking-[-0.02em] leading-[1.1] text-label-primary mb-3 sm:mb-4 break-words">
+            <h2 className="text-[26px] sm:text-[34px] md:text-[44px] lg:text-[52px] font-display font-semibold tracking-[-0.03em] leading-[1.05] text-label-primary mb-3 sm:mb-4 break-words">
               Three things working together.
             </h2>
             <p className="text-sm sm:text-callout text-label-secondary max-w-[560px] mx-auto leading-relaxed sm:leading-[1.55] px-1">
@@ -364,90 +329,88 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 min-w-0">
-            <FeatureCard
-              icon={<SparklesIcon className="w-6 h-6" />}
+          <div className="max-w-[760px] mx-auto min-w-0">
+            <TimelineStep
+              step={1}
+              icon={<Sparkles className="w-5 h-5" />}
               accent="from-[#007AFF] to-[#5AC8FA]"
-              eyebrow="Step 1"
               title="AI decides"
               body="Seven specialised agents fuse Polymarket prediction signals, Crypto.com price feeds and funding rates into one allocation target."
             />
-            <FeatureCard
-              icon={<BoltIcon className="w-6 h-6" />}
+            <TimelineStep
+              step={2}
+              icon={<Zap className="w-5 h-5" />}
               accent="from-[#34C759] to-[#30D158]"
-              eyebrow="Step 2"
               title="Pool rebalances"
-              body="USDC is swapped on-chain across BTC, ETH and SUI via the 7k aggregator. Drift-based — only trades when allocation actually shifts."
+              body="USDC is swapped on-chain across BTC, ETH and SUI via the 7k aggregator. Drift-based: only trades when allocation actually shifts."
             />
-            <FeatureCard
-              icon={<ShieldCheckIcon className="w-6 h-6" />}
+            <TimelineStep
+              step={3}
+              icon={<ShieldCheck className="w-5 h-5" />}
               accent="from-[#AF52DE] to-[#BF5AF2]"
-              eyebrow="Step 3"
               title="Hedges open"
               body="A matching BlueFin perp position is opened or adjusted to delta-neutralise downside while keeping upside exposure."
+              last
             />
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ─────────────────────────────────────────────────────────────── */}
       {/* TRUST STRIP — safety guarantees on chain                        */}
       {/* ─────────────────────────────────────────────────────────────── */}
       <section className="py-12 sm:py-20 md:py-24 px-4 sm:px-5 lg:px-8 bg-system-bg-secondary min-w-0">
-        <div className="max-w-[1100px] mx-auto">
+        <Reveal className="max-w-[1100px] mx-auto">
           <div className="text-center mb-8 sm:mb-12">
-            <p className="text-[11px] sm:text-caption-1 font-semibold uppercase tracking-wide text-ios-blue mb-2 sm:mb-3">
-              Built for trust
-            </p>
-            <h2 className="text-[24px] sm:text-[28px] md:text-[36px] lg:text-[42px] font-bold tracking-[-0.02em] leading-[1.15] text-label-primary mb-3 break-words">
+            <h2 className="text-[24px] sm:text-[28px] md:text-[36px] lg:text-[42px] font-display font-semibold tracking-[-0.03em] leading-[1.05] text-label-primary mb-3 break-words">
               Every safety guard is on chain.
             </h2>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 min-w-0">
-            <TrustCard
-              icon={<LockClosedIcon className="w-5 h-5" />}
+            <TrustBadge
+              icon={<Lock className="w-5 h-5" />}
               title="TVL cap"
               value="$10,000"
               hint="Hard ceiling enforced in Move"
             />
-            <TrustCard
-              icon={<CubeTransparentIcon className="w-5 h-5" />}
+            <TrustBadge
+              icon={<Layers className="w-5 h-5" />}
               title="NAV oracle"
               value="Strict mode"
               hint="Deposits revert if attestation is > 2 h stale"
             />
-            <TrustCard
-              icon={<ShieldCheckIcon className="w-5 h-5" />}
+            <TrustBadge
+              icon={<ShieldCheck className="w-5 h-5" />}
               title="Withdraw cap"
               value="25% / day"
               hint="Per-tx safety throttle"
             />
-            <TrustCard
-              icon={<ChartBarIcon className="w-5 h-5" />}
+            <TrustBadge
+              icon={<BarChart3 className="w-5 h-5" />}
               title="ZK-STARK proofs"
               value="Post-quantum"
               hint="Risk attestations published"
             />
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ─────────────────────────────────────────────────────────────── */}
       {/* PLATFORM SURFACES — discoverability for the BlackRock-shaped views */}
       {/* ─────────────────────────────────────────────────────────────── */}
       <section className="py-14 sm:py-20 md:py-24 px-4 sm:px-5 lg:px-8 bg-system-bg-secondary border-y border-separator-opaque/20 min-w-0">
-        <div className="max-w-[1100px] mx-auto">
+        <Reveal className="max-w-[1100px] mx-auto">
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
             <div className="inline-block text-[11px] sm:text-caption-1 font-semibold uppercase tracking-wide text-label-tertiary mb-2 sm:mb-3">
-              How it works
+              Explore the platform
             </div>
-            <h2 className="text-[24px] sm:text-[28px] md:text-[36px] lg:text-[44px] font-bold tracking-[-0.02em] leading-[1.1] text-label-primary mb-3 sm:mb-4 break-words">
+            <h2 className="text-[24px] sm:text-[28px] md:text-[36px] lg:text-[44px] font-display font-semibold tracking-[-0.03em] leading-[1.05] text-label-primary mb-3 sm:mb-4 break-words">
               An asset manager you can audit line by line.
             </h2>
             <p className="text-sm sm:text-callout md:text-[18px] text-label-secondary max-w-[640px] mx-auto leading-relaxed sm:leading-[1.5] px-1">
               A 7-agent orchestration fuses prediction-market signals, executes
-              hedges on BlueFin, and ZK-attests every meaningful decision — all
+              hedges on BlueFin, and ZK-attests every meaningful decision. All
               live on Sui mainnet.
             </p>
           </div>
@@ -469,13 +432,13 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               href="/rwa"
               eyebrow="RWA custody"
               title="Real-world assets, provably backed."
-              body="Custodian-signed attestations bind portfolios to off-chain assets — without revealing the list. For issuers, custodians, institutions."
+              body="Custodian-signed attestations bind portfolios to off-chain assets. The list itself stays private. For issuers, custodians, institutions."
             />
             <SurfaceCard
               href="/agents"
               eyebrow="7-agent system"
               title="Autonomous orchestration."
-              body="Lead, Risk, Hedging, Settlement, Reporting, PriceMonitor, SuiPool — running 24/7 with 2-of-3 consensus on trades &gt; $100k."
+              body="Lead, Risk, Hedging, Settlement, Reporting, PriceMonitor, SuiPool. Running 24/7 with 2-of-3 consensus on trades over $100k."
             />
             <SurfaceCard
               href="/zk"
@@ -490,7 +453,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               body="Prediction-market alpha, 7-agent architecture, STARK-attested execution, tokenomics, roadmap."
             />
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ─────────────────────────────────────────────────────────────── */}
@@ -498,7 +461,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
       {/* ─────────────────────────────────────────────────────────────── */}
       <section className="py-14 sm:py-20 md:py-28 px-4 sm:px-5 lg:px-8 bg-system-bg-primary min-w-0">
         <div className="max-w-[800px] mx-auto text-center min-w-0">
-          <h2 className="text-[26px] sm:text-[34px] md:text-[44px] lg:text-[52px] font-bold tracking-[-0.02em] leading-[1.1] text-label-primary mb-4 sm:mb-5 break-words">
+          <h2 className="text-[26px] sm:text-[34px] md:text-[44px] lg:text-[52px] font-display font-semibold tracking-[-0.03em] leading-[1.05] text-label-primary mb-4 sm:mb-5 break-words">
             Join in seconds.
           </h2>
           <p className="text-sm sm:text-callout md:text-[20px] text-label-secondary mb-6 sm:mb-8 leading-relaxed sm:leading-[1.5] px-1">
@@ -510,13 +473,24 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               <>Live on SUI Mainnet.</>
             )}
           </p>
-          <Link
-            href="/dashboard"
-            className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 sm:px-10 h-[52px] sm:h-[56px] bg-ios-blue text-white text-base sm:text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] transition-all duration-200 shadow-ios-2"
-          >
-            Open Dashboard
-            <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+            <Link
+              href="/dashboard"
+              className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 sm:px-10 h-[52px] sm:h-[56px] bg-ios-blue text-white text-base sm:text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] transition-all duration-200 shadow-ios-2"
+            >
+              Deposit USDC
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
+            </Link>
+            <a
+              href="https://github.com/ZkVanguard/ZkVanguard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 h-[52px] sm:h-[56px] px-2 text-headline font-medium text-label-secondary hover:text-ios-blue transition-colors"
+            >
+              View source
+              <ArrowRight className="w-4 h-4" strokeWidth={2.25} />
+            </a>
+          </div>
           {pool?.paused && (
             <p className="mt-4 sm:mt-6 text-xs sm:text-footnote text-ios-orange font-medium">
               Note: deposits are currently paused for maintenance.
@@ -529,65 +503,160 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
 });
 
 // ───────────────────────────────────────────────────────────────────────────
-// Subcomponents
+// Subcomponents (page-specific — shared primitives live in ./ui/landing)
 // ───────────────────────────────────────────────────────────────────────────
 
-function StatCard({
-  label, value, hint, valueClass = 'text-label-primary', loading = false,
+// RefreshTicker — small "Live · updated Ns ago · next in Ns" strip that ticks
+// every second. Uses useQuery's dataUpdatedAt as ground truth (real client
+// timestamp when the fetch resolved) so it can't lie about staleness.
+function RefreshTicker({
+  updatedAt, intervalMs, loading,
 }: {
-  label: string; value: string; hint?: string; valueClass?: string; loading?: boolean;
+  updatedAt: number; intervalMs: number; loading: boolean;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (loading || !updatedAt) return null;
+  const ageMs = Math.max(0, now - updatedAt);
+  const ageS = Math.floor(ageMs / 1000);
+  const nextS = Math.max(0, Math.ceil((intervalMs - ageMs) / 1000));
   return (
-    <div className="bg-system-bg-primary rounded-ios-xl p-3 sm:p-5 md:p-6 shadow-ios-1 border border-separator-opaque/30 min-w-0">
-      <div className="text-[10px] sm:text-caption-1 font-medium uppercase tracking-wide text-label-tertiary mb-1.5 sm:mb-2 truncate">
-        {label}
-      </div>
-      <div className={`text-lg sm:text-title-2 md:text-title-1 font-bold tabular-nums break-all ${valueClass} ${loading ? 'animate-pulse' : ''}`}>
-        {value}
-      </div>
-      {hint && (
-        <div className="text-[10px] sm:text-caption-1 text-label-tertiary mt-1 sm:mt-1.5 tabular-nums truncate">{hint}</div>
-      )}
+    <div className="flex items-center justify-center gap-2 text-[11px] sm:text-caption-1 text-label-tertiary tabular-nums">
+      <span className="relative flex h-1.5 w-1.5">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-ios-green opacity-75 animate-ping" />
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-ios-green" />
+      </span>
+      <span>Live</span>
+      <span className="w-px h-3 bg-separator-opaque/40" />
+      <span>Updated {ageS}s ago</span>
+      <span className="w-px h-3 bg-separator-opaque/40 hidden sm:inline-block" />
+      <span className="hidden sm:inline">Next refresh in {nextS}s</span>
     </div>
   );
 }
 
-function FeatureCard({
-  icon, accent, eyebrow, title, body,
+// VaultMeter — the hero's signature element. A single card that IS the
+// vault's live state: NAV, allocation, capacity. Replaces the generic
+// text-hero + 4-stat-card pattern. Every landing sells; this one shows.
+function VaultMeter({
+  pool, loading, cap,
 }: {
-  icon: React.ReactNode; accent: string; eyebrow: string; title: string; body: string;
+  pool: PoolSummary | null | undefined;
+  loading: boolean;
+  cap: number;
 }) {
-  return (
-    <div className="bg-system-bg-secondary rounded-ios-xl p-4 sm:p-6 md:p-7 border border-separator-opaque/30 hover:shadow-ios-2 transition-shadow duration-300 min-w-0">
-      <div
-        className={`inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-ios bg-gradient-to-br ${accent} text-white mb-3 sm:mb-5 shadow-ios-1 flex-shrink-0`}
-      >
-        {icon}
-      </div>
-      <div className="text-[10px] sm:text-caption-1 font-semibold uppercase tracking-wide text-label-tertiary mb-1 sm:mb-1.5">
-        {eyebrow}
-      </div>
-      <h3 className="text-base sm:text-title-3 font-semibold text-label-primary mb-1.5 sm:mb-2 break-words">{title}</h3>
-      <p className="text-sm sm:text-subheadline text-label-secondary leading-relaxed sm:leading-[1.55] break-words">{body}</p>
-    </div>
-  );
-}
+  const entries = pool
+    ? Object.entries(pool.allocation || {})
+        .filter(([, v]) => Number(v) > 0)
+        .sort((a, b) => Number(b[1]) - Number(a[1]))
+    : [];
+  const capacityPct = pool ? Math.min(100, (pool.totalNAV / cap) * 100) : 0;
 
-function TrustCard({
-  icon, title, value, hint,
-}: {
-  icon: React.ReactNode; title: string; value: string; hint: string;
-}) {
   return (
-    <div className="bg-system-bg-primary rounded-ios-xl p-3 sm:p-5 md:p-6 border border-separator-opaque/30 shadow-ios-1 min-w-0">
-      <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 min-w-0">
-        <div className="text-ios-blue flex-shrink-0">{icon}</div>
-        <div className="text-[10px] sm:text-caption-1 font-semibold uppercase tracking-wide text-label-tertiary truncate">
-          {title}
+    <div className="relative bg-system-bg-primary rounded-[24px] p-5 sm:p-7 border border-separator-opaque/40 shadow-ios-2 overflow-hidden">
+      {/* Brand accent bar — the one signature flourish */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-ios-blue via-[#5AC8FA] to-ios-blue" />
+
+      {/* NAV + Share price */}
+      <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6 pt-1">
+        <div className="min-w-0">
+          <div className="text-[10px] sm:text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-1.5">
+            Pool NAV
+          </div>
+          <div className={`text-[36px] sm:text-[52px] md:text-[60px] font-bold tabular-nums leading-none text-label-primary break-all ${loading ? 'animate-pulse' : ''}`}>
+            {loading ? '…' : formatUsd(pool?.totalNAV ?? 0)}
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <div className="text-[10px] sm:text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-1.5">
+            Share price
+          </div>
+          <div className="text-[20px] sm:text-[26px] font-semibold tabular-nums text-label-primary">
+            {loading ? '…' : `$${(pool?.sharePrice ?? 1).toFixed(4)}`}
+          </div>
         </div>
       </div>
-      <div className="text-base sm:text-title-3 md:text-title-2 font-bold text-label-primary mb-1 break-words tabular-nums">{value}</div>
-      <div className="text-[10px] sm:text-caption-1 text-label-tertiary leading-[1.4] break-words">{hint}</div>
+
+      {/* Composition bar + legend */}
+      <div className="mb-5 sm:mb-6">
+        <div className="h-2.5 rounded-full overflow-hidden flex bg-system-bg-grouped">
+          {entries.length > 0 ? entries.map(([asset, pct]) => (
+            <div
+              key={asset}
+              className={`bg-gradient-to-r ${ASSET_GRADIENTS[asset] || 'from-gray-300 to-gray-400'} transition-all duration-500`}
+              style={{ width: `${pct}%` }}
+              title={`${asset} ${pct}%`}
+            />
+          )) : (
+            <div className="w-full bg-system-bg-grouped animate-pulse" />
+          )}
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs sm:text-caption-1">
+          {entries.map(([asset, pct]) => (
+            <div key={asset} className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${ASSET_GRADIENTS[asset]}`} />
+              <span className="font-semibold text-label-primary">{asset}</span>
+              <span className="tabular-nums text-label-secondary">{Number(pct).toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Capacity */}
+      <div className="pt-5 sm:pt-6 border-t border-separator-opaque/30">
+        <div className="flex items-center justify-between text-xs sm:text-caption-1 mb-2">
+          <span className="text-label-tertiary uppercase tracking-wide font-semibold">Capacity</span>
+          <span className="tabular-nums text-label-secondary">
+            {loading ? '…' : `${formatUsd(pool?.totalNAV ?? 0)} of ${formatUsd(cap)}`}
+          </span>
+        </div>
+        <div className="h-1 rounded-full bg-system-bg-grouped overflow-hidden">
+          <div
+            className="h-full bg-ios-blue rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${capacityPct}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// TimelineStep — vertical connected step. Replaces the banned "3 equal
+// feature cards" pattern. Content genuinely is a sequence, so numbers help.
+function TimelineStep({
+  step, icon, accent, title, body, last = false,
+}: {
+  step: number;
+  icon: React.ReactNode;
+  accent: string;
+  title: string;
+  body: string;
+  last?: boolean;
+}) {
+  return (
+    <div className="relative flex gap-4 sm:gap-6 pb-8 sm:pb-10 last:pb-0">
+      {!last && (
+        <div className="absolute left-[19px] sm:left-[23px] top-11 sm:top-13 bottom-2 w-px bg-gradient-to-b from-separator-opaque/60 to-separator-opaque/10" />
+      )}
+      <div className="relative flex-shrink-0">
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${accent} text-white flex items-center justify-center shadow-ios-1`}>
+          {icon}
+        </div>
+        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white border border-separator-opaque/40 text-[10px] sm:text-caption-1 font-bold text-label-primary flex items-center justify-center tabular-nums">
+          {step}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0 pt-1">
+        <h3 className="text-lg sm:text-title-3 font-semibold text-label-primary mb-1.5 break-words">
+          {title}
+        </h3>
+        <p className="text-sm sm:text-callout text-label-secondary leading-relaxed break-words">
+          {body}
+        </p>
+      </div>
     </div>
   );
 }
@@ -606,7 +675,7 @@ function SurfaceCard({
         <div className="text-[10px] sm:text-caption-1 font-semibold uppercase tracking-wide text-label-tertiary truncate">
           {eyebrow}
         </div>
-        <ArrowRightIcon
+        <ArrowRight
           className="w-4 h-4 text-label-tertiary group-hover:text-ios-blue group-hover:translate-x-1 transition-all flex-shrink-0"
           strokeWidth={2}
         />

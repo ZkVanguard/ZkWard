@@ -3,9 +3,7 @@
 @tailwind utilities;
 
 /* ── Mobile safe-area utilities ────────────────────────────────────
-   iPhone home indicator + notch land in env(safe-area-inset-*).
-   These utilities let JSX opt into safe-area padding without ejecting
-   from Tailwind. Use pb-safe on any fixed bottom bar. */
+   iPhone home indicator + notch land in env(safe-area-inset-*). */
 @layer utilities {
   .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }
   .pt-safe { padding-top: env(safe-area-inset-top, 0); }
@@ -17,18 +15,12 @@
   .bottom-safe { bottom: env(safe-area-inset-bottom, 0); }
 
   /* No-burst cage — apply to any panel/card root that shouldn't overflow
-     its parent on mobile. Combines the three properties that together
-     stop runaway children from pushing the container wider than its
-     grid/flex track. */
+     its parent on mobile. */
   .no-burst { min-width: 0; max-width: 100%; overflow: hidden; }
 }
 
-/* Hide inner section headings (`.pool-inner-heading`) when the component
-   is rendered inside a mobile CollapsibleSection — otherwise the user
-   sees the outer collapsible title AND the child's own title stacked,
-   which is redundant chrome. Desktop is unaffected because
-   CollapsibleSection renders children without the data attribute above
-   the ≥sm breakpoint. */
+/* Hide inner section headings inside mobile CollapsibleSection to avoid
+   the outer-title + inner-title double stack. */
 @media (max-width: 639px) {
   [data-inside-collapsible="true"] .pool-inner-heading { display: none; }
   [data-inside-collapsible="true"] .pool-inner-subheading { display: none; }
@@ -36,34 +28,18 @@
 
 /* ── Platform-wide overflow safety ─────────────────────────────────
    Defensive globals so any child that forgot responsive treatment
-   cannot horizontally scroll the page. html/body already have
-   overflow-x: hidden; these rules stop the offenders themselves. */
+   cannot horizontally scroll the page. */
 @media (max-width: 640px) {
-  /* Media never wider than its container */
-  img, svg, video, canvas, iframe {
-    max-width: 100%;
-    height: auto;
-  }
-  /* Long unbroken strings (wallet addresses, tx hashes, tokens) wrap
-     instead of pushing the container. Individual components can still
-     opt out with whitespace-nowrap where wrapping would look wrong. */
+  img, svg, video, canvas, iframe { max-width: 100%; height: auto; }
   h1, h2, h3, h4, h5, h6, p, span, li, td, th, dd, dt, blockquote {
     overflow-wrap: break-word;
     word-break: break-word;
   }
-  /* Code and pre-formatted content scrolls within its own box */
-  pre, code {
-    max-width: 100%;
-    overflow-x: auto;
-  }
-  /* Tables get a horizontal scroll container by default */
+  pre, code { max-width: 100%; overflow-x: auto; }
   table { max-width: 100%; }
 }
 
-/* Prevent iOS Safari's automatic zoom on focused inputs. Any input
-   whose font-size is < 16px triggers zoom; setting 16px minimum here
-   keeps the whole app usable on mobile without disabling zoom entirely
-   (which would be an accessibility violation). */
+/* Prevent iOS Safari's automatic zoom on focused inputs (< 16px triggers zoom). */
 @media (max-width: 640px) {
   input[type="text"], input[type="number"], input[type="email"],
   input[type="password"], input[type="search"], input[type="tel"],
@@ -72,51 +48,33 @@
   }
 }
 
-/* Apple iOS Design System - Enhanced Contrast */
+/* ── Design tokens (CSS variables consumed by dashboard components) ── */
 :root {
-  /* Background Colors */
   --background-primary: #FFFFFF;
   --background-secondary: #F5F5F7;
   --background-tertiary: #FAFAFA;
   --background-grouped: #F2F2F7;
-  
-  /* Text Colors - Enhanced Contrast (Darker for better visibility) */
+
   --label-primary: #1D1D1F;
   --label-secondary: #424245;
   --label-tertiary: #6E6E73;
-  --label-quaternary: #6E6E73; /* Changed from #86868B to darker #6E6E73 */
-  
-  /* System Colors */
+  --label-quaternary: #6E6E73;
+
   --color-blue: #007AFF;
   --color-green: #34C759;
   --color-orange: #FF9500;
   --color-red: #FF3B30;
-  --color-gray: #6E6E73; /* Changed from #8E8E93 to darker */
-  
-  /* Separator Colors */
+  --color-gray: #6E6E73;
+
   --separator-opaque: #C6C6C8;
   --separator-non-opaque: rgba(60, 60, 67, 0.36);
-  
-  /* Borders */
+
   --border-subtle: rgba(0, 0, 0, 0.08);
   --border-medium: rgba(0, 0, 0, 0.18);
-  
-  /* Card backgrounds with better contrast */
+
   --card-bg: #FFFFFF;
   --card-bg-hover: #FAFAFA;
-  
-  /* Apple Spacing Scale */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 32px;
-  --spacing-3xl: 48px;
-  --spacing-4xl: 64px;
-  --spacing-5xl: 80px;
-  
-  /* Apple Typography Scale */
+
   --font-size-display: 64px;
   --font-size-title-1: 34px;
   --font-size-title-2: 28px;
@@ -128,935 +86,262 @@
   --font-size-footnote: 13px;
   --font-size-caption-1: 12px;
   --font-size-caption-2: 11px;
-  
-  /* Apple Letter Spacing */
+
   --letter-spacing-display: -0.02em;
   --letter-spacing-title: -0.01em;
   --letter-spacing-body: 0;
-  
-  /* Apple Shadows */
+
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.03);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.12);
-  
-  /* Apple Border Radius */
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 20px;
-  --radius-xl: 24px;
 }
 
 .dark {
-  /* Dark mode overrides */
   --background-primary: #000000;
   --background-secondary: #1C1C1E;
   --background-tertiary: #2C2C2E;
   --background-grouped: #000000;
-  
-  /* Enhanced dark mode text contrast */
+
   --label-primary: #FFFFFF;
   --label-secondary: #EBEBF0;
   --label-tertiary: #AEAEB2;
   --label-quaternary: #8E8E93;
-  
+
   --separator-opaque: #48484A;
   --separator-non-opaque: rgba(84, 84, 88, 0.65);
-  
+
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-medium: rgba(255, 255, 255, 0.18);
-  
+
   --card-bg: #1C1C1E;
   --card-bg-hover: #2C2C2E;
-  
-  /* Dark mode shadows */
+
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* Force Apple Light Theme - Use on specific pages/sections */
+/* Force Apple Light Theme — used by the whitepaper client which needs light
+   regardless of system preference. */
 .light-theme {
   --background-primary: #FFFFFF;
   --background-secondary: #F5F5F7;
-  --background-tertiary: #FAFAFA;
-  --background-grouped: #F2F2F7;
   --label-primary: #1D1D1F;
   --label-secondary: #424245;
   --label-tertiary: #6E6E73;
-  --label-quaternary: #6E6E73;
-  --separator-opaque: #C6C6C8;
-  --separator-non-opaque: rgba(60, 60, 67, 0.36);
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-medium: rgba(0, 0, 0, 0.18);
   --card-bg: #FFFFFF;
-  --card-bg-hover: #FAFAFA;
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.12);
   color-scheme: light;
   background-color: #FFFFFF;
 }
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.light-theme h1, .light-theme h2, .light-theme h3,
+.light-theme h4, .light-theme h5, .light-theme h6,
+.light-theme p, .light-theme span, .light-theme div,
+.light-theme a, .light-theme li, .light-theme td,
+.light-theme th, .light-theme label, .light-theme button,
+.light-theme strong, .light-theme em {
+  color: #1D1D1F;
 }
+.light-theme .text-white, .light-theme .text-white\/80 { color: white !important; }
+
+/* ── Base resets ── */
+* { box-sizing: border-box; padding: 0; margin: 0; }
 
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
-  background: var(--background-secondary);
+  background: var(--background-primary);
 }
 
 body {
   max-width: 100vw;
   overflow-x: hidden;
   color: var(--label-primary);
-  background: var(--background-grouped);
+  background: var(--background-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'system-ui', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
 }
 
-/* Text color is inherited from body - let Tailwind explicit classes override */
-/* Removed global :where() rule that was overriding explicit Tailwind color classes */
+h1, h2, h3, h4, h5, h6 { font-weight: 600; }
 
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-}
+/* Semantic text-color utilities (used by dashboard components) */
+.text-primary { color: var(--label-primary) !important; }
+.text-secondary { color: var(--label-secondary) !important; }
+.text-tertiary { color: var(--label-tertiary) !important; }
+.text-muted { color: var(--label-quaternary) !important; }
 
-/* Light theme text colors - explicitly set dark text */
-.light-theme h1, .light-theme h2, .light-theme h3, 
-.light-theme h4, .light-theme h5, .light-theme h6,
-.light-theme p, .light-theme span, .light-theme div,
-.light-theme a, .light-theme li, .light-theme td, 
-.light-theme th, .light-theme label, .light-theme button,
-.light-theme strong, .light-theme em {
-  color: #1D1D1F;
-}
-
-/* Footer uses same theme as rest of site */
-
-/* Allow white text on solid colored backgrounds within light-theme */
-.light-theme .text-white,
-.light-theme .text-white\/80,
-.light-theme .bg-\[\#007AFF\] *,
-.light-theme .bg-green-500 *,
-.light-theme .bg-blue-500 * {
-  color: white !important;
-}
-
-/* Preserve specific text colors in light-theme */
-.light-theme .text-\[\#86868b\] { color: #86868b !important; }
-.light-theme .text-\[\#424245\] { color: #424245 !important; }
-.light-theme .text-\[\#6E6E73\] { color: #6E6E73 !important; }
-.light-theme .text-\[\#007AFF\] { color: #007AFF !important; }
-
-.text-secondary {
-  color: var(--label-secondary) !important;
-}
-
-.text-tertiary {
-  color: var(--label-tertiary) !important;
-}
-
-.text-muted {
-  color: var(--label-quaternary) !important;
-}
-
-/* Remove all decorative background effects */
-
+/* ── Apple typography scale utilities ── */
 @layer utilities {
-  /* Apple Typography Classes */
   .text-display {
     font-size: var(--font-size-display);
     font-weight: 700;
     letter-spacing: var(--letter-spacing-display);
     line-height: 1.05;
   }
-  
   .text-title-1 {
     font-size: var(--font-size-title-1);
     font-weight: 600;
     letter-spacing: var(--letter-spacing-title);
     line-height: 1.15;
   }
-  
   .text-title-2 {
     font-size: var(--font-size-title-2);
     font-weight: 600;
     letter-spacing: var(--letter-spacing-title);
     line-height: 1.2;
   }
-  
   .text-title-3 {
     font-size: var(--font-size-title-3);
     font-weight: 600;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.25;
   }
-  
   .text-headline {
     font-size: var(--font-size-headline);
     font-weight: 600;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.3;
   }
-  
   .text-body {
     font-size: var(--font-size-body);
     font-weight: 400;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.4;
   }
-  
   .text-callout {
     font-size: var(--font-size-callout);
     font-weight: 400;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.35;
   }
-  
   .text-subhead {
     font-size: var(--font-size-subhead);
     font-weight: 400;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.35;
   }
-  
   .text-footnote {
     font-size: var(--font-size-footnote);
     font-weight: 400;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.4;
   }
-  
   .text-caption-1 {
     font-size: var(--font-size-caption-1);
     font-weight: 400;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.35;
   }
-  
   .text-caption-2 {
     font-size: var(--font-size-caption-2);
     font-weight: 400;
     letter-spacing: var(--letter-spacing-body);
     line-height: 1.35;
   }
-  
-  /* Apple Card Styles */
-  .apple-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-xl);
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .apple-card:hover {
-    background: var(--card-bg-hover);
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
-  }
-  
-  .apple-card-compact {
-    background: var(--card-bg);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .apple-card-compact:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
-  }
 
-  /* Text utilities */
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Premium Light Cards - Enhanced Readability */
-  .glass-light {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 
-      0 4px 24px rgba(0, 0, 0, 0.08),
-      0 2px 8px rgba(0, 0, 0, 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    color: #1D1D1F;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .glass-light:hover {
-    background: rgba(255, 255, 255, 0.98);
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.12),
-      0 4px 16px rgba(0, 0, 0, 0.06),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    transform: translateY(-2px);
-  }
-
-  /* Card Yang - High Contrast Light Card */
-  .card-yang {
-    background: #FFFFFF;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    box-shadow: 
-      0 4px 12px rgba(0, 0, 0, 0.08),
-      0 1px 4px rgba(0, 0, 0, 0.04);
-    color: #1D1D1F;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .card-yang:hover {
-    background: #FAFAFA;
-    box-shadow: 
-      0 8px 24px rgba(0, 0, 0, 0.12),
-      0 2px 8px rgba(0, 0, 0, 0.06);
-    transform: translateY(-2px);
-  }
-
-  /* Dark Mode Cards - Enhanced Contrast */
-  .dark .glass-light {
-    background: rgba(28, 28, 30, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #FFFFFF;
-    box-shadow: 
-      0 4px 24px rgba(0, 0, 0, 0.4),
-      0 2px 8px rgba(0, 0, 0, 0.2);
-  }
-
-  .dark .glass-light:hover {
-    background: rgba(44, 44, 46, 0.98);
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.5),
-      0 4px 16px rgba(0, 0, 0, 0.3);
-  }
-
-  .dark .card-yang {
-    background: #1C1C1E;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #FFFFFF;
-    box-shadow: 
-      0 4px 12px rgba(0, 0, 0, 0.4),
-      0 1px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .dark .card-yang:hover {
-    background: #2C2C2E;
-    box-shadow: 
-      0 8px 24px rgba(0, 0, 0, 0.5),
-      0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .parallax-slow {
-    transform: translateZ(-1px) scale(2);
-  }
-  
-  .parallax-fast {
-    transform: translateZ(-2px) scale(3);
-  }
+  .text-balance { text-wrap: balance; }
 }
 
-/* Custom scrollbar - Light Theme */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--card-bg-secondary);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary));
-  border-radius: 10px;
-  border: 2px solid var(--card-bg-secondary);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--accent-primary-hover), var(--accent-secondary-hover));
-}
-
-/* Dark theme scrollbar */
-.dark ::-webkit-scrollbar-track {
-  background: var(--background-surface);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  border-color: var(--background-surface);
-}
-
-/* Glassmorphism utility */
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass-strong {
-  background: var(--glass-strong);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px var(--shadow-md);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass:hover {
-  border-color: var(--accent-primary);
-  box-shadow: 0 8px 32px var(--shadow-md);
-}
-
-/* Animated gradient backgrounds */
-@keyframes gradientShift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradientShift 4s ease infinite;
-}
-
-/* Pulse glow animation */
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(79, 70, 229, 0.6), 0 0 60px rgba(16, 185, 129, 0.3);
-  }
-}
-
-.animate-pulse-glow {
-  animation: pulseGlow 3s ease-in-out infinite;
-}
-
-.animate-pulse-glow-secondary {
-  animation: pulseGlowSecondary 3s ease-in-out infinite;
-}
-
-@keyframes pulseGlowSecondary {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(16, 185, 129, 0.6), 0 0 60px rgba(79, 70, 229, 0.3);
-  }
-}
-
-/* Shimmer effect */
+/* ── Animations (only the ones actually used) ── */
 @keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
 }
-
-.shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 1000px 100%;
-  animation: shimmer 3s infinite;
-}
-
-/* Fade in animations - Apple timing */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Softer subtle fade for tab switches — 8px rise instead of 20px so
-   content changes feel closer to UINavigationController swaps than to
-   page loads. Timing = 220ms iOS default. */
 @keyframes tabFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-in {
-  animation: tabFadeIn 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* Bottom-sheet slide-in from below the viewport, resolves to rest with
-   an iOS-style spring. Used by wallet-connect sheet and other mobile
-   sheets. */
 @keyframes sheetSlideUp {
-  from {
-    transform: translateY(24px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
 }
-.animate-slide-up {
-  animation: sheetSlideUp 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
 @keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
 }
-
 @keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
-
 @keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.animate-fade-in     { animation: tabFadeIn 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.animate-slide-up    { animation: sheetSlideUp 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.animate-fadeIn      { animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.animate-fadeInScale { animation: fadeInScale 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+.animate-slideInLeft { animation: slideInLeft 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.animate-slideInRight{ animation: slideInRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(90deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.03) 100%);
+  background-size: 1000px 100%;
+}
+.dark .animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 100%);
+  background-size: 1000px 100%;
 }
 
-.animate-fadeInScale {
-  animation: fadeInScale 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--background-secondary); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: var(--separator-opaque); border-radius: 10px; border: 2px solid var(--background-secondary); }
+::-webkit-scrollbar-thumb:hover { background: var(--label-tertiary); }
 
-.animate-slideInLeft {
-  animation: slideInLeft 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
+.dark ::-webkit-scrollbar-track { background: var(--background-secondary); }
+.dark ::-webkit-scrollbar-thumb { border-color: var(--background-secondary); }
 
-.animate-slideInRight {
-  animation: slideInRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* Apple-style fade-in for mobile menu */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.gradient-text-blue {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-tertiary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.gradient-text-green {
-  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-tertiary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Card effects */
-.card-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid var(--border-color);
-}
-
-.card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px -10px var(--shadow-lg);
-  border-color: var(--accent-primary);
-}
-
-/* Neon border effect */
-.neon-border {
-  position: relative;
-  border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
-}
-
-.neon-border:hover {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 20px rgba(79, 70, 229, 0.3), 0 0 40px rgba(79, 70, 229, 0.1);
-}
-
-.dark .neon-border:hover {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
-}
-
-/* Loading spinner */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Reveal on scroll */
-.reveal {
-  opacity: 0;
-  transform: translateY(40px);
-  transition: all 0.8s ease-out;
-}
-
-.reveal.active {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Grid pattern */
-.grid-pattern {
-  background-image: 
-    linear-gradient(var(--border-light) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-light) 1px, transparent 1px);
-  background-size: 50px 50px;
-}
-
-/* Utility classes with enhanced contrast */
-.text-primary {
-  color: var(--label-primary) !important;
-}
-
-.text-secondary {
-  color: var(--label-secondary) !important;
-}
-
-.text-tertiary {
-  color: var(--label-tertiary) !important;
-}
-
-.text-muted {
-  color: var(--label-quaternary) !important;
-}
-
-.bg-surface {
-  background-color: var(--background-primary);
-}
-
-.bg-card {
-  background-color: var(--card-bg);
-  color: var(--label-primary);
-}
-
-.bg-card-secondary {
-  background-color: var(--background-secondary);
-  color: var(--label-primary);
-}
-
-.bg-card-light {
-  background-color: #FFFFFF;
-  color: #1D1D1F;
-}
-
-.dark .bg-card-light {
-  background-color: #1C1C1E;
-  color: #FFFFFF;
-}
-
-.border-default {
-  border-color: var(--border-color);
-}
-
-.border-light {
-  border-color: var(--border-light);
-}
-
-.border-glow {
-  border-color: var(--border-glow);
-}
-
-/* Yin-Yang contrast cards with improved readability */
-.card-yin {
-  background: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  color: #1D1D1F;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.dark .card-yin {
-  background: #1C1C1E;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-/* Glow effects */
-.glow-blue {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-}
-
-.glow-green {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-}
-
-.glow-purple {
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
-}
-
-/* Remove meteor and shimmer effects */
-
-/* Pulse animation */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Hide scrollbar but keep functionality (Apple style) */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   PERFORMANCE OPTIMIZATIONS
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* GPU acceleration for animated elements */
-.animate-pulse,
-.animate-spin,
-.animate-bounce,
-[data-animating="true"] {
+/* ── Perf ── */
+.animate-pulse, .animate-spin, .animate-bounce, [data-animating="true"] {
   will-change: opacity, transform;
   transform: translateZ(0);
   backface-visibility: hidden;
 }
-
-/* Smooth transitions for loading states */
-[data-loading="true"] {
-  will-change: contents;
-  transition: opacity 0.15s ease-out;
-}
-
-/* Optimize hover transitions */
-.transition-colors,
-.transition-all {
+.transition-colors, .transition-all {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
+.content-visibility-auto { content-visibility: auto; contain-intrinsic-size: auto 500px; }
 
-/* Content visibility for off-screen optimization */
-.content-visibility-auto {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 500px;
-}
-
-/* Shimmer animation for loading states */
-.animate-shimmer {
-  animation: shimmer 2s infinite linear;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.03) 0%,
-    rgba(0, 0, 0, 0.06) 50%,
-    rgba(0, 0, 0, 0.03) 100%
-  );
-  background-size: 1000px 100%;
-}
-
-.dark .animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.06) 50%,
-    rgba(255, 255, 255, 0.03) 100%
-  );
-  background-size: 1000px 100%;
-}
-
-/* Reduce motion for accessibility and performance */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  
-  .animate-pulse,
-  .animate-spin,
-  .animate-bounce,
-  .animate-shimmer {
-    animation: none !important;
-  }
+  .animate-pulse, .animate-spin, .animate-bounce, .animate-shimmer { animation: none !important; }
 }
 
-/* Optimistic update visual feedback */
+/* ── Optimistic-update visual affordance (used by mutation hooks) ── */
 [data-optimistic="true"] {
   opacity: 0.8;
   pointer-events: none;
   position: relative;
 }
-
 [data-optimistic="true"]::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(0, 122, 255, 0.1) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 122, 255, 0.1) 50%, transparent 100%);
   animation: shimmer 1.5s infinite;
 }
-
-/* Pending state indicator */
 [data-pending="true"] {
   border-color: #FFD60A !important;
   box-shadow: 0 0 0 2px rgba(255, 214, 10, 0.2);
 }
 
-/* Smooth number transitions for counters */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" on;
-}
-
-/* Prevent layout shift for loading content */
-.min-h-content {
-  min-height: 100px;
-}
-
-.min-h-chart {
-  min-height: 200px;
-}
-
-.min-h-list {
-  min-height: 150px;
-}
-
-/* Skeleton preserve aspect ratio */
-.skeleton-chart {
-  aspect-ratio: 16 / 9;
-}
-
-.skeleton-card {
-  aspect-ratio: 4 / 3;
-}
-
-/* Connection indicator styles */
-[data-connection="offline"] {
-  opacity: 0.5;
-  filter: grayscale(50%);
-}
-
-[data-connection="slow"] {
-  transition-duration: 0.5s !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   CLAUDE WARM THEME — homepage (comfortable, paper-like, terracotta accent)
-   Scoped helpers; does not alter the existing Apple system used elsewhere.
-   ═══════════════════════════════════════════════════════════════════════════ */
-.claude-home {
-  background-color: #FAF9F5;
-  color: #2A2722;
-}
-.claude-home ::selection {
-  background: rgba(217, 119, 87, 0.22);
-  color: #2A2722;
-}
-
-/* Soft radial warmth behind the hero — calm, not glowy */
-.claude-hero-glow {
-  background:
-    radial-gradient(60% 55% at 78% 18%, rgba(217, 119, 87, 0.10) 0%, rgba(217, 119, 87, 0) 60%),
-    radial-gradient(50% 50% at 8% 90%, rgba(106, 155, 204, 0.08) 0%, rgba(106, 155, 204, 0) 55%);
-}
-
-/* Reusable warm card — gentle lift, warm-tinted shadow */
-.claude-card {
-  background: #FEFDFB;
-  border: 1px solid #E8E3D5;
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(41, 38, 32, 0.04), 0 10px 28px -16px rgba(41, 38, 32, 0.18);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.claude-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 2px 4px rgba(41, 38, 32, 0.05), 0 18px 40px -18px rgba(41, 38, 32, 0.26);
-}
-
-/* Pill / eyebrow chip */
-.claude-chip {
-  background: rgba(217, 119, 87, 0.10);
-  border: 1px solid rgba(217, 119, 87, 0.22);
-  color: #BD5B3D;
-}
-
+.tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" on; }

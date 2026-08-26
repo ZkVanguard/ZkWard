@@ -326,7 +326,7 @@ export function ConnectButton() {
           <button
             onClick={handleConnectSui}
             disabled={isConnectingSui}
-            className="px-5 h-11 bg-claude-orange hover:bg-claude-rust active:scale-[0.98] disabled:opacity-70 text-white rounded-[12px] font-semibold text-[15px] transition-all flex items-center gap-2"
+            className="px-5 h-11 bg-ios-blue hover:bg-[#0062CC] active:scale-[0.98] disabled:opacity-70 text-white rounded-[12px] font-semibold text-[15px] transition-all flex items-center gap-2"
           >
             <Wallet className="w-4 h-4" />
             <span>{isConnectingSui ? 'Connecting…' : 'Connect'}</span>

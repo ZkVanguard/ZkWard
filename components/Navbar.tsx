@@ -13,18 +13,24 @@ export const Navbar = memo(function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const t = useTranslations('nav');
 
+  // Detect scroll past 20px via IntersectionObserver on an injected sentinel.
+  // Replaces window.addEventListener('scroll') which fired every frame.
+  // Sentinel is absolute-positioned at y=20px in the document; when it exits
+  // the viewport, we've crossed the threshold. O(1) per scroll direction.
   useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        setScrolled(window.scrollY > 20);
-        ticking = false;
-      });
+    const sentinel = document.createElement('div');
+    sentinel.style.cssText =
+      'position:absolute;top:20px;left:0;width:1px;height:1px;pointer-events:none;';
+    document.body.insertBefore(sentinel, document.body.firstChild);
+    const io = new IntersectionObserver(
+      ([entry]) => setScrolled(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    io.observe(sentinel);
+    return () => {
+      io.disconnect();
+      sentinel.remove();
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Focused nav — one product (SUI vault), one narrative (agents + ZK + RWA), one document (whitepaper).
