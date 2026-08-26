@@ -50,11 +50,20 @@ export async function generateMetadata(
 
   const t = await getTranslations({ locale, namespace: 'hero' });
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://zkward.com';
+  const title = 'ZkWard — Autonomous SUI vault, ZK-STARK attested';
+  const description = t('subtitle');
+
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://zkward.com'),
-    title: 'ZkWard - AI-Powered RWA Risk Management with Zero-Knowledge Proofs',
-    description: t('subtitle'),
-    keywords: ['RWA', 'DeFi', 'AI Agents', 'Risk Management', 'Cronos', 'zkEVM'],
+    metadataBase: new URL(baseUrl),
+    title: {
+      default: title,
+      // Per-page `title.template` — child pages can set `title: 'Vault'`
+      // and this composes it as "Vault · ZkWard" for SERP snippets.
+      template: '%s · ZkWard',
+    },
+    description,
+    keywords: ['SUI', 'DeFi', 'ZK-STARK', 'AI agents', 'autonomous vault', 'prediction markets', 'RWA', 'BlueFin'],
     authors: [{ name: 'ZkWard Team' }],
     icons: {
       icon: '/logo-official.svg',
@@ -68,10 +77,28 @@ export async function generateMetadata(
       title: 'ZkWard',
     },
     openGraph: {
-      title: 'ZkWard',
-      description: 'AI-Powered RWA Risk Management Platform',
+      title,
+      description,
       type: 'website',
+      url: baseUrl,
+      siteName: 'ZkWard',
+      locale,
+      images: [{ url: '/logo-official.svg', alt: 'ZkWard' }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
       images: ['/logo-official.svg'],
+    },
+    alternates: {
+      canonical: '/',
+      languages: Object.fromEntries(
+        // localePrefix: 'as-needed' — default locale renders at root, others prefixed.
+        (['en','es','fr','de','zh','ja','ko','pt','ru','ar','hi','it'] as const).map(
+          (l) => [l, l === 'en' ? '/' : `/${l}`],
+        ),
+      ),
     },
   };
 }
@@ -100,11 +127,10 @@ export default async function LocaleLayout(
   return (
     <html lang={locale} className={displayFont.variable} suppressHydrationWarning>
       <head>
-        {/* Resource hints for faster loading */}
+        {/* Resource hints for third-parties the marketing pages actually hit.
+            Cronos preconnect removed — project runs on SUI mainnet, not Cronos. */}
         <link rel="preconnect" href="https://api.crypto.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://api.crypto.com" />
-        <link rel="preconnect" href={process.env.NEXT_PUBLIC_CRONOS_RPC || 'https://evm.cronos.org'} crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_CRONOS_RPC || 'https://evm.cronos.org'} />
         
         {/* Preload critical fonts (system fonts, no external fonts needed) */}
         <style dangerouslySetInnerHTML={{ __html: `

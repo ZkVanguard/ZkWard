@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Link } from '@/i18n/routing';
-import { Shield, Cpu, Lock, CheckCircle2, ArrowRight, ExternalLink } from 'lucide-react';
+import { Shield, Cpu, Lock, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Section, SectionHeader, StatusPill, TrustBadge, Reveal } from '@/components/ui/landing';
 
 // Single focused ZK page. Replaces the three separate /zk-authenticity, /zk-proof,
@@ -330,34 +329,6 @@ curl "https://www.zkward.com/api/zk-proof/lookup?hash=0xa3..2f"
         </Reveal>
       </Section>
 
-      {/* DEEP DIVE */}
-      <Section tone="secondary" size="md">
-        <Reveal>
-          <SectionHeader
-            title="Go deeper."
-            align="left"
-          />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-            {[
-              { href: '/zk-authenticity', title: 'Implementation authenticity', body: "Prove the STARK isn't simulated. CUDA specs, field parameters, source-verifiable." },
-              { href: '/zk-proof', title: 'Generate your own', body: 'Interactive prover UI: trace, commit, prove, verify. Wallet-signed statements.' },
-              { href: '/zk-verification', title: 'Hedge attestations', body: 'Look up ZK-attested hedges by hedge ID or wallet address.' },
-            ].map(({ href, title, body }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group block p-5 sm:p-6 rounded-ios-xl border border-separator-opaque/30 bg-system-bg-primary hover:border-ios-blue/50 hover:shadow-ios-2 active:scale-[0.99] transition-all"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-label-primary text-headline">{title}</span>
-                  <ArrowRight className="w-4 h-4 text-label-tertiary group-hover:text-ios-blue group-hover:translate-x-1 transition-all flex-shrink-0 ml-2" />
-                </div>
-                <p className="text-sm text-label-secondary leading-relaxed">{body}</p>
-              </Link>
-            ))}
-          </div>
-        </Reveal>
-      </Section>
     </div>
   );
 }
