@@ -48,6 +48,7 @@ logs/
 docs/
 *.md
 !README.md
+!content/*.md
 
 # Local env files
 .env.local
