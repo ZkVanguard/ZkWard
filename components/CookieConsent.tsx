@@ -91,9 +91,9 @@ export function CookieConsent() {
               <h3 className="font-semibold text-[#1d1d1f] text-base sm:text-lg mb-0.5 sm:mb-1">
                 🍪 {t('title')}
               </h3>
-              <p className="text-[#86868b] text-[13px] sm:text-sm leading-relaxed">
+              <p className="text-label-tertiary text-[13px] sm:text-sm leading-relaxed">
                 {t('description')}{' '}
-                <Link href="/privacy" className="text-[#007AFF] hover:underline">{t('privacyPolicy')}</Link>
+                <Link href="/privacy" className="text-ios-blue underline underline-offset-2">{t('privacyPolicy')}</Link>
               </p>
             </div>
             {/* Primary CTA on top on mobile for thumb reach */}
@@ -125,7 +125,7 @@ export function CookieConsent() {
               <h3 className="font-semibold text-[#1d1d1f] text-base sm:text-lg">{t('settings')}</h3>
               <button
                 onClick={() => setShowDetails(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] active:scale-[0.9] transition-all"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-label-tertiary hover:text-[#1d1d1f] hover:bg-[#f5f5f7] active:scale-[0.9] transition-all"
                 aria-label="Close"
               >
                 ✕
@@ -139,7 +139,7 @@ export function CookieConsent() {
                   <span className="font-medium text-[#1d1d1f] text-sm sm:text-base">{t('necessary')}</span>
                   <span className="text-[10px] sm:text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex-shrink-0">{t('alwaysOn')}</span>
                 </div>
-                <p className="text-[11px] sm:text-xs text-[#86868b] leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-label-tertiary leading-relaxed">
                   {t('necessaryDescription')}
                 </p>
               </div>
@@ -158,7 +158,7 @@ export function CookieConsent() {
                     <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#007AFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                   </label>
                 </div>
-                <p className="text-[11px] sm:text-xs text-[#86868b] leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-label-tertiary leading-relaxed">
                   {t('analyticsDescription')}
                 </p>
               </div>
@@ -177,7 +177,7 @@ export function CookieConsent() {
                     <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#007AFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                   </label>
                 </div>
-                <p className="text-[11px] sm:text-xs text-[#86868b] leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-label-tertiary leading-relaxed">
                   {t('preferencesDescription')}
                 </p>
               </div>

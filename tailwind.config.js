@@ -21,9 +21,14 @@ module.exports = {
         display: ['var(--font-display)', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       colors: {
-        // Apple iOS System Colors - Light Mode
+        // Apple iOS System Colors - Light Mode.
+        // ios.blue was #007AFF (Apple's system blue) but that gives
+        // white-text-on-blue only 4.01:1 contrast — fails WCAG AA on
+        // every CTA. Darkened to #0069D9 (5.22:1) so primary buttons
+        // are readable for low-vision users while staying visually
+        // in the iOS blue family.
         ios: {
-          blue: '#007AFF',
+          blue: '#0069D9',
           green: '#34C759',
           orange: '#FF9500',
           red: '#FF3B30',

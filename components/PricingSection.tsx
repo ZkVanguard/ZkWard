@@ -25,7 +25,7 @@ const TIER_ICONS: Record<SubscriptionTier, typeof SparklesIcon> = {
 };
 
 const TIER_COLORS: Record<SubscriptionTier, { icon: string; bg: string; border: string }> = {
-  free: { icon: 'text-[#86868b]', bg: 'bg-[#86868b]/10', border: 'border-[#86868b]/20' },
+  free: { icon: 'text-label-tertiary', bg: 'bg-[#86868b]/10', border: 'border-[#86868b]/20' },
   retail: { icon: 'text-[#007AFF]', bg: 'bg-[#007AFF]/10', border: 'border-[#007AFF]/20' },
   pro: { icon: 'text-[#34C759]', bg: 'bg-[#34C759]/10', border: 'border-[#34C759]/30' },
   institutional: { icon: 'text-[#AF52DE]', bg: 'bg-[#AF52DE]/10', border: 'border-[#AF52DE]/20' },
@@ -66,7 +66,7 @@ function PricingCard({ tier, isAnnual, onSelect }: PricingCardProps) {
           <h3 className="text-[20px] font-semibold text-[#1d1d1f] tracking-[-0.02em]">
             {tierData.name}
           </h3>
-          <p className="text-[13px] text-[#86868b]">{tierData.targetAudience}</p>
+          <p className="text-[13px] text-label-tertiary">{tierData.targetAudience}</p>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ function PricingCard({ tier, isAnnual, onSelect }: PricingCardProps) {
               <span className="text-[40px] font-semibold text-[#1d1d1f] tracking-[-0.02em]">
                 {price === 0 ? 'Free' : `$${Math.round(price)}`}
               </span>
-              {price > 0 && <span className="text-[15px] text-[#86868b]">/mo</span>}
+              {price > 0 && <span className="text-[15px] text-label-tertiary">/mo</span>}
             </div>
             {isAnnual && savings > 0 && (
               <p className="text-[13px] text-[#34C759] mt-1">Save ${savings}/year</p>
@@ -90,7 +90,7 @@ function PricingCard({ tier, isAnnual, onSelect }: PricingCardProps) {
       </div>
 
       {/* Description */}
-      <p className="text-[15px] text-[#86868b] mb-6 leading-[1.47]">{tierData.description}</p>
+      <p className="text-[15px] text-label-tertiary mb-6 leading-[1.47]">{tierData.description}</p>
 
       {/* Features */}
       <ul className="space-y-3 mb-8">
@@ -106,13 +106,13 @@ function PricingCard({ tier, isAnnual, onSelect }: PricingCardProps) {
       <div className="bg-[#f5f5f7] rounded-[12px] p-4 mb-6">
         <div className="grid grid-cols-2 gap-3 text-[13px]">
           <div>
-            <span className="text-[#86868b]">AI Agents</span>
+            <span className="text-label-tertiary">AI Agents</span>
             <p className="text-[#1d1d1f] font-medium">
               {tierData.limits.maxAgents === 7 ? 'All 7' : tierData.limits.maxAgents}
             </p>
           </div>
           <div>
-            <span className="text-[#86868b]">ZK Proofs</span>
+            <span className="text-label-tertiary">ZK Proofs</span>
             <p className="text-[#1d1d1f] font-medium">
               {tierData.limits.zkProofsPerMonth === -1
                 ? 'Unlimited'
@@ -120,7 +120,7 @@ function PricingCard({ tier, isAnnual, onSelect }: PricingCardProps) {
             </p>
           </div>
           <div>
-            <span className="text-[#86868b]">Private hedges</span>
+            <span className="text-label-tertiary">Private hedges</span>
             <p className="text-[#1d1d1f] font-medium">
               {tierData.limits.privateHedgesAccess
                 ? tierData.limits.maxPrivateHedgePositions === -1
@@ -130,11 +130,11 @@ function PricingCard({ tier, isAnnual, onSelect }: PricingCardProps) {
             </p>
           </div>
           <div>
-            <span className="text-[#86868b]">API access</span>
+            <span className="text-label-tertiary">API access</span>
             <p className="text-[#1d1d1f] font-medium capitalize">
               {tierData.limits.apiAccess === 'none' ? '—' : tierData.limits.apiAccess}
               {tierData.limits.apiRateLimitPerMin > 0 && (
-                <span className="text-[11px] text-[#86868b] block">
+                <span className="text-[11px] text-label-tertiary block">
                   {tierData.limits.apiRateLimitPerMin === -1
                     ? 'custom'
                     : `${tierData.limits.apiRateLimitPerMin.toLocaleString()} req/min`}
@@ -190,7 +190,7 @@ export function PricingSection() {
         <h2 className="text-[40px] lg:text-[56px] font-semibold text-[#1d1d1f] tracking-[-0.025em] leading-[1.08] mb-4">
           Simple, transparent pricing
         </h2>
-        <p className="text-[19px] lg:text-[21px] text-[#86868b] leading-[1.47] max-w-[600px] mx-auto mb-8">
+        <p className="text-[19px] lg:text-[21px] text-label-tertiary leading-[1.47] max-w-[600px] mx-auto mb-8">
           Choose the plan that fits your portfolio size and trading needs.
         </p>
 
@@ -199,7 +199,7 @@ export function PricingSection() {
           <button
             onClick={() => setIsAnnual(false)}
             className={`px-4 py-2 rounded-full text-[14px] font-medium transition-colors ${
-              !isAnnual ? 'bg-white text-[#1d1d1f] shadow-sm' : 'text-[#86868b]'
+              !isAnnual ? 'bg-white text-[#1d1d1f] shadow-sm' : 'text-label-tertiary'
             }`}
           >
             Monthly
@@ -207,7 +207,7 @@ export function PricingSection() {
           <button
             onClick={() => setIsAnnual(true)}
             className={`px-4 py-2 rounded-full text-[14px] font-medium transition-colors ${
-              isAnnual ? 'bg-white text-[#1d1d1f] shadow-sm' : 'text-[#86868b]'
+              isAnnual ? 'bg-white text-[#1d1d1f] shadow-sm' : 'text-label-tertiary'
             }`}
           >
             Annual
@@ -227,7 +227,7 @@ export function PricingSection() {
       <div className="mt-12 text-center">
         <div className="inline-block bg-gradient-to-r from-[#FF9500]/10 to-[#FF3B30]/10 rounded-[16px] p-6 lg:p-8 max-w-2xl">
           <h3 className="text-[24px] font-semibold text-[#1d1d1f] mb-2">Enterprise Solutions</h3>
-          <p className="text-[15px] text-[#86868b] mb-4">
+          <p className="text-[15px] text-label-tertiary mb-4">
             Need a custom solution for your fund, treasury, or platform? Get white-label deployment,
             dedicated support, and custom SLA guarantees.
           </p>

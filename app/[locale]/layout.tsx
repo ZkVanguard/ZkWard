@@ -124,6 +124,34 @@ export default async function LocaleLayout(
     notFound();
   }
 
+  // JSON-LD structured data — Organization + WebSite. Emitted on every
+  // page so Google can build a knowledge-panel + sitelinks searchbox.
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://zkward.com';
+  const ldJson = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${baseUrl}/#org`,
+        name: 'ZkWard',
+        url: baseUrl,
+        logo: `${baseUrl}/logo-official.svg`,
+        sameAs: [
+          'https://github.com/ZkVanguard/ZkWard',
+          'https://twitter.com/HarveReg',
+        ],
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${baseUrl}/#website`,
+        url: baseUrl,
+        name: 'ZkWard',
+        publisher: { '@id': `${baseUrl}/#org` },
+        inLanguage: locale,
+      },
+    ],
+  };
+
   return (
     <html lang={locale} className={displayFont.variable} suppressHydrationWarning>
       <head>
@@ -152,6 +180,18 @@ export default async function LocaleLayout(
               })();
             `,
           }}
+        />
+
+        {/* JSON-LD structured data for search engines.
+            dangerouslySetInnerHTML is safe here: `ldJson` is a hardcoded
+            object literal composed of build-time constants + `locale`,
+            which is validated against the `locales` allowlist above.
+            No user-controlled input reaches this string, and
+            JSON.stringify escapes HTML-significant chars in string
+            values. Canonical Next.js pattern for JSON-LD. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ldJson) }}
         />
       </head>
       <body className="antialiased bg-system-bg-primary min-h-screen" suppressHydrationWarning>

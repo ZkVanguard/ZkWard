@@ -131,7 +131,7 @@ export function NavHistoryChart() {
         </div>
         <div className="flex items-center gap-2 text-[11px] sm:text-[12px]">
           {data?.peak && (
-            <span className="text-[#86868b]">
+            <span className="text-label-tertiary">
               Peak <strong className="text-[#1d1d1f] font-mono">${data.peak.sharePrice.toFixed(4)}</strong>
             </span>
           )}
@@ -151,7 +151,7 @@ export function NavHistoryChart() {
             className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
               w.value === window.value
                 ? 'bg-[#1d1d1f] text-white'
-                : 'bg-[#f5f5f7] text-[#86868b] hover:bg-[#e8e8ed]'
+                : 'bg-[#f5f5f7] text-label-tertiary hover:bg-[#e8e8ed]'
             }`}
           >
             {w.label}
@@ -161,13 +161,19 @@ export function NavHistoryChart() {
 
       <div className="h-48 sm:h-64 relative">
         {loading && !data && (
-          <div className="absolute inset-0 flex items-center justify-center text-[#86868b]">
+          <div className="absolute inset-0 flex items-center justify-center text-label-tertiary">
             <Loader2 className="w-4 h-4 animate-spin" />
           </div>
         )}
-        {chart && <Line data={chart} options={options} />}
+        {chart && (
+          <Line
+            data={chart}
+            options={options}
+            aria-label={`Share-price history over the last ${window.label} — from $${data?.first?.sharePrice.toFixed(4) ?? '…'} to $${data?.last?.sharePrice.toFixed(4) ?? '…'}, peak $${data?.peak?.sharePrice.toFixed(4) ?? '…'}`}
+          />
+        )}
       </div>
-      <p className="text-[11px] text-[#86868b] mt-3">
+      <p className="text-[11px] text-label-tertiary mt-3">
         Every point is a snapshot from <code className="bg-[#f5f5f7] px-1.5 py-0.5 rounded">community_pool_nav_history</code>,
         bucket-averaged. Share price is NAV / total shares — pool inception at $1.00.
       </p>

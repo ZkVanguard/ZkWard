@@ -267,13 +267,13 @@ export function ConnectButton() {
               </a>
 
               {pendingMobileWallet && (
-                <p className="text-[11px] sm:text-xs text-[#86868B] mt-3 text-center leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-label-tertiary mt-3 text-center leading-relaxed">
                   If Slush didn&apos;t open, install it and try again.
                 </p>
               )}
 
               {/* Small trust row — three cues that this is safe */}
-              <div className="mt-5 grid grid-cols-3 gap-1.5 sm:gap-3 text-[10px] sm:text-[11px] text-[#86868B]">
+              <div className="mt-5 grid grid-cols-3 gap-1.5 sm:gap-3 text-[10px] sm:text-[11px] text-label-tertiary">
                 <div className="flex flex-col items-center gap-1 text-center">
                   <span className="w-7 h-7 rounded-full bg-[#4DA2FF]/10 text-[#4DA2FF] flex items-center justify-center font-bold text-xs">
                     1
@@ -347,7 +347,7 @@ export function ConnectButton() {
             <span className="text-[#1D1D1F] dark:text-white font-medium text-[14px]">
               {truncate(wdkAddress)}
             </span>
-            <ChevronDown className="w-3.5 h-3.5 text-[#86868B]" />
+            <ChevronDown className="w-3.5 h-3.5 text-label-tertiary" />
           </button>
 
           {showSelector && (
@@ -363,7 +363,7 @@ export function ConnectButton() {
                       <div className="font-medium text-[#1D1D1F] dark:text-white text-[14px]">
                         {currentChain?.name || 'WDK Wallet'}
                       </div>
-                      <div className="text-[12px] text-[#86868B] font-mono">
+                      <div className="text-[12px] text-label-tertiary font-mono">
                         {truncate(wdkAddress)}
                       </div>
                     </div>
@@ -433,7 +433,7 @@ export function ConnectButton() {
                       </h4>
                     </div>
 
-                    <p className="text-[13px] text-[#86868B] mb-3">
+                    <p className="text-[13px] text-label-tertiary mb-3">
                       Your wallet is on{' '}
                       <span className="font-medium text-[#1D1D1F] dark:text-white">
                         {suiWalletNetwork || 'unknown'}
@@ -475,7 +475,7 @@ export function ConnectButton() {
                 <span className="text-[#1D1D1F] dark:text-white font-medium text-[14px]">
                   {truncate(suiAddress)}
                 </span>
-                <ChevronDown className="w-3.5 h-3.5 text-[#86868B]" />
+                <ChevronDown className="w-3.5 h-3.5 text-label-tertiary" />
               </button>
 
               {showSelector && (
@@ -491,7 +491,7 @@ export function ConnectButton() {
                           <div className="font-medium text-[#1D1D1F] dark:text-white text-[14px]">
                             {walletName}
                           </div>
-                          <div className="text-[12px] text-[#86868B] font-mono">
+                          <div className="text-[12px] text-label-tertiary font-mono">
                             {truncate(suiAddress)}
                           </div>
                         </div>
