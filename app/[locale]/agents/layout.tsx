@@ -16,10 +16,11 @@ export async function generateMetadata(
         locales.map((l) => [l, l === defaultLocale ? path : `/${l}${path}`]),
       ),
     },
-    // openGraph.images intentionally omitted — inherits the root-level
-    // app/opengraph-image.tsx (1200x630 auto-generated brand card).
-    openGraph: { title: 'AI agents · ZkWard', url: canonical, type: 'website' },
-    twitter: { card: 'summary_large_image', title: 'AI agents · ZkWard' },
+    // openGraph + twitter intentionally omitted. Next metadata REPLACES
+    // (not merges) these objects when a child sets them, which would
+    // wipe the parent's auto-generated OG image from
+    // [locale]/opengraph-image.tsx. Composed page title falls out of
+    // title.template in the parent layout: 'AI agents · ZkWard'.
   };
 }
 

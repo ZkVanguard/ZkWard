@@ -19,8 +19,8 @@ export async function generateMetadata(
         locales.map((l) => [l, l === defaultLocale ? route : `/${l}${route}`]),
       ),
     },
-    openGraph: { title: 'Whitepaper · ZkWard', url: canonical, type: 'article' },
-    twitter: { card: 'summary_large_image', title: 'Whitepaper · ZkWard' },
+    // See agents/layout.tsx — openGraph/twitter omitted so the file-
+    // convention OG image survives.
   };
 }
 

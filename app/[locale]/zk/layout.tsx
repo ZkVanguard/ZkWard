@@ -16,8 +16,9 @@ export async function generateMetadata(
         locales.map((l) => [l, l === defaultLocale ? path : `/${l}${path}`]),
       ),
     },
-    openGraph: { title: 'ZK-STARK proofs · ZkWard', url: canonical, type: 'website' },
-    twitter: { card: 'summary_large_image', title: 'ZK-STARK proofs · ZkWard' },
+    // See agents/layout.tsx — openGraph/twitter omitted so the file-
+    // convention OG image survives; title.template composes 'ZK-STARK
+    // proofs · ZkWard'.
   };
 }
 
