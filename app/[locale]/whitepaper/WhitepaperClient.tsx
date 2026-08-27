@@ -80,7 +80,7 @@ export function WhitepaperClient({ frontmatter, body }: Props) {
           margin: 0.75rem 0;
         }
         .wp-prose a {
-          color: #007AFF;
+          color: #0069D9;
           text-decoration: none;
         }
         .wp-prose a:hover { text-decoration: underline; }
@@ -132,7 +132,7 @@ export function WhitepaperClient({ frontmatter, body }: Props) {
         .wp-prose td { color: #424245; }
         .wp-prose tr:last-child td { border-bottom: none; }
         .wp-prose blockquote {
-          border-left: 4px solid #007AFF;
+          border-left: 4px solid #0069D9;
           padding: 0.75rem 1rem;
           margin: 1rem 0;
           background: rgba(0, 122, 255, 0.04);

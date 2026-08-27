@@ -65,7 +65,7 @@ export const Footer = memo(function Footer() {
               <div className="mt-1 text-caption-2 text-label-tertiary">{t('migrationNotice')}</div>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-caption-1">
-              <span className="px-3 py-1.5 bg-ios-blue/10 text-ios-blue rounded-full font-medium">
+              <span className="px-3 py-1.5 bg-ios-blue text-white rounded-full font-medium">
                 {t('stage')}
               </span>
               <span className="text-label-tertiary">{t('builtWith')}</span>

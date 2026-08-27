@@ -112,7 +112,7 @@ export function CookieConsent() {
               </button>
               <button
                 onClick={acceptAll}
-                className="h-11 sm:h-auto px-5 py-2 text-sm font-medium text-white bg-[#007AFF] hover:bg-[#0056b3] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all shadow-sm"
+                className="h-11 sm:h-auto px-5 py-2 text-sm font-medium text-white bg-ios-blue hover:bg-[#0056b3] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all shadow-sm"
               >
                 {t('acceptAll')}
               </button>
@@ -192,7 +192,7 @@ export function CookieConsent() {
               </button>
               <button
                 onClick={saveCustom}
-                className="h-11 sm:h-auto px-5 py-2 text-sm font-medium text-white bg-[#007AFF] hover:bg-[#0056b3] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all shadow-sm"
+                className="h-11 sm:h-auto px-5 py-2 text-sm font-medium text-white bg-ios-blue hover:bg-[#0056b3] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all shadow-sm"
               >
                 {t('savePreferences')}
               </button>

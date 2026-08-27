@@ -327,7 +327,7 @@ export default function AgentsPage() {
                         <h4 className="text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-3">MessageBus events</h4>
                         <div className="flex flex-wrap gap-1.5">
                           {selected.messageTypes.map((type) => (
-                            <span key={type} className="text-caption-1 px-2.5 py-1 bg-ios-blue/10 text-ios-blue rounded-full font-medium font-mono">
+                            <span key={type} className="text-caption-1 px-2.5 py-1 bg-ios-blue text-white rounded-full font-medium font-mono">
                               {type}
                             </span>
                           ))}
