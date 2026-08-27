@@ -76,6 +76,8 @@ export async function generateMetadata(
       statusBarStyle: 'default',
       title: 'ZkWard',
     },
+    // OG + Twitter images intentionally omitted — Next's file convention
+    // at app/opengraph-image.tsx auto-populates a proper 1200x630 card.
     openGraph: {
       title,
       description,
@@ -83,13 +85,11 @@ export async function generateMetadata(
       url: baseUrl,
       siteName: 'ZkWard',
       locale,
-      images: [{ url: '/logo-official.svg', alt: 'ZkWard' }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/logo-official.svg'],
     },
     alternates: {
       canonical: '/',

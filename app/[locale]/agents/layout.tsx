@@ -16,12 +16,9 @@ export async function generateMetadata(
         locales.map((l) => [l, l === defaultLocale ? path : `/${l}${path}`]),
       ),
     },
-    openGraph: {
-      title: 'AI agents · ZkWard',
-      url: canonical,
-      type: 'website',
-      images: ['/logo-official.svg'],
-    },
+    // openGraph.images intentionally omitted — inherits the root-level
+    // app/opengraph-image.tsx (1200x630 auto-generated brand card).
+    openGraph: { title: 'AI agents · ZkWard', url: canonical, type: 'website' },
     twitter: { card: 'summary_large_image', title: 'AI agents · ZkWard' },
   };
 }
