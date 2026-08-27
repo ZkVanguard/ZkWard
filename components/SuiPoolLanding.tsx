@@ -58,6 +58,41 @@ const NavHistoryChart = nextDynamic(
   { ssr: false, loading: () => <div className="h-64 sm:h-72 bg-system-bg-secondary rounded-ios-xl animate-pulse" /> },
 );
 
+// LazyChart — chart.js is 193 KB. next/dynamic alone still fetches
+// the chunk on mount (chart is below-the-fold but Next hydrates the
+// whole page). Gating with IntersectionObserver + a 400px rootMargin
+// defers the fetch until the user actually scrolls near it. Users who
+// bounce from the hero never download chart.js at all.
+function LazyChart() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (visible) return;
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '400px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible]);
+  return (
+    <div ref={ref} className="min-h-[16rem] sm:min-h-[18rem]">
+      {visible ? (
+        <NavHistoryChart />
+      ) : (
+        <div className="h-64 sm:h-72 bg-system-bg-secondary rounded-ios-xl animate-pulse" />
+      )}
+    </div>
+  );
+}
+
 // TVL cap enforced by the Move contract. Surfacing "room remaining" on the
 // landing gives visitors a scale anchor without leading with the current
 // (small) NAV. If the on-chain cap changes, bump this constant — the display
@@ -310,7 +345,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
       {/* ─────────────────────────────────────────────────────────────── */}
       <section className="py-8 sm:py-14 md:py-16 px-4 sm:px-5 lg:px-8 bg-system-bg-primary min-w-0">
         <div className="max-w-[920px] mx-auto">
-          <NavHistoryChart />
+          <LazyChart />
           <p className="text-center text-xs sm:text-footnote text-label-tertiary mt-4 leading-relaxed">
             Every point is a real on-chain snapshot. Toggle the window to see recent behaviour or the full history.
           </p>
