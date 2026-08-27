@@ -88,7 +88,7 @@ export function CookieConsent() {
           // Simple Banner
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-[#1d1d1f] text-base sm:text-lg mb-0.5 sm:mb-1">
+              <h3 className="font-semibold text-label-primary text-base sm:text-lg mb-0.5 sm:mb-1">
                 🍪 {t('title')}
               </h3>
               <p className="text-label-tertiary text-[13px] sm:text-sm leading-relaxed">
@@ -100,13 +100,13 @@ export function CookieConsent() {
             <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
               <button
                 onClick={() => setShowDetails(true)}
-                className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-[#1d1d1f] bg-transparent sm:bg-transparent hover:bg-[#f5f5f7] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all"
+                className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-label-primary bg-transparent sm:bg-transparent hover:bg-system-bg-secondary active:scale-[0.98] rounded-xl sm:rounded-lg transition-all"
               >
                 {t('customize')}
               </button>
               <button
                 onClick={acceptNecessary}
-                className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-[#1d1d1f] bg-[#f5f5f7] hover:bg-[#e8e8ed] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all"
+                className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-label-primary bg-system-bg-secondary hover:bg-[#e8e8ed] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all"
               >
                 {t('necessaryOnly')}
               </button>
@@ -122,10 +122,10 @@ export function CookieConsent() {
           // Detailed Settings
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-[#1d1d1f] text-base sm:text-lg">{t('settings')}</h3>
+              <h3 className="font-semibold text-label-primary text-base sm:text-lg">{t('settings')}</h3>
               <button
                 onClick={() => setShowDetails(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-label-tertiary hover:text-[#1d1d1f] hover:bg-[#f5f5f7] active:scale-[0.9] transition-all"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-label-tertiary hover:text-label-primary hover:bg-system-bg-secondary active:scale-[0.9] transition-all"
                 aria-label="Close"
               >
                 ✕
@@ -134,9 +134,9 @@ export function CookieConsent() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
               {/* Necessary Cookies */}
-              <div className="p-3 sm:p-4 bg-[#f5f5f7] rounded-xl">
+              <div className="p-3 sm:p-4 bg-system-bg-secondary rounded-xl">
                 <div className="flex items-center justify-between gap-2 mb-1.5 sm:mb-2">
-                  <span className="font-medium text-[#1d1d1f] text-sm sm:text-base">{t('necessary')}</span>
+                  <span className="font-medium text-label-primary text-sm sm:text-base">{t('necessary')}</span>
                   <span className="text-[10px] sm:text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex-shrink-0">{t('alwaysOn')}</span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-label-tertiary leading-relaxed">
@@ -145,9 +145,9 @@ export function CookieConsent() {
               </div>
 
               {/* Analytics Cookies */}
-              <div className="p-3 sm:p-4 bg-[#f5f5f7] rounded-xl">
+              <div className="p-3 sm:p-4 bg-system-bg-secondary rounded-xl">
                 <div className="flex items-center justify-between gap-2 mb-1.5 sm:mb-2">
-                  <span className="font-medium text-[#1d1d1f] text-sm sm:text-base">{t('analytics')}</span>
+                  <span className="font-medium text-label-primary text-sm sm:text-base">{t('analytics')}</span>
                   <label className="relative inline-flex items-center cursor-pointer h-11 w-11 sm:h-auto sm:w-auto justify-end pr-0.5 sm:pr-0">
                     <input
                       type="checkbox"
@@ -155,7 +155,7 @@ export function CookieConsent() {
                       onChange={(e) => setSettings({ ...settings, analytics: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#007AFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-ios-blue after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                   </label>
                 </div>
                 <p className="text-[11px] sm:text-xs text-label-tertiary leading-relaxed">
@@ -164,9 +164,9 @@ export function CookieConsent() {
               </div>
 
               {/* Preferences Cookies */}
-              <div className="p-3 sm:p-4 bg-[#f5f5f7] rounded-xl">
+              <div className="p-3 sm:p-4 bg-system-bg-secondary rounded-xl">
                 <div className="flex items-center justify-between gap-2 mb-1.5 sm:mb-2">
-                  <span className="font-medium text-[#1d1d1f] text-sm sm:text-base">{t('preferences')}</span>
+                  <span className="font-medium text-label-primary text-sm sm:text-base">{t('preferences')}</span>
                   <label className="relative inline-flex items-center cursor-pointer h-11 w-11 sm:h-auto sm:w-auto justify-end pr-0.5 sm:pr-0">
                     <input
                       type="checkbox"
@@ -174,7 +174,7 @@ export function CookieConsent() {
                       onChange={(e) => setSettings({ ...settings, preferences: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#007AFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-ios-blue after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                   </label>
                 </div>
                 <p className="text-[11px] sm:text-xs text-label-tertiary leading-relaxed">
@@ -186,7 +186,7 @@ export function CookieConsent() {
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-1 sm:pt-2">
               <button
                 onClick={acceptNecessary}
-                className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-[#1d1d1f] bg-[#f5f5f7] hover:bg-[#e8e8ed] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all"
+                className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-label-primary bg-system-bg-secondary hover:bg-[#e8e8ed] active:scale-[0.98] rounded-xl sm:rounded-lg transition-all"
               >
                 {t('rejectOptional')}
               </button>

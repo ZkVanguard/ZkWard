@@ -338,7 +338,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
             <TimelineStep
               step={1}
               icon={<Sparkles className="w-5 h-5" />}
-              accent="from-[#007AFF] to-[#5AC8FA]"
+              accent="from-ios-blue to-[#5AC8FA]"
               title="AI decides"
               body="Seven specialised agents fuse Polymarket prediction signals, Crypto.com price feeds and funding rates into one allocation target."
             />

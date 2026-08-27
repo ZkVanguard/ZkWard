@@ -214,7 +214,7 @@ export function ConnectButton() {
 
             {/* Body */}
             <div className="p-5 sm:p-6">
-              <p className="text-[13px] sm:text-sm text-[#424245] dark:text-[#EBEBF0] leading-relaxed mb-5">
+              <p className="text-[13px] sm:text-sm text-label-secondary dark:text-[#EBEBF0] leading-relaxed mb-5">
                 Slush opens this page in its in-app browser where the vault can request signatures.
                 Your route, network and deposit form all stay put.
               </p>
@@ -301,7 +301,7 @@ export function ConnectButton() {
                     setShowMobileWallets(false);
                     setPendingMobileWallet(null);
                   }}
-                  className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-[#1D1D1F] dark:text-white bg-[#F5F5F7] dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] active:scale-[0.98] rounded-xl transition-all"
+                  className="h-11 sm:h-auto px-4 py-2 text-sm font-medium text-label-primary dark:text-white bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] active:scale-[0.98] rounded-xl transition-all"
                 >
                   Cancel
                 </button>
@@ -339,12 +339,12 @@ export function ConnectButton() {
         <div className="relative">
           <button
             onClick={() => setShowSelector(!showSelector)}
-            className="h-11 bg-[#F5F5F7] dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] border border-black/5 dark:border-white/10 rounded-[12px] transition-colors flex items-center gap-2 px-3"
+            className="h-11 bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] border border-black/5 dark:border-white/10 rounded-[12px] transition-colors flex items-center gap-2 px-3"
           >
             <div className="w-6 h-6 rounded-full bg-[#26A17B] flex items-center justify-center">
               <span className="text-white font-bold text-[7px]">WDK</span>
             </div>
-            <span className="text-[#1D1D1F] dark:text-white font-medium text-[14px]">
+            <span className="text-label-primary dark:text-white font-medium text-[14px]">
               {truncate(wdkAddress)}
             </span>
             <ChevronDown className="w-3.5 h-3.5 text-label-tertiary" />
@@ -360,7 +360,7 @@ export function ConnectButton() {
                       <span className="text-white font-bold text-[9px]">WDK</span>
                     </div>
                     <div>
-                      <div className="font-medium text-[#1D1D1F] dark:text-white text-[14px]">
+                      <div className="font-medium text-label-primary dark:text-white text-[14px]">
                         {currentChain?.name || 'WDK Wallet'}
                       </div>
                       <div className="text-[12px] text-label-tertiary font-mono">
@@ -372,7 +372,7 @@ export function ConnectButton() {
                   <div className="flex gap-2 mb-2">
                     <button
                       onClick={() => copyAddress(wdkAddress)}
-                      className="flex-1 py-1.5 bg-[#F5F5F7] dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] rounded-lg text-[12px] font-medium text-[#1D1D1F] dark:text-white flex items-center justify-center gap-1 transition-colors"
+                      className="flex-1 py-1.5 bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] rounded-lg text-[12px] font-medium text-label-primary dark:text-white flex items-center justify-center gap-1 transition-colors"
                     >
                       {copied ? (
                         <Check className="w-3.5 h-3.5 text-[#34C759]" />
@@ -385,7 +385,7 @@ export function ConnectButton() {
                       href={`${currentChain?.explorerUrl || 'https://explorer.cronos.org'}/address/${wdkAddress}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-1.5 bg-[#F5F5F7] dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] rounded-lg text-[12px] font-medium text-[#1D1D1F] dark:text-white flex items-center justify-center gap-1 transition-colors"
+                      className="flex-1 py-1.5 bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] rounded-lg text-[12px] font-medium text-label-primary dark:text-white flex items-center justify-center gap-1 transition-colors"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                       Explorer
@@ -428,14 +428,14 @@ export function ConnectButton() {
                   <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-[#1c1c1e] border border-[#E5E5EA] dark:border-[#38383a] rounded-xl shadow-lg overflow-hidden z-50 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <AlertTriangle className="w-5 h-5 text-[#FF9500]" />
-                      <h4 className="font-semibold text-[#1D1D1F] dark:text-white">
+                      <h4 className="font-semibold text-label-primary dark:text-white">
                         Switch to {suiExpectedNetwork}
                       </h4>
                     </div>
 
                     <p className="text-[13px] text-label-tertiary mb-3">
                       Your wallet is on{' '}
-                      <span className="font-medium text-[#1D1D1F] dark:text-white">
+                      <span className="font-medium text-label-primary dark:text-white">
                         {suiWalletNetwork || 'unknown'}
                       </span>
                       , but this app requires{' '}
@@ -448,7 +448,7 @@ export function ConnectButton() {
                           disconnectSui();
                           setShowNetworkHelp(false);
                         }}
-                        className="flex-1 py-2 bg-[#F5F5F7] dark:bg-[#2c2c2e] rounded-lg text-[12px] font-medium"
+                        className="flex-1 py-2 bg-system-bg-secondary dark:bg-[#2c2c2e] rounded-lg text-[12px] font-medium"
                       >
                         Disconnect
                       </button>
@@ -467,12 +467,12 @@ export function ConnectButton() {
             <div className="relative">
               <button
                 onClick={() => setShowSelector(!showSelector)}
-                className="h-11 bg-[#F5F5F7] dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] border border-black/5 dark:border-white/10 rounded-[12px] transition-colors flex items-center gap-2 px-3"
+                className="h-11 bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] border border-black/5 dark:border-white/10 rounded-[12px] transition-colors flex items-center gap-2 px-3"
               >
                 <div className="w-6 h-6 rounded-full bg-[#4DA2FF] flex items-center justify-center">
                   <span className="text-white font-bold text-[8px]">SUI</span>
                 </div>
-                <span className="text-[#1D1D1F] dark:text-white font-medium text-[14px]">
+                <span className="text-label-primary dark:text-white font-medium text-[14px]">
                   {truncate(suiAddress)}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-label-tertiary" />
@@ -488,7 +488,7 @@ export function ConnectButton() {
                           <span className="text-white font-bold text-[10px]">SUI</span>
                         </div>
                         <div>
-                          <div className="font-medium text-[#1D1D1F] dark:text-white text-[14px]">
+                          <div className="font-medium text-label-primary dark:text-white text-[14px]">
                             {walletName}
                           </div>
                           <div className="text-[12px] text-label-tertiary font-mono">
@@ -500,7 +500,7 @@ export function ConnectButton() {
                       <div className="flex gap-2 mb-2">
                         <button
                           onClick={() => copyAddress(suiAddress)}
-                          className="flex-1 py-1.5 bg-[#F5F5F7] dark:bg-[#2c2c2e] rounded-lg text-[12px] font-medium flex items-center justify-center gap-1"
+                          className="flex-1 py-1.5 bg-system-bg-secondary dark:bg-[#2c2c2e] rounded-lg text-[12px] font-medium flex items-center justify-center gap-1"
                         >
                           {copied ? (
                             <Check className="w-3.5 h-3.5 text-[#34C759]" />
@@ -513,7 +513,7 @@ export function ConnectButton() {
                           href={`https://suiscan.xyz/${process.env.NEXT_PUBLIC_SUI_NETWORK || 'mainnet'}/address/${suiAddress}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 py-1.5 bg-[#F5F5F7] dark:bg-[#2c2c2e] rounded-lg text-[12px] font-medium flex items-center justify-center gap-1"
+                          className="flex-1 py-1.5 bg-system-bg-secondary dark:bg-[#2c2c2e] rounded-lg text-[12px] font-medium flex items-center justify-center gap-1"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                           Explorer
