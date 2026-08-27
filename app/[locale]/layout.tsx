@@ -15,9 +15,13 @@ import { IntlProvider } from '../../components/IntlProvider';
 // Display face — self-hosted (no <link> to fonts.googleapis.com), variable
 // CSS var consumed by `font-display` utility in tailwind config. Applied to
 // hero headlines only; body stays on SF for zero-cost native feel.
+// Only weight 600 is ever paired with .font-display in the marketing
+// surface (h1/h2). Dropping 500 + 700 shaves ~2/3 of the font payload on
+// cold visits without any visual change. If a future headline needs bold,
+// add '700' back here explicitly.
 const displayFont = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['500', '600', '700'],
+  weight: ['600'],
   variable: '--font-display',
   display: 'swap',
 });

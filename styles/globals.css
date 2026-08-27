@@ -345,3 +345,60 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; }
 }
 
 .tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" on; }
+
+/* ── Reveal primitive (framer-motion-free) ──
+   Paired with <Reveal> in components/ui/landing.tsx. Data-attribute
+   flip is done by an IntersectionObserver post-mount; SSR + CSR emit
+   identical HTML so React sees no hydration mismatch. */
+[data-reveal=""] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 550ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 550ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+[data-reveal="in"] {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal=""], [data-reveal="in"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ── Vault-meter scroll-lift ──
+   As the hero exits the top of the viewport, the vault meter rises
+   ~8px and its shadow deepens + tints ios-blue. Uses native CSS
+   scroll-driven animation (animation-timeline: view()) so it runs
+   on the compositor with zero JS. Prior implementation was a framer-
+   motion.div with useTransform that produced a hydration mismatch:
+   SSR wrote kebab-case + browser-normalized box-shadow, CSR wrote
+   camelCase + author-original. Static baseline + reduced-motion
+   fallback keep browsers without view-timeline visually correct. */
+.vault-scroll-lift {
+  transform: translate3d(0, 0, 0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  will-change: transform, box-shadow;
+}
+@supports (animation-timeline: view()) {
+  .vault-scroll-lift {
+    animation: vault-lift linear both;
+    animation-timeline: view();
+    animation-range: exit -100px exit 300px;
+  }
+  @keyframes vault-lift {
+    from { transform: translate3d(0, 0, 0); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+    to   { transform: translate3d(0, -8px, 0); box-shadow: 0 24px 60px rgba(0, 105, 217, 0.14); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-scroll-lift {
+    animation: none !important;
+    transform: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  }
+}

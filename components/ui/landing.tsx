@@ -5,7 +5,7 @@
 // logic. Add a component here when the same pattern appears in ≥2 pages.
 
 import type { ReactNode } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
 // ─── PageShell ──────────────────────────────────────────────────────────
 // Top-level wrapper for a marketing page. Standardises canvas color + text
@@ -50,23 +50,55 @@ export function Section({
 // ─── Reveal ─────────────────────────────────────────────────────────────
 // Subtle scroll-triggered fade+rise. Respects prefers-reduced-motion.
 // Dial MOTION=4: fluid CSS, no scroll-hijack, no marquees.
+//
+// Implementation: SSR + first client render both emit an identical plain
+// <div data-reveal=""> — CSS defines the "0 opacity / +20px" resting
+// state. Post-mount an IntersectionObserver flips data-reveal="in" the
+// first time the element crosses the 15%-visible threshold, and CSS
+// transitions to the final state. No framer-motion here — the previous
+// motion.div implementation produced SSR/CSR attribute deltas that React
+// reports as hydration mismatches (motion writes initial styles into SSR
+// HTML but applies them post-mount on the client via a ref).
 export function Reveal({
-  children, className, delay = 0,
+  children, className = '', delay = 0,
 }: {
   children: ReactNode; className?: string; delay?: number;
 }) {
-  const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Reduced-motion: reveal instantly, don't burn an IO.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.setAttribute('data-reveal', 'in');
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        if (delay > 0) {
+          const t = window.setTimeout(() => el.setAttribute('data-reveal', 'in'), delay * 1000);
+          // Clean-up path only reachable if the caller unmounts within
+          // the delay window; still worth wiring to avoid a stray timer.
+          el.dataset.revealTimer = String(t);
+        } else {
+          el.setAttribute('data-reveal', 'in');
+        }
+      },
+      { threshold: 0.15 },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      const t = el.dataset.revealTimer;
+      if (t) window.clearTimeout(Number(t));
+    };
+  }, [delay]);
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <div ref={ref} data-reveal="" className={className}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
