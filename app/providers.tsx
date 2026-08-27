@@ -6,13 +6,11 @@ import './api-interceptor';
 import { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider as CustomThemeProvider } from '../contexts/ThemeContext';
-// WDK Provider - Native Tether self-custodial wallet
-import { WdkProvider } from '../lib/wdk/wdk-context';
-// WDK Modal - rendered outside Navbar to avoid backdrop-filter stacking context
-import { WdkModalProvider } from '../contexts/WdkModalContext';
 
-// Sui - use the complete provider that includes SuiContext
-import { SuiWalletProviders } from './sui-providers';
+// Light-weight providers used across every route (marketing + app).
+// Wallet-heavy providers (WdkProvider, SuiWalletProviders — ~800 KB of
+// @mysten SDKs + ethers) live in app/wallet-providers.tsx and only
+// wrap /dashboard/**. See dashboard/layout.tsx.
 
 // Singleton QueryClient instance — optimized for multi-user scale
 let queryClientInstance: QueryClient | null = null;
@@ -45,17 +43,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <CustomThemeProvider>
       <QueryClientProvider client={queryClient}>
-        {/* Tether WDK Provider - Native self-custodial wallet */}
-        <WdkProvider defaultChain={process.env.NEXT_PUBLIC_DEFAULT_CHAIN || 'cronos-mainnet'}>
-          {/* Sui Provider with full context support */}
-          <SuiWalletProviders>
-            {/* WdkModalProvider renders the modal as a sibling of Navbar,
-                outside the backdrop-filter stacking context */}
-            <WdkModalProvider>
-              {children}
-            </WdkModalProvider>
-          </SuiWalletProviders>
-        </WdkProvider>
+        {children}
       </QueryClientProvider>
     </CustomThemeProvider>
   );

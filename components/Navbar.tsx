@@ -1,17 +1,48 @@
 'use client';
 
 import { memo, useState, useEffect } from 'react';
+import nextDynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
 import { Link } from '../i18n/routing';
-import { ConnectButton } from './ConnectButton';
 import { LanguageSelector } from './LanguageSelector';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
 import Logo from './Logo';
 import { useTranslations } from 'next-intl';
+
+// ConnectButton lazily imported — pulls @mysten/dapp-kit + @mysten/sui
+// + ethers (~800 KB). We only render it on /dashboard so that chunk
+// never lands in the marketing bundle. Static stub used elsewhere
+// routes users to the app entry point instead.
+const ConnectButton = nextDynamic(
+  () => import('./ConnectButton').then((m) => ({ default: m.ConnectButton })),
+  { ssr: false, loading: () => <ConnectButtonSkeleton /> },
+);
+
+function ConnectButtonSkeleton() {
+  return <div className="h-11 w-32 rounded-[12px] bg-system-bg-secondary animate-pulse" />;
+}
+
+function ConnectButtonStub() {
+  return (
+    <Link
+      href="/dashboard"
+      className="group inline-flex items-center gap-2 px-4 h-11 bg-ios-blue text-white rounded-[12px] text-[14px] font-semibold hover:bg-[#0056b3] active:scale-[0.97] transition-all duration-200 shadow-ios-1"
+    >
+      Enter app
+      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" strokeWidth={2.5} />
+    </Link>
+  );
+}
 
 export const Navbar = memo(function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const t = useTranslations('nav');
+  const pathname = usePathname();
+  // Only /dashboard has the WalletProviders context in scope. Anywhere
+  // else we render a stub link to keep the wallet SDK out of the
+  // marketing bundle.
+  const isDashboard = pathname?.includes('/dashboard') ?? false;
 
   // Detect scroll past 20px via IntersectionObserver on an injected sentinel.
   // Replaces window.addEventListener('scroll') which fired every frame.
@@ -76,7 +107,7 @@ export const Navbar = memo(function Navbar() {
           {/* Desktop - Language Selector + Connect Button (Right side) */}
           <div className="hidden lg:flex items-center gap-3">
             <LanguageSelector />
-            <ConnectButton />
+            {isDashboard ? <ConnectButton /> : <ConnectButtonStub />}
           </div>
 
           {/* Mobile Menu Button - Proper 44pt touch target */}
@@ -110,7 +141,7 @@ export const Navbar = memo(function Navbar() {
             </div>
             <div className="mt-3 pt-3 px-3 border-t border-black/10 space-y-3">
               <LanguageSelector />
-              <ConnectButton />
+              {isDashboard ? <ConnectButton /> : <ConnectButtonStub />}
             </div>
           </div>
         )}

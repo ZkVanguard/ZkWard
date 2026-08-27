@@ -1,21 +1,23 @@
 'use client';
 
-// After PR #71 consolidated portfolio/risk/custody into tabs on
-// /dashboard itself, this layout's only remaining job is provider
-// wrapping. The old sub-tab strip + `onRoot` branch pointed at routes
-// that no longer exist — the Link elements were emitting 404 RSC
-// prefetches on every /dashboard visit (visible in the console).
+// Provider wrapping for /dashboard. WalletProviders (WdkProvider +
+// SuiWalletProviders — ~800 KB of @mysten/dapp-kit + @mysten/sui +
+// ethers) live here instead of root providers so marketing routes
+// (/, /agents, /zk, /rwa, /whitepaper) don't pay the bundle cost.
 
 import type { ReactNode } from 'react';
 import { PositionsProvider } from '@/contexts/PositionsContext';
 import { AIDecisionsProvider } from '@/contexts/AIDecisionsContext';
+import { WalletProviders } from '@/app/wallet-providers';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <PositionsProvider>
-      <AIDecisionsProvider>
-        {children}
-      </AIDecisionsProvider>
-    </PositionsProvider>
+    <WalletProviders>
+      <PositionsProvider>
+        <AIDecisionsProvider>
+          {children}
+        </AIDecisionsProvider>
+      </PositionsProvider>
+    </WalletProviders>
   );
 }
