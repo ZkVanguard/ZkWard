@@ -394,7 +394,7 @@ export default function AgentsPage() {
           </div>
 
           <div className="bg-label-primary rounded-ios-xl p-5 sm:p-6">
-            <h4 className="text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-4">Message flow</h4>
+            <h4 className="text-caption-1 uppercase tracking-wide font-semibold text-white/60 mb-4">Message flow</h4>
             <pre className="text-subheadline text-white overflow-x-auto font-mono leading-relaxed">
 {`User Input → Lead Agent (parse intent)
     ↓
