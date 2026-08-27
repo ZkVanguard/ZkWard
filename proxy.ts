@@ -73,6 +73,13 @@ const PROTECTED_PREFIXES = [
   '/swap',
 ];
 
+// Marketing routes get CDN cacheable HTML shell. Excludes /dashboard,
+// /simulator, /api (those are per-user or already API-cached).
+const MARKETING_ROUTE_PREFIXES = ['/', '/agents', '/zk', '/rwa', '/whitepaper', '/privacy', '/terms'];
+function pathnameWithoutLocalePrefix(p: string): string {
+  return p.replace(/^\/[a-z]{2}(\/|$)/, '/');
+}
+
 // Fast prefix set for public paths
 const PUBLIC_PREFIXES = [
   '/api/health',
@@ -184,10 +191,24 @@ export function proxy(request: NextRequest) {
   
   // Apply i18n for non-API routes
   const intlResponse = intlMiddleware(request);
-  
+
   // Add security headers to all i18n responses
   if (intlResponse instanceof NextResponse) {
     addSecurityHeaders(intlResponse);
+
+    // Cache-Control for the marketing surface. Next 15+ defaults every
+    // dynamic route to no-cache/no-store, which stops Vercel's CDN from
+    // holding the HTML shell. Marketing pages are near-static; live
+    // numbers on / hydrate via useQuery on the client. 60s edge cache +
+    // 5min stale-while-revalidate gives CDN offload without staleness
+    // problems (browser gets fresh HTML within 60s; useQuery is fresher).
+    // GET only — POST responses stay uncached.
+    if (request.method === 'GET') {
+      const marketing = MARKETING_ROUTE_PREFIXES.some((p) => pathnameWithoutLocalePrefix(pathname).startsWith(p));
+      if (marketing) {
+        intlResponse.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+      }
+    }
   }
   
   // Skip geo-blocking for public paths

@@ -38,19 +38,28 @@ export async function GET() {
       });
     }
     
+    // Return 200 with status='unhealthy' in the body. This is a health
+    // reporter, not a health signal to a load balancer — a 503 HTTP code
+    // just makes the browser log a console error on the /zk page while
+    // the client already reads .status from the body. The `status` field
+    // carries the actual liveness signal.
     return NextResponse.json({
       status: 'unhealthy',
       backend: ZK_BACKEND_URL,
       error: `Backend returned ${res.status}`,
       timestamp: Date.now(),
-    }, { status: 503 });
-    
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
+    });
+
   } catch (error) {
     return NextResponse.json({
       status: 'unavailable',
       backend: ZK_BACKEND_URL,
       error: error instanceof Error ? error.message : 'Connection failed',
       timestamp: Date.now(),
-    }, { status: 503 });
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
+    });
   }
 }

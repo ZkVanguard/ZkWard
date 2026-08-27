@@ -399,9 +399,13 @@ export default function DashboardPage() {
           tab in the bottom bar. */}
       <header className="lg:hidden fixed top-[52px] left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-black/5">
         <div className="flex items-center justify-between px-4 h-12">
-          <h1 className="text-[17px] font-semibold text-[#1d1d1f] tracking-tight truncate">
+          {/* Uses <p role=heading aria-level=1> instead of a second <h1>.
+              The desktop h1 below is display:none on mobile, and vice versa,
+              but audit tools count both DOM nodes. Screen readers still
+              announce this as a level-1 heading via ARIA. */}
+          <p role="heading" aria-level={1} className="text-[17px] font-semibold text-[#1d1d1f] tracking-tight truncate m-0">
             {[...navItems, ...platformItems].find((n) => n.id === activeNav)?.label}
-          </h1>
+          </p>
 
           <button
             onClick={() => setShowChat(true)}
