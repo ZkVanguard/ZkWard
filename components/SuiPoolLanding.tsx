@@ -1,8 +1,9 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { Link } from '@/i18n/routing';
 import {
   ArrowRight, ShieldCheck, Zap, BarChart3,
@@ -10,6 +11,44 @@ import {
 } from 'lucide-react';
 import { InstallAppButton } from './InstallAppButton';
 import { Reveal, LiveIndicator, StatusPill, TrustBadge } from './ui/landing';
+
+// Linear's signature spring curve. Read as: quick out, slow in — feels
+// like real mass behind interactive elements instead of the default
+// ease-in-out "slide-and-stop" cadence.
+const SPRING = 'cubic-bezier(0.32, 0.72, 0, 1)';
+
+// Cursor spotlight — updates --x/--y CSS variables on a container from
+// pointermove. Falls back silently if prefers-reduced-motion is set.
+// Uses rAF to keep at 60fps regardless of pointer event flood, and
+// skips work below md: (touch devices don't produce a persistent
+// pointer, so a cursor spotlight would just look like a static blob).
+function useCursorSpotlight<T extends HTMLElement>(ref: React.RefObject<T | null>) {
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el) return;
+    // matchMedia gate so we don't burn work on touch devices.
+    const mq = window.matchMedia('(min-width: 768px) and (pointer: fine)');
+    if (!mq.matches) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        el.style.setProperty('--sx', `${x}%`);
+        el.style.setProperty('--sy', `${y}%`);
+      });
+    };
+    el.addEventListener('pointermove', onMove);
+    return () => {
+      el.removeEventListener('pointermove', onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, [ref, reduce]);
+}
 
 // Chart is heavy (chart.js + react-chartjs-2). Dynamic-import so the landing
 // paints instantly and the chart hydrates below-the-fold when the user reaches
@@ -131,6 +170,25 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
     staleTime: 30_000,
   });
 
+  // Cursor-following spotlight on the hero — sets --sx/--sy CSS vars
+  // that a radial-gradient reads. Static gradient below md: (touch).
+  const heroRef = useRef<HTMLElement>(null);
+  useCursorSpotlight(heroRef);
+
+  // Scroll-scrub the VaultMeter — as the user scrolls past the hero,
+  // the card rises 8px and its shadow deepens/tints blue. Feels like
+  // it lifts off the page as it exits. Respects reduced-motion.
+  const reduce = useReducedMotion();
+  const { scrollY } = useScroll();
+  const vaultY = useTransform(scrollY, [0, 400], reduce ? [0, 0] : [0, -8]);
+  const vaultShadow = useTransform(
+    scrollY,
+    [0, 400],
+    reduce
+      ? ['0 4px 12px rgba(0,0,0,0.08)', '0 4px 12px rgba(0,0,0,0.08)']
+      : ['0 4px 12px rgba(0,0,0,0.08)', '0 24px 60px rgba(0,105,217,0.14)'],
+  );
+
   // Build allocation legend (positive entries only)
   const allocationEntries = pool
     ? Object.entries(pool.allocation || {})
@@ -143,14 +201,20 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
       {/* ─────────────────────────────────────────────────────────────── */}
       {/* HERO                                                            */}
       {/* ─────────────────────────────────────────────────────────────── */}
-      <section className="relative pt-20 pb-12 sm:pt-32 sm:pb-24 lg:pt-40 lg:pb-32 px-4 sm:px-5 lg:px-8 overflow-hidden min-w-0">
+      <section ref={heroRef} className="relative pt-20 pb-12 sm:pt-32 sm:pb-24 lg:pt-40 lg:pb-32 px-4 sm:px-5 lg:px-8 overflow-hidden min-w-0">
         {/* Apple-style soft gradient backdrop */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-system-bg-tertiary via-system-bg-primary to-system-bg-primary" />
+        {/* Cursor-follow spotlight (desktop) — reads --sx/--sy set by
+            useCursorSpotlight. Falls back to a static center-top radial
+            when the vars aren't set (initial paint, touch devices,
+            reduced-motion). */}
         <div
-          className="absolute -z-10 top-0 left-1/2 -translate-x-1/2 w-[120%] h-[600px] opacity-30"
+          aria-hidden
+          className="absolute inset-0 -z-10 pointer-events-none"
           style={{
             background:
-              'radial-gradient(ellipse at center, rgba(0,122,255,0.15) 0%, rgba(0,122,255,0) 60%)',
+              'radial-gradient(ellipse 600px 400px at var(--sx, 50%) var(--sy, 20%), rgba(0,105,217,0.14) 0%, rgba(0,105,217,0) 60%)',
+            transition: `background 500ms ${SPRING}`,
           }}
         />
 
@@ -185,10 +249,17 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
           {/* ─── VAULT METER (signature element) ─── */}
           {/* Shows the vault's live state as the hero's real visual, instead
               of a text hero + stat cards. NAV + composition + capacity in one
-              card. This is "the product IS the pitch". */}
-          <div className="max-w-[720px] mx-auto mb-3 sm:mb-4">
+              card. This is "the product IS the pitch".
+              Wrapped in motion.div so scroll drives the y-offset + shadow
+              interpolation — the card physically rises as the hero exits
+              instead of scrolling flatly with the page. Skipped when
+              prefers-reduced-motion. */}
+          <motion.div
+            style={{ y: vaultY, boxShadow: vaultShadow, willChange: 'transform' }}
+            className="max-w-[720px] mx-auto mb-3 sm:mb-4 rounded-[28px]"
+          >
             <VaultMeter pool={pool} loading={loading} cap={TVL_CAP_USD} />
-          </div>
+          </motion.div>
           {/* Live-refresh ticker — proves the auto-refresh cadence is real,
               not marketing copy. Uses useQuery's dataUpdatedAt (client truth). */}
           <div className="max-w-[720px] mx-auto mb-8 sm:mb-10">
@@ -197,12 +268,25 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-6">
+            {/* Magnetic button-in-button (soft-skill pattern) — the
+                trailing arrow lives in its own nested circle instead of
+                sitting naked next to the label. On hover the entire
+                pair reacts as one: bg darkens, whole button pushes
+                down slightly, arrow circle translates + scales. Custom
+                cubic-bezier so the motion has real mass. */}
             <Link
               href="/dashboard"
-              className="group inline-flex items-center justify-center gap-2 px-8 h-[52px] sm:h-[56px] bg-ios-blue text-white text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] transition-all duration-200 shadow-ios-2 w-full sm:w-auto"
+              className="group inline-flex items-center justify-center gap-3 pl-6 pr-2.5 h-[52px] sm:h-[56px] bg-ios-blue text-white text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] shadow-ios-2 w-full sm:w-auto"
+              style={{ transition: `all 500ms ${SPRING}` }}
             >
               Deposit USDC
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
+              <span
+                aria-hidden
+                className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center group-hover:translate-x-1 group-hover:-translate-y-[1px] group-hover:scale-105"
+                style={{ transition: `transform 500ms ${SPRING}` }}
+              >
+                <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
+              </span>
             </Link>
             <a
               href="#how-it-works"
@@ -475,10 +559,17 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               href="/dashboard"
-              className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 sm:px-10 h-[52px] sm:h-[56px] bg-ios-blue text-white text-base sm:text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] transition-all duration-200 shadow-ios-2"
+              className="group inline-flex items-center justify-center gap-3 w-full sm:w-auto pl-6 sm:pl-8 pr-2.5 h-[52px] sm:h-[56px] bg-ios-blue text-white text-base sm:text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] shadow-ios-2"
+              style={{ transition: `all 500ms ${SPRING}` }}
             >
               Deposit USDC
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
+              <span
+                aria-hidden
+                className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center group-hover:translate-x-1 group-hover:-translate-y-[1px] group-hover:scale-105"
+                style={{ transition: `transform 500ms ${SPRING}` }}
+              >
+                <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
+              </span>
             </Link>
             <a
               href="https://github.com/ZkVanguard/ZkWard"
@@ -554,8 +645,14 @@ function VaultMeter({
     : [];
   const capacityPct = pool ? Math.min(100, (pool.totalNAV / cap) * 100) : 0;
 
+  // Double-Bezel structure (soft-skill Doppelrand). Outer shell reads
+  // as an aluminium tray with a hairline ring; inner core is the glass
+  // plate with a subtle inner-highlight catching a light source above.
+  // Radii are mathematically concentric: outer 28px minus 6px padding
+  // = 22px inner. Reads as machined hardware, not a flat browser card.
   return (
-    <div className="relative bg-system-bg-primary rounded-[24px] p-5 sm:p-7 border border-separator-opaque/40 shadow-ios-2 overflow-hidden">
+    <div className="rounded-[28px] bg-black/[0.02] ring-1 ring-black/5 p-1.5">
+      <div className="relative bg-system-bg-primary rounded-[22px] p-4 sm:p-6 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]">
       {/* Brand accent bar — the one signature flourish */}
       <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-ios-blue via-[#5AC8FA] to-ios-blue" />
 
@@ -618,6 +715,7 @@ function VaultMeter({
             style={{ width: `${capacityPct}%` }}
           />
         </div>
+      </div>
       </div>
     </div>
   );
