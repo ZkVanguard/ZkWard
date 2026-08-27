@@ -29,6 +29,7 @@ module.exports = {
         // in the iOS blue family.
         ios: {
           blue: '#0069D9',
+          blueHover: '#0062CC',
           green: '#34C759',
           orange: '#FF9500',
           red: '#FF3B30',

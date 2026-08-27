@@ -12,29 +12,39 @@ import { ThemeProvider as CustomThemeProvider } from '../contexts/ThemeContext';
 // @mysten SDKs + ethers) live in app/wallet-providers.tsx and only
 // wrap /dashboard/**. See dashboard/layout.tsx.
 
-// Singleton QueryClient instance — optimized for multi-user scale
-let queryClientInstance: QueryClient | null = null;
-function getQueryClient() {
-  if (!queryClientInstance) {
-    queryClientInstance = new QueryClient({
-      defaultOptions: {
-        queries: {
-          refetchOnWindowFocus: false,
-          retry: 1,                      // Reduced from 2: fail fast for faster UX
-          staleTime: 120_000,            // 2 minutes
-          gcTime: 600_000,               // 10 minutes
-          refetchOnMount: false,
-          refetchOnReconnect: false,
-          networkMode: 'offlineFirst',   // Use cache while offline, reduces refetches
-        },
-        mutations: {
-          retry: 1,
-          networkMode: 'offlineFirst',
-        },
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: false,
+        retry: 1,                      // Reduced from 2: fail fast for faster UX
+        staleTime: 120_000,            // 2 minutes
+        gcTime: 600_000,               // 10 minutes
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        networkMode: 'offlineFirst',   // Use cache while offline, reduces refetches
       },
-    });
-  }
-  return queryClientInstance;
+      mutations: {
+        retry: 1,
+        networkMode: 'offlineFirst',
+      },
+    },
+  });
+}
+
+// Concurrency-correct QueryClient factory (Tanstack's recommended SSR
+// pattern). On the SERVER, always return a fresh client — a module-level
+// singleton would be reused across concurrent SSR renders in the same
+// Node process, leaking one user's cached queries into another's HTML.
+// On the CLIENT, memoise on the first call so React re-renders share
+// the same cache. `typeof window === 'undefined'` is the standard SSR
+// branch; safe here because this file is 'use client' and this branch
+// executes only during Next's initial server render of the client tree.
+let browserQueryClient: QueryClient | undefined;
+function getQueryClient(): QueryClient {
+  if (typeof window === 'undefined') return makeQueryClient();
+  if (!browserQueryClient) browserQueryClient = makeQueryClient();
+  return browserQueryClient;
 }
 
 export function Providers({ children }: { children: ReactNode }) {

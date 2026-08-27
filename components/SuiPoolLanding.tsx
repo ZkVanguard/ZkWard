@@ -3,7 +3,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
 import { Link } from '@/i18n/routing';
 import {
   ArrowRight, ShieldCheck, Zap, BarChart3,
@@ -197,6 +197,121 @@ async function fetchPoolSummary(): Promise<PoolSummary | null> {
   };
 }
 
+// HeroGraphBg — three parallax layers behind the hero (CSS dot-grid +
+// SVG chart curves + SVG node network). Reads --sx/--sy already
+// published by useCursorSpotlight, translates each layer by a different
+// factor (calc((--sx - 50%) * k)) so back layers drift slowly and the
+// front layer tracks the cursor faster. That differential IS the 3D cue.
+// All ios-blue at low opacity so the white canvas stays clean. Hidden
+// below md: — mobile has no cursor and the graph would compete with
+// headline text at that width.
+//
+// Reduced-motion + hydration: gated purely in CSS (@media prefers-
+// reduced-motion). Not useReducedMotion() — that returns null on server
+// and a real value on client's first render, which caused a hydration
+// mismatch on the earlier revision.
+const HERO_NODES: Array<[number, number]> = [
+  [120, 180], [340, 120], [580, 200], [820, 140], [1080, 220], [400, 340], [680, 380],
+];
+// Precomputed parallax styles — hoisting kills the per-render allocation
+// that would happen if we built these objects inside the component. The
+// factor triplet (-0.012, -0.028, -0.055) IS the 3D depth cue.
+const parallaxStyle = (k: number): React.CSSProperties => ({
+  transform: `translate3d(calc((var(--sx, 50%) - 50%) * ${k}), calc((var(--sy, 50%) - 50%) * ${k * 0.7}), 0)`,
+  transition: `transform 700ms ${SPRING}`,
+  willChange: 'transform',
+});
+const PX_LAYER_1 = parallaxStyle(-0.012);
+const PX_LAYER_2 = parallaxStyle(-0.028);
+const PX_LAYER_3 = parallaxStyle(-0.055);
+const LAYER_1_STYLE: React.CSSProperties = {
+  ...PX_LAYER_1,
+  backgroundImage:
+    'radial-gradient(circle at 1.5px 1.5px, rgba(0,105,217,0.30) 1.1px, transparent 1.5px)',
+  backgroundSize: '32px 32px',
+  WebkitMaskImage:
+    'linear-gradient(to bottom, transparent 0%, black 22%, black 62%, transparent 100%)',
+  maskImage:
+    'linear-gradient(to bottom, transparent 0%, black 22%, black 62%, transparent 100%)',
+};
+
+function HeroGraphBg() {
+  return (
+    <div aria-hidden className="hero-graph-bg hidden md:block absolute inset-0 -z-10 pointer-events-none overflow-hidden">
+      {/* Layer 1 — dot grid via CSS radial-gradient (SVG pattern without a
+          viewBox tiles inconsistently across browsers on this project's
+          layout; CSS gradient tile is deterministic + one line). Vertical
+          fade via mask-image so the grid does not clash with headline
+          text or the vault meter card. */}
+      <div className="hero-graph-layer absolute inset-0" style={LAYER_1_STYLE} />
+
+      {/* Layer 2 — chart polylines. Slow dashoffset sweep on the dashed line
+          gives a "live tape" feel without any JS. */}
+      <svg
+        className="hero-graph-layer absolute inset-0 w-full h-full"
+        preserveAspectRatio="none"
+        viewBox="0 0 1200 600"
+        style={PX_LAYER_2}
+      >
+        <defs>
+          <linearGradient id="hero-chart-fill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="rgba(0,105,217,0.10)" />
+            <stop offset="100%" stopColor="rgba(0,105,217,0)" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255 L1200,600 L0,600 Z"
+          fill="url(#hero-chart-fill)"
+        />
+        <path
+          d="M0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255"
+          fill="none"
+          stroke="rgba(0,105,217,0.38)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <path
+          className="hero-chart-tape"
+          d="M0,490 C180,455 300,470 460,438 S720,405 900,382 S1100,362 1200,338"
+          fill="none"
+          stroke="rgba(0,105,217,0.22)"
+          strokeWidth="1"
+          strokeLinecap="round"
+          strokeDasharray="4 7"
+        />
+      </svg>
+
+      {/* Layer 3 — node network, fastest drift (feels closest to viewer) */}
+      <svg
+        className="hero-graph-layer absolute inset-0 w-full h-full"
+        preserveAspectRatio="xMidYMid slice"
+        viewBox="0 0 1200 600"
+        style={PX_LAYER_3}
+      >
+        <g stroke="rgba(0,105,217,0.22)" strokeWidth="0.8" fill="none">
+          <path d="M120,180 L340,120 L580,200 L820,140 L1080,220" />
+          <path d="M340,120 L400,340 L580,200 L680,380 L820,140" />
+          <path d="M120,180 L400,340 L680,380 L1080,220" />
+        </g>
+        <g fill="rgba(0,105,217,0.55)">
+          {HERO_NODES.map(([cx, cy]) => (
+            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.6} />
+          ))}
+        </g>
+      </svg>
+
+      <style jsx>{`
+        .hero-chart-tape { animation: hero-tape 14s linear infinite; }
+        @keyframes hero-tape { to { stroke-dashoffset: -220; } }
+        @media (prefers-reduced-motion: reduce) {
+          .hero-graph-layer { transform: none !important; transition: none !important; }
+          .hero-chart-tape { animation: none; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export const SuiPoolLanding = memo(function SuiPoolLanding() {
   const { data: pool, isPending: loading, dataUpdatedAt } = useQuery({
     queryKey: ['sui-pool-landing'],
@@ -210,20 +325,6 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
   const heroRef = useRef<HTMLElement>(null);
   useCursorSpotlight(heroRef);
 
-  // Scroll-scrub the VaultMeter — as the user scrolls past the hero,
-  // the card rises 8px and its shadow deepens/tints blue. Feels like
-  // it lifts off the page as it exits. Respects reduced-motion.
-  const reduce = useReducedMotion();
-  const { scrollY } = useScroll();
-  const vaultY = useTransform(scrollY, [0, 400], reduce ? [0, 0] : [0, -8]);
-  const vaultShadow = useTransform(
-    scrollY,
-    [0, 400],
-    reduce
-      ? ['0 4px 12px rgba(0,0,0,0.08)', '0 4px 12px rgba(0,0,0,0.08)']
-      : ['0 4px 12px rgba(0,0,0,0.08)', '0 24px 60px rgba(0,105,217,0.14)'],
-  );
-
   // Build allocation legend (positive entries only)
   const allocationEntries = pool
     ? Object.entries(pool.allocation || {})
@@ -236,9 +337,12 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
       {/* ─────────────────────────────────────────────────────────────── */}
       {/* HERO                                                            */}
       {/* ─────────────────────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative pt-20 pb-12 sm:pt-32 sm:pb-24 lg:pt-40 lg:pb-32 px-4 sm:px-5 lg:px-8 overflow-hidden min-w-0">
+      <section ref={heroRef} className="relative isolate pt-20 pb-12 sm:pt-32 sm:pb-24 lg:pt-40 lg:pb-32 px-4 sm:px-5 lg:px-8 overflow-hidden min-w-0">
         {/* Apple-style soft gradient backdrop */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-system-bg-tertiary via-system-bg-primary to-system-bg-primary" />
+        {/* Depth-parallax graph backdrop (3 layers, cursor-driven).
+            Reuses --sx/--sy from useCursorSpotlight — no extra listener. */}
+        <HeroGraphBg />
         {/* Cursor-follow spotlight (desktop) — reads --sx/--sy set by
             useCursorSpotlight. Falls back to a static center-top radial
             when the vars aren't set (initial paint, touch devices,
@@ -285,16 +389,12 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
           {/* Shows the vault's live state as the hero's real visual, instead
               of a text hero + stat cards. NAV + composition + capacity in one
               card. This is "the product IS the pitch".
-              Wrapped in motion.div so scroll drives the y-offset + shadow
-              interpolation — the card physically rises as the hero exits
-              instead of scrolling flatly with the page. Skipped when
-              prefers-reduced-motion. */}
-          <motion.div
-            style={{ y: vaultY, boxShadow: vaultShadow, willChange: 'transform' }}
-            className="max-w-[720px] mx-auto mb-3 sm:mb-4 rounded-[28px]"
-          >
+              As the hero exits the viewport, the card rises + shadow deepens
+              via .vault-scroll-lift (native CSS scroll-driven animation,
+              zero JS, respects reduced-motion). */}
+          <div className="vault-scroll-lift max-w-[720px] mx-auto mb-3 sm:mb-4 rounded-[28px]">
             <VaultMeter pool={pool} loading={loading} cap={TVL_CAP_USD} />
-          </motion.div>
+          </div>
           {/* Live-refresh ticker — proves the auto-refresh cadence is real,
               not marketing copy. Uses useQuery's dataUpdatedAt (client truth). */}
           <div className="max-w-[720px] mx-auto mb-8 sm:mb-10">
@@ -311,7 +411,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
                 cubic-bezier so the motion has real mass. */}
             <Link
               href="/dashboard"
-              className="group inline-flex items-center justify-center gap-3 pl-6 pr-2.5 h-[52px] sm:h-[56px] bg-ios-blue text-white text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] shadow-ios-2 w-full sm:w-auto"
+              className="group inline-flex items-center justify-center gap-3 pl-6 pr-2.5 h-[52px] sm:h-[56px] bg-ios-blue text-white text-headline font-semibold rounded-ios-xl hover:bg-ios-blueHover active:scale-[0.97] shadow-ios-2 w-full sm:w-auto"
               style={{ transition: `all 500ms ${SPRING}` }}
             >
               Deposit USDC
@@ -594,7 +694,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               href="/dashboard"
-              className="group inline-flex items-center justify-center gap-3 w-full sm:w-auto pl-6 sm:pl-8 pr-2.5 h-[52px] sm:h-[56px] bg-ios-blue text-white text-base sm:text-headline font-semibold rounded-ios-xl hover:bg-[#0062CC] active:scale-[0.97] shadow-ios-2"
+              className="group inline-flex items-center justify-center gap-3 w-full sm:w-auto pl-6 sm:pl-8 pr-2.5 h-[52px] sm:h-[56px] bg-ios-blue text-white text-base sm:text-headline font-semibold rounded-ios-xl hover:bg-ios-blueHover active:scale-[0.97] shadow-ios-2"
               style={{ transition: `all 500ms ${SPRING}` }}
             >
               Deposit USDC
@@ -697,17 +797,27 @@ function VaultMeter({
           <div className="text-[10px] sm:text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-1.5">
             Pool NAV
           </div>
-          <div className={`text-[36px] sm:text-[52px] md:text-[60px] font-bold tabular-nums leading-none text-label-primary break-all ${loading ? 'animate-pulse' : ''}`}>
-            {loading ? '…' : formatUsd(pool?.totalNAV ?? 0)}
-          </div>
+          {loading ? (
+            // Skeleton matches final NAV width (~7ch) + height so data
+            // arrival doesn't shift or "pop" — premium detail.
+            <div className="h-[36px] sm:h-[52px] md:h-[60px] w-[7ch] rounded-md bg-system-bg-grouped animate-pulse" />
+          ) : (
+            <div className="text-[36px] sm:text-[52px] md:text-[60px] font-bold tabular-nums leading-none text-label-primary break-all">
+              {formatUsd(pool?.totalNAV ?? 0)}
+            </div>
+          )}
         </div>
         <div className="text-right flex-shrink-0">
           <div className="text-[10px] sm:text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-1.5">
             Share price
           </div>
-          <div className="text-[20px] sm:text-[26px] font-semibold tabular-nums text-label-primary">
-            {loading ? '…' : `$${(pool?.sharePrice ?? 1).toFixed(4)}`}
-          </div>
+          {loading ? (
+            <div className="h-[20px] sm:h-[26px] w-[6ch] rounded-md bg-system-bg-grouped animate-pulse ml-auto" />
+          ) : (
+            <div className="text-[20px] sm:text-[26px] font-semibold tabular-nums text-label-primary">
+              {`$${(pool?.sharePrice ?? 1).toFixed(4)}`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -740,9 +850,13 @@ function VaultMeter({
       <div className="pt-5 sm:pt-6 border-t border-separator-opaque/30">
         <div className="flex items-center justify-between text-xs sm:text-caption-1 mb-2">
           <span className="text-label-tertiary uppercase tracking-wide font-semibold">Capacity</span>
-          <span className="tabular-nums text-label-secondary">
-            {loading ? '…' : `${formatUsd(pool?.totalNAV ?? 0)} of ${formatUsd(cap)}`}
-          </span>
+          {loading ? (
+            <span className="inline-block h-[12px] w-[12ch] rounded bg-system-bg-grouped animate-pulse" />
+          ) : (
+            <span className="tabular-nums text-label-secondary">
+              {`${formatUsd(pool?.totalNAV ?? 0)} of ${formatUsd(cap)}`}
+            </span>
+          )}
         </div>
         <div className="h-1 rounded-full bg-system-bg-grouped overflow-hidden">
           <div
