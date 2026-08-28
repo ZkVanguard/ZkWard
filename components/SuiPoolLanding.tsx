@@ -586,8 +586,19 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               As the hero exits the viewport, the card rises + shadow deepens
               via .vault-scroll-lift (native CSS scroll-driven animation,
               zero JS, respects reduced-motion). */}
-          <div className="vault-scroll-lift max-w-[720px] mx-auto mb-3 sm:mb-4 rounded-[28px]">
-            <VaultMeter pool={pool} loading={loading} cap={TVL_CAP_USD} />
+          {/* .vault-tilt-scene → perspective(1200px) container for the
+              cursor-driven tilt below. .vault-scroll-lift keeps its
+              scroll-driven rise + shadow deepen on hero exit. .vault-tilt
+              reads --sx/--sy (already set by useCursorSpotlight) and
+              tilts the card ±2.5°X / ±3.5°Y + shifts a directional
+              highlight across the surface — feels like real hardware
+              catching light as the cursor moves. See globals.css. */}
+          <div className="vault-tilt-scene max-w-[720px] mx-auto mb-3 sm:mb-4">
+            <div className="vault-scroll-lift rounded-[28px]">
+              <div className="vault-tilt rounded-[28px]">
+                <VaultMeter pool={pool} loading={loading} cap={TVL_CAP_USD} />
+              </div>
+            </div>
           </div>
           {/* Live-refresh ticker — proves the auto-refresh cadence is real,
               not marketing copy. Uses useQuery's dataUpdatedAt (client truth). */}

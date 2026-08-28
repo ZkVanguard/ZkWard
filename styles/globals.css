@@ -402,3 +402,64 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; }
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
   }
 }
+
+/* ── Vault-meter cursor-tilt + directional highlight ──
+   The vault meter becomes a physical card floating in the hero's
+   perspective space. Reads --sx/--sy from useCursorSpotlight (the
+   same vars the parallax layers use), so no extra JS listener.
+   Wrapper below (.vault-tilt-scene) gives it a perspective. Card
+   itself (.vault-tilt) tilts ±2.5° X / ±3.5° Y as cursor moves,
+   and gains a shifting radial highlight that simulates a light
+   source moving across the surface. Combined, the card feels like
+   real hardware catching light — the "3D pool" the user asked for.
+   All CSS, all compositor-thread, no per-frame JS. Reduced-motion
+   disables tilt + highlight; card stays flat baseline. */
+.vault-tilt-scene {
+  perspective: 1200px;
+  perspective-origin: 50% 40%;
+  transform-style: preserve-3d;
+}
+.vault-tilt {
+  transform:
+    rotateY(calc((var(--sx, 50%) - 50%) * 0.07))
+    rotateX(calc((var(--sy, 50%) - 50%) * -0.05))
+    translateZ(0);
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-style: preserve-3d;
+  will-change: transform;
+  position: relative;
+}
+/* Cursor-tracked highlight — soft radial that follows the pointer
+   across the card surface. Overlayed via ::after so it sits above
+   the card content but below new content the card renders. */
+.vault-tilt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 60% at var(--sx, 50%) var(--sy, 30%),
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0) 55%
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.7;
+  transition: opacity 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-tilt {
+    transform: none !important;
+    transition: none !important;
+  }
+  .vault-tilt::after { opacity: 0 !important; }
+}
+/* Below md: no cursor to track — collapse the tilt + highlight so
+   mobile stays clean (same threshold the hero graph bg uses). */
+@media (max-width: 767px) {
+  .vault-tilt {
+    transform: none !important;
+    transition: none !important;
+  }
+  .vault-tilt::after { opacity: 0 !important; }
+}
