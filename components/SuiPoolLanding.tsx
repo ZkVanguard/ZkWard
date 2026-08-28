@@ -228,11 +228,14 @@ const parallaxStyle = (k: number, z: number): React.CSSProperties => ({
 const PX_LAYER_1 = parallaxStyle(-0.03, -40);
 const PX_LAYER_2 = parallaxStyle(-0.07, 0);
 const PX_LAYER_3 = parallaxStyle(-0.13, 30);
+// Responsive dot density: clamp with vw so 4K desktops don't get a
+// pinprick grid and 13" laptops don't get honeycombed. ~28-40px range
+// keeps the perceptual dot spacing roughly constant across the range.
 const LAYER_1_STYLE: React.CSSProperties = {
   ...PX_LAYER_1,
   backgroundImage:
     'radial-gradient(circle at 1.6px 1.6px, rgba(0,105,217,0.55) 1.4px, transparent 1.8px)',
-  backgroundSize: '30px 30px',
+  backgroundSize: 'clamp(28px, 2.4vw, 40px) clamp(28px, 2.4vw, 40px)',
   WebkitMaskImage:
     'linear-gradient(to bottom, transparent 0%, black 18%, black 72%, transparent 100%)',
   maskImage:
@@ -246,11 +249,42 @@ function HeroGraphBg() {
   // the "3D" cue — not just 2D differential translate. transform-style:
   // preserve-3d on the wrapper is required so the child transforms
   // compose in the same 3D space instead of flattening.
+  //
+  // Pause-when-off-screen: IntersectionObserver flips
+  // data-hero-visible="false" once the hero fully exits the viewport,
+  // which CSS uses to pause the three ambient animations (chart tape,
+  // node drift, node pulse). Users who scroll past the hero don't burn
+  // CPU on animations they can't see. rootMargin: 100px so a brief
+  // scroll-back doesn't miss a frame at re-entry.
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        el.dataset.heroVisible = entry.isIntersecting ? 'true' : 'false';
+      },
+      { rootMargin: '100px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
     <div
+      ref={ref}
       aria-hidden
+      data-hero-visible="true"
       className="hero-graph-bg hidden md:block absolute inset-0 -z-10 pointer-events-none overflow-hidden"
-      style={{ perspective: '1400px', perspectiveOrigin: '50% 30%', transformStyle: 'preserve-3d' }}
+      style={{
+        perspective: '1400px',
+        perspectiveOrigin: '50% 30%',
+        transformStyle: 'preserve-3d',
+        // `contain` isolates this subtree — the browser can skip layout
+        // + paint work when nothing inside it changes, and knows the
+        // effects don't leak out (accurate: all layers are z-negative
+        // absolutes clipped by overflow-hidden).
+        contain: 'layout paint style',
+      }}
     >
       {/* Layer 1 — dot grid via CSS radial-gradient (SVG pattern without a
           viewBox tiles inconsistently across browsers on this project's
@@ -339,6 +373,14 @@ function HeroGraphBg() {
         @keyframes hero-node-pulse {
           0%, 100% { opacity: 0.65; }
           50%      { opacity: 1; }
+        }
+        /* CPU saver — pause every animation once the hero has fully
+           scrolled out of view. The wrapper's data-hero-visible attr
+           is flipped by an IntersectionObserver in HeroGraphBg. */
+        .hero-graph-bg[data-hero-visible="false"] .hero-chart-tape,
+        .hero-graph-bg[data-hero-visible="false"] .hero-node-drift,
+        .hero-graph-bg[data-hero-visible="false"] .hero-node-pulse {
+          animation-play-state: paused;
         }
         @media (prefers-reduced-motion: reduce) {
           .hero-graph-layer { transform: none !important; transition: none !important; }
