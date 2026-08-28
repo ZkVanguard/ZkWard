@@ -214,30 +214,44 @@ const HERO_NODES: Array<[number, number]> = [
   [120, 180], [340, 120], [580, 200], [820, 140], [1080, 220], [400, 340], [680, 380],
 ];
 // Precomputed parallax styles — hoisting kills the per-render allocation
-// that would happen if we built these objects inside the component. The
-// factor triplet (-0.012, -0.028, -0.055) IS the 3D depth cue.
-const parallaxStyle = (k: number): React.CSSProperties => ({
-  transform: `translate3d(calc((var(--sx, 50%) - 50%) * ${k}), calc((var(--sy, 50%) - 50%) * ${k * 0.7}), 0)`,
+// that would happen if we built these objects inside the component.
+// The factor triplet (-0.03, -0.07, -0.13) drives the differential
+// translate; the Z-offset triplet (-40, 0, +30) drives real perspective
+// depth (parent has perspective: 1400px). Combined, layers sit at
+// physically different distances AND drift at different apparent
+// speeds — the "3D" cue is both.
+const parallaxStyle = (k: number, z: number): React.CSSProperties => ({
+  transform: `translate3d(calc((var(--sx, 50%) - 50%) * ${k}), calc((var(--sy, 50%) - 50%) * ${k * 0.7}), ${z}px)`,
   transition: `transform 700ms ${SPRING}`,
   willChange: 'transform',
 });
-const PX_LAYER_1 = parallaxStyle(-0.012);
-const PX_LAYER_2 = parallaxStyle(-0.028);
-const PX_LAYER_3 = parallaxStyle(-0.055);
+const PX_LAYER_1 = parallaxStyle(-0.03, -40);
+const PX_LAYER_2 = parallaxStyle(-0.07, 0);
+const PX_LAYER_3 = parallaxStyle(-0.13, 30);
 const LAYER_1_STYLE: React.CSSProperties = {
   ...PX_LAYER_1,
   backgroundImage:
-    'radial-gradient(circle at 1.5px 1.5px, rgba(0,105,217,0.30) 1.1px, transparent 1.5px)',
-  backgroundSize: '32px 32px',
+    'radial-gradient(circle at 1.6px 1.6px, rgba(0,105,217,0.55) 1.4px, transparent 1.8px)',
+  backgroundSize: '30px 30px',
   WebkitMaskImage:
-    'linear-gradient(to bottom, transparent 0%, black 22%, black 62%, transparent 100%)',
+    'linear-gradient(to bottom, transparent 0%, black 18%, black 72%, transparent 100%)',
   maskImage:
-    'linear-gradient(to bottom, transparent 0%, black 22%, black 62%, transparent 100%)',
+    'linear-gradient(to bottom, transparent 0%, black 18%, black 72%, transparent 100%)',
 };
 
 function HeroGraphBg() {
+  // `perspective` on the wrapper + `translateZ` per layer gives real
+  // spatial depth (back layer literally further from the viewer, front
+  // literally closer). Combined with the cursor-driven parallax, that's
+  // the "3D" cue — not just 2D differential translate. transform-style:
+  // preserve-3d on the wrapper is required so the child transforms
+  // compose in the same 3D space instead of flattening.
   return (
-    <div aria-hidden className="hero-graph-bg hidden md:block absolute inset-0 -z-10 pointer-events-none overflow-hidden">
+    <div
+      aria-hidden
+      className="hero-graph-bg hidden md:block absolute inset-0 -z-10 pointer-events-none overflow-hidden"
+      style={{ perspective: '1400px', perspectiveOrigin: '50% 30%', transformStyle: 'preserve-3d' }}
+    >
       {/* Layer 1 — dot grid via CSS radial-gradient (SVG pattern without a
           viewBox tiles inconsistently across browsers on this project's
           layout; CSS gradient tile is deterministic + one line). Vertical
@@ -255,7 +269,7 @@ function HeroGraphBg() {
       >
         <defs>
           <linearGradient id="hero-chart-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgba(0,105,217,0.10)" />
+            <stop offset="0%" stopColor="rgba(0,105,217,0.18)" />
             <stop offset="100%" stopColor="rgba(0,105,217,0)" />
           </linearGradient>
         </defs>
@@ -266,46 +280,69 @@ function HeroGraphBg() {
         <path
           d="M0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255"
           fill="none"
-          stroke="rgba(0,105,217,0.38)"
-          strokeWidth="1.5"
+          stroke="rgba(0,105,217,0.60)"
+          strokeWidth="2"
           strokeLinecap="round"
         />
         <path
           className="hero-chart-tape"
           d="M0,490 C180,455 300,470 460,438 S720,405 900,382 S1100,362 1200,338"
           fill="none"
-          stroke="rgba(0,105,217,0.22)"
-          strokeWidth="1"
+          stroke="rgba(0,105,217,0.38)"
+          strokeWidth="1.25"
           strokeLinecap="round"
           strokeDasharray="4 7"
         />
       </svg>
 
-      {/* Layer 3 — node network, fastest drift (feels closest to viewer) */}
+      {/* Layer 3 — node network, fastest parallax (feels closest to viewer).
+          Wrapped in a `hero-node-drift` outer group that adds a slow
+          continuous ambient float so the 3D effect is visible even
+          without cursor movement. Nodes themselves pulse subtly. */}
       <svg
         className="hero-graph-layer absolute inset-0 w-full h-full"
         preserveAspectRatio="xMidYMid slice"
         viewBox="0 0 1200 600"
         style={PX_LAYER_3}
       >
-        <g stroke="rgba(0,105,217,0.22)" strokeWidth="0.8" fill="none">
-          <path d="M120,180 L340,120 L580,200 L820,140 L1080,220" />
-          <path d="M340,120 L400,340 L580,200 L680,380 L820,140" />
-          <path d="M120,180 L400,340 L680,380 L1080,220" />
-        </g>
-        <g fill="rgba(0,105,217,0.55)">
-          {HERO_NODES.map(([cx, cy]) => (
-            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.6} />
-          ))}
+        <g className="hero-node-drift">
+          <g stroke="rgba(0,105,217,0.42)" strokeWidth="1" fill="none">
+            <path d="M120,180 L340,120 L580,200 L820,140 L1080,220" />
+            <path d="M340,120 L400,340 L580,200 L680,380 L820,140" />
+            <path d="M120,180 L400,340 L680,380 L1080,220" />
+          </g>
+          <g fill="rgba(0,105,217,0.85)">
+            {HERO_NODES.map(([cx, cy]) => (
+              <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={3.2} className="hero-node-pulse" />
+            ))}
+          </g>
         </g>
       </svg>
 
       <style jsx>{`
         .hero-chart-tape { animation: hero-tape 14s linear infinite; }
         @keyframes hero-tape { to { stroke-dashoffset: -220; } }
+        /* Continuous ambient float — 6px horizontal ping-pong over 11s
+           so the front layer breathes visibly without needing cursor
+           input (main reason the earlier revision felt like a static
+           overlay to users who kept the mouse still). */
+        .hero-node-drift {
+          transform-origin: 50% 50%;
+          animation: hero-node-drift 11s ease-in-out infinite alternate;
+        }
+        @keyframes hero-node-drift {
+          from { transform: translate3d(-3px, -2px, 0); }
+          to   { transform: translate3d(3px, 2px, 0); }
+        }
+        /* Nodes pulse subtly so they read as "alive" data points. */
+        .hero-node-pulse { animation: hero-node-pulse 3.6s ease-in-out infinite; }
+        @keyframes hero-node-pulse {
+          0%, 100% { opacity: 0.65; }
+          50%      { opacity: 1; }
+        }
         @media (prefers-reduced-motion: reduce) {
           .hero-graph-layer { transform: none !important; transition: none !important; }
-          .hero-chart-tape { animation: none; }
+          .hero-chart-tape, .hero-node-drift, .hero-node-pulse { animation: none; }
         }
       `}</style>
     </div>
