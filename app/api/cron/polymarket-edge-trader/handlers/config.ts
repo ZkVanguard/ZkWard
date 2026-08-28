@@ -6,6 +6,7 @@
  * to hunt across the split.
  */
 import { CronKeys } from '@/lib/db/cron-state';
+import { envFlagOnByDefault } from '@/lib/utils/env-flag';
 import {
   DEFAULT_TRAILING_STOP_CONFIG,
 } from '@/lib/services/trading/trailing-stop';
@@ -87,16 +88,23 @@ export const KEY_STARVATION_ALERT_FLAG = 'polymarket-edge:starvation-alert-flag'
 export const STARVATION_STREAK_THRESHOLD = 12;
 export const STARVATION_ALERT_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Auto-topup config. When the alert fires and TRADER_AUTO_TOPUP_ENABLED
-// is set, also call bluefinTreasury.autoTopUp() to move admin spot USDC
-// into the BlueFin margin bank (swaps SUI → USDC first if needed).
-// Breaks the "trader can't trade because free = $0 because hedges lock
-// all margin because hedges can't close because free = $0" Catch-22
-// without operator intervention. Env-gated default OFF for safety —
-// flip to 1 after 24h of log-observation. Same rollout pattern as
-// PORTFOLIO_DRIVER_EXECUTE per CLAUDE.md Appendix X.
-export const TRADER_AUTO_TOPUP_ENABLED =
-  (process.env.TRADER_AUTO_TOPUP_ENABLED || '').trim() === '1';
+// Auto-topup config. When the alert fires, call bluefinTreasury.
+// autoTopUp() to move admin spot USDC into the BlueFin margin bank
+// (swaps SUI → USDC first if needed). Breaks the Catch-22 where the
+// trader can't trade because free = $0 because hedges lock all margin
+// because hedges can't close because free = $0.
+//
+// Default ON — the pattern from the 2026-07-31 refactor for defense
+// gates ("live by default, kill switch available"). Safe as default
+// because:
+//   1. bluefinTreasury.autoTopUp is bounded by maxSwapSui + target
+//      margin caps (no runaway).
+//   2. Fires at most once per 24h (starvation alert TTL).
+//   3. Money stays inside the pool — USDC just moves from admin
+//      spot wallet to BlueFin margin bank. No external deposits.
+//   4. Skips if margin is already above the floor.
+// To disable: set TRADER_AUTO_TOPUP_ENABLED=0 in prod env.
+export const TRADER_AUTO_TOPUP_ENABLED = envFlagOnByDefault('TRADER_AUTO_TOPUP_ENABLED');
 export const TRADER_AUTO_TOPUP_MIN_MARGIN = Number(
   process.env.TRADER_AUTO_TOPUP_MIN_MARGIN || 20,
 );

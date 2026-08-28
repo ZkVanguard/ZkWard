@@ -17,6 +17,8 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 // factory can close over it.
 const state = new Map<string, unknown>();
 const discordCalls: Array<{ msg: string; level: string; ctx: unknown }> = [];
+const topUpCalls: Array<{ opts: unknown }> = [];
+let topUpBehavior: 'succeed' | 'fail' | 'skip' = 'skip';
 
 jest.mock('@/lib/db/cron-state', () => ({
   setCronState: async (k: string, v: unknown) => { state.set(k, v); },
@@ -28,6 +30,18 @@ jest.mock('@/lib/db/cron-state', () => ({
 jest.mock('@/lib/utils/discord-notify', () => ({
   notifyDiscord: async (msg: string, level: string, ctx: unknown) => {
     discordCalls.push({ msg, level, ctx });
+  },
+}));
+
+jest.mock('@/lib/services/sui/BluefinTreasuryService', () => ({
+  bluefinTreasury: {
+    autoTopUp: async (opts: unknown) => {
+      topUpCalls.push({ opts });
+      if (topUpBehavior === 'fail') throw new Error('mock: swap failed');
+      if (topUpBehavior === 'skip')
+        return { skipped: true, reason: 'margin above floor', marginBalance: 25, spotUsdc: 5 };
+      return { txDigest: '0xdeposited', usdcDelta: 20 };
+    },
   },
 }));
 
@@ -44,6 +58,9 @@ describe('trackStarvation — trader silent-dormancy alarm', () => {
   beforeEach(() => {
     state.clear();
     discordCalls.length = 0;
+    topUpCalls.length = 0;
+    topUpBehavior = 'succeed';
+    delete process.env.TRADER_AUTO_TOPUP_ENABLED;
   });
 
   it('does not fire before the streak threshold', async () => {
@@ -103,5 +120,65 @@ describe('trackStarvation — trader silent-dormancy alarm', () => {
     }
     await trackStarvation('no-collateral', 0.04);
     expect(discordCalls[0].msg).toMatch(/free=\$0\.04/);
+  });
+
+  // ── Auto-topup path (PR #88, default-ON per envFlagOnByDefault) ──
+  // The gate reads at module load time so we assert against the
+  // default (ON) behavior. Kill switch via TRADER_AUTO_TOPUP_ENABLED=0
+  // is verified by env-flag unit tests separately (env-flag.test.ts).
+  describe('auto-topup (default ON)', () => {
+    it('CALLS bluefinTreasury.autoTopUp when starvation triggers', async () => {
+      topUpBehavior = 'succeed';
+      for (let i = 0; i < STARVATION_STREAK_THRESHOLD; i++) {
+        await trackStarvation('no-collateral', 0);
+      }
+      expect(discordCalls).toHaveLength(1);
+      expect(topUpCalls).toHaveLength(1);
+      // Verify the topup args match the config constants.
+      const opts = topUpCalls[0].opts as Record<string, unknown>;
+      expect(opts.minMargin).toBe(20);
+      expect(opts.targetMargin).toBe(30);
+      expect(opts.swapFromSui).toBe(true);
+    });
+
+    it('reports the auto-topup result inline in the KILL alert', async () => {
+      topUpBehavior = 'succeed';
+      for (let i = 0; i < STARVATION_STREAK_THRESHOLD; i++) {
+        await trackStarvation('no-collateral', 0);
+      }
+      expect(discordCalls[0].msg).toMatch(/Auto-topup attempted/);
+      expect(discordCalls[0].msg).toMatch(/usdcDelta/);
+    });
+
+    it('reports the skipped result when margin was already above floor', async () => {
+      topUpBehavior = 'skip';
+      for (let i = 0; i < STARVATION_STREAK_THRESHOLD; i++) {
+        await trackStarvation('no-collateral', 0);
+      }
+      expect(discordCalls[0].msg).toMatch(/skipped.*true/);
+    });
+
+    it('reports the error string when auto-topup throws (no crash)', async () => {
+      topUpBehavior = 'fail';
+      // Should not throw even though autoTopUp does — try/catch inside.
+      for (let i = 0; i < STARVATION_STREAK_THRESHOLD; i++) {
+        await trackStarvation('no-collateral', 0);
+      }
+      expect(discordCalls).toHaveLength(1);
+      expect(discordCalls[0].msg).toMatch(/mock: swap failed/);
+    });
+
+    it('does not fire a SECOND auto-topup within the 24h alert TTL', async () => {
+      topUpBehavior = 'succeed';
+      for (let i = 0; i < STARVATION_STREAK_THRESHOLD; i++) {
+        await trackStarvation('no-collateral', 0);
+      }
+      expect(topUpCalls).toHaveLength(1);
+      // Continue starving another 200 ticks — no additional topups.
+      for (let i = 0; i < 200; i++) {
+        await trackStarvation('no-collateral', 0);
+      }
+      expect(topUpCalls).toHaveLength(1);
+    });
   });
 });
