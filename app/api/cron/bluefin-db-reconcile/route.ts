@@ -159,6 +159,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
     const ageForceClosed: ReconcileResult['ageForceClosed'] = [];
     if (HEDGE_MAX_HOLD_HOURS > 0) {
       const cutoffMs = Date.now() - HEDGE_MAX_HOLD_HOURS * 3600_000;
+      // TTL that must match sui-hedge-reconcile's stale-close TTL —
+      // both loops set/read the same stale-dust-flag:<id> key so
+      // suppression is coordinated. If they diverge, one loop keeps
+      // hammering the venue while the other backs off.
+      const CLOSE_SUPPRESS_TTL_MS = 24 * 60 * 60 * 1000;
       for (const h of dbHedges) {
         // Skip operational micro-hedges. Reconstructed-orphan rows used
         // to be skipped here too on the theory that their created_at is
@@ -181,6 +186,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
         // phantom-reconciler is about to clean up.
         const symbol = String(h.market || '');
         if (!matchesPosition(h, positions as Array<{ symbol?: string; side?: string; size?: number }>)) continue;
+        // Coordinate with sui-hedge-reconcile: if the stale-close loop
+        // has already tagged this hedge as DUST_LOCKED / SILENT_REJECT
+        // within the TTL window, skip the max-hold attempt too. Prior
+        // rev fired 96 close attempts/day on hedge #190 (every 15 min)
+        // for the same silent-reject the hourly stale-close had already
+        // classified — pure venue-side noise, zero closes.
+        const suppressFlagKey = `stale-dust-flag:${h.id}`;
+        const suppressAt = Number(await getCronStateOr<number>(suppressFlagKey, 0));
+        if (suppressAt > 0 && Date.now() - suppressAt < CLOSE_SUPPRESS_TTL_MS) continue;
         const ageHours = (Date.now() - createdMs) / 3600_000;
         try {
           const closeRes = await bf.closeHedge({ symbol });
@@ -190,6 +204,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
             closeOk: !!closeRes.success,
             error: closeRes.success ? undefined : closeRes.error,
           });
+          // Set the shared suppress flag when we see a suppressible
+          // failure — coordinates the two loops (max-hold + hourly
+          // stale-close both back off 24h after either sees the same
+          // venue-side lock).
+          if (!closeRes.success &&
+              (closeRes.code === 'DUST_LOCKED' || closeRes.code === 'SILENT_REJECT')) {
+            await setCronState(suppressFlagKey, Date.now());
+          }
         } catch (e) {
           ageForceClosed.push({
             id: h.id, symbol, side: String(h.side || ''),

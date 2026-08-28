@@ -165,16 +165,20 @@ export async function performCloseHedge(
         realizedPnl: orderResponse?.realizedPnl,
         rawResponse: JSON.stringify(orderResponse).slice(0, 500),
       });
-      return {
-        success: false,
+      // Classify with a machine code so callers can TTL-suppress this
+      // failure the same way they do DUST_LOCKED. Prior rev returned
+      // an untyped {code:undefined} which forced the stale-close and
+      // max-hold force-close loops to retry every 1h and 15min
+      // respectively for the same silent-reject on hedge #190 — 96
+      // failed BlueFin API calls/day producing zero closes.
+      return HedgeResult.silentReject(
         hedgeId,
-        orderId: orderResponse?.orderHash,
-        error: `BlueFin accepted orderHash ${orderResponse?.orderHash?.slice(0, 12)}… but position did not shrink (preSize=${preCloseSize}, postSize=${postCloseSize}). Likely silent reject — raw response surfaced in rawResponse.`,
-        timestamp: Date.now(),
-        rawResponse: orderResponse,
+        params.symbol,
+        orderResponse?.orderHash,
         preCloseSize,
         postCloseSize,
-      };
+        orderResponse,
+      );
     }
 
     logger.info('✅ BlueFin position closed', {

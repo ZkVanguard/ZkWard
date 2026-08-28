@@ -12,6 +12,7 @@ import {
   dustRisk,
   belowMinQty,
   belowMinQtySnapped,
+  silentReject,
 } from '@/lib/services/sui/bluefin/hedge-result';
 
 describe('BluefinHedgeResult constructors', () => {
@@ -50,12 +51,34 @@ describe('BluefinHedgeResult constructors', () => {
     expect(r.error).toContain('0.02');
   });
 
+  it('silentReject — code + preCloseSize + postCloseSize + rawResponse (TTL-suppress contract)', () => {
+    // sui-hedge-reconcile branches on code === 'SILENT_REJECT' to set
+    // the shared stale-dust-flag with a 24h TTL. If this code drifts,
+    // the loop falls through to the generic-WARN branch and floods
+    // Discord hourly (exact prod bug on hedge #190).
+    const raw = { orderHash: 'abcdef1234567890', filledQty: '0' };
+    const r = silentReject('h1', 'ETH-PERP', 'abcdef1234567890', 0.012457, 0.012451, raw);
+    expect(r.success).toBe(false);
+    expect(r.code).toBe('SILENT_REJECT');
+    expect(r.hedgeId).toBe('h1');
+    expect(r.orderId).toBe('abcdef1234567890');
+    expect(r.preCloseSize).toBe(0.012457);
+    expect(r.postCloseSize).toBe(0.012451);
+    expect(r.error).toContain('did not shrink');
+    expect(r.error).toContain('preSize=0.012457');
+    expect(r.error).toContain('postSize=0.012451');
+    expect(r.error).toContain('free-collateral shortfall');
+    expect(r.rawResponse).toBe(raw);
+  });
+
   it('every failure result carries a timestamp', () => {
+    const raw = { orderHash: 'x' };
     for (const r of [
       dustLocked('h', 'ETH-PERP', 0.009, 0.01, { positionSize: 0.009, minQty: 0.01, stepSize: 0.01, stepMultiples: 0.9 }),
       dustRisk('h', 'ETH-PERP', 0.011, 0.01, 0.01),
       belowMinQty('h', 'BTC-PERP', 0.0005, 0.001),
       belowMinQtySnapped('h', 'ETH-PERP', 0.014, 0.01, 0.02),
+      silentReject('h', 'ETH-PERP', 'x', 0.01, 0.0099, raw),
     ]) {
       expect(r.timestamp).toBeGreaterThan(0);
       expect(r.success).toBe(false);
