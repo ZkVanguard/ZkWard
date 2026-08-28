@@ -204,6 +204,9 @@ export interface BluefinHedgeResult {
    *   - 'LEVERAGE_EXCEEDED'   — leverage > maxLeverage for symbol
    *   - 'NO_MARKET_PRICE'     — market data fetch failed
    *   - 'NO_POSITION'         — close called with nothing on venue
+   *   - 'SILENT_REJECT'       — venue returned orderHash but position
+   *     didn't move (matching engine dropped the order silently, usually
+   *     from a free-collateral shortfall on the closing side)
    *   - 'VENUE_ERROR'         — non-classified BlueFin API failure
    */
   code?:
@@ -214,6 +217,7 @@ export interface BluefinHedgeResult {
     | 'LEVERAGE_EXCEEDED'
     | 'NO_MARKET_PRICE'
     | 'NO_POSITION'
+    | 'SILENT_REJECT'
     | 'VENUE_ERROR';
   /** Structured dust classification — populated when code is DUST_LOCKED / DUST_RISK. */
   dust?: {

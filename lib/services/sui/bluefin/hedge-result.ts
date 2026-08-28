@@ -82,3 +82,34 @@ export function belowMinQtySnapped(
     code: 'BELOW_MIN_QTY_SNAPPED',
   };
 }
+
+/**
+ * Silent-reject on close — BlueFin accepted the order (returned an
+ * orderHash) but the position did not shrink within the polling window.
+ * Root cause is typically a free-collateral shortfall on the closing
+ * side: an ISOLATED close order that the matching engine treats as
+ * needing new margin rather than reducing the existing position.
+ *
+ * Callers should treat this the same as DUST_LOCKED for suppression
+ * purposes — the failure will persist across ticks until an external
+ * event changes it (deposit, other hedge closing to free margin, or
+ * BlueFin support). TTL-bounded retries prevent hourly Discord spam.
+ */
+export function silentReject(
+  hedgeId: string,
+  symbol: string,
+  orderHash: string | undefined,
+  preSize: number,
+  postSize: number,
+  rawResponse: unknown,
+): BluefinHedgeResult {
+  return {
+    ...base(hedgeId),
+    orderId: orderHash,
+    code: 'SILENT_REJECT',
+    error: `BlueFin accepted orderHash ${orderHash?.slice(0, 12) ?? '?'}… but position did not shrink (preSize=${preSize}, postSize=${postSize}). Likely silent reject — usually a free-collateral shortfall on the closing side. Raw response surfaced in rawResponse.`,
+    rawResponse,
+    preCloseSize: preSize,
+    postCloseSize: postSize,
+  };
+}

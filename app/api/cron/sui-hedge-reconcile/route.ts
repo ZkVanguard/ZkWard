@@ -262,20 +262,29 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
                 // flagged for 3+ days with no actual close.
                 const result = await bf.closeHedge({ symbol });
                 if (!result.success) {
-                  const isDust = result.code === 'DUST_LOCKED';
+                  // Both DUST_LOCKED and SILENT_REJECT are "same failure
+                  // will happen again next tick" categories — external
+                  // change required (BlueFin support / free-collateral
+                  // recovery) to un-stick. TTL-suppress both. SILENT_REJECT
+                  // previously fell through to the generic WARN branch
+                  // with no flag, producing hourly Discord noise on hedge
+                  // #190 for every tick after PR #77 deployed.
+                  const isSuppressible =
+                    result.code === 'DUST_LOCKED' || result.code === 'SILENT_REJECT';
                   logger.warn('[SuiHedgeReconcile] stale-close FAILED', {
-                    hedgeId: s.id, symbol, error: result.error, isDust,
+                    hedgeId: s.id, symbol, error: result.error,
+                    code: result.code, suppressed: isSuppressible,
                   });
-                  if (isDust) {
+                  if (isSuppressible) {
                     // Store the timestamp so the TTL check above knows
                     // when to allow the next retry. Boolean-flag prior
                     // rev made this suppression permanent (see bug note
                     // at TTL declaration above).
                     await setCronState(dustFlagKey, Date.now());
-                    await notifyDiscord(
-                      `🔒 Hedge #${s.id} ${symbol} DUST-LOCKED (size < minQty). Venue math makes this unclearable on-order-book (step-floor + minQty ⇒ any topup leaves same residue). Escalate via BlueFin Discord #ticket-desk under Support, or leave for liquidation-driven decay. Retries suppressed.`,
-                      'KILL', { hedge: s, result },
-                    ).catch(() => {});
+                    const msg = result.code === 'DUST_LOCKED'
+                      ? `🔒 Hedge #${s.id} ${symbol} DUST-LOCKED (size < minQty). Venue math makes this unclearable on-order-book (step-floor + minQty ⇒ any topup leaves same residue). Escalate via BlueFin Discord #ticket-desk under Support, or leave for liquidation-driven decay. Retries suppressed 24h.`
+                      : `🔒 Hedge #${s.id} ${symbol} SILENT-REJECT-LOCKED. BlueFin accepted the close order but position didn't shrink — typically a free-collateral shortfall on the closing side (ISOLATED close needs new margin). Retries suppressed 24h. Fix: fund BlueFin free collateral OR close a sibling hedge to free margin.`;
+                    await notifyDiscord(msg, 'KILL', { hedge: s, result }).catch(() => {});
                   } else {
                     await notifyDiscord(
                       `⚠️ Stale-close FAILED: #${s.id} ${symbol} — ${result.error}`,
