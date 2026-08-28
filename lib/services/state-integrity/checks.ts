@@ -16,7 +16,12 @@ export interface CronStateEntry {
 }
 
 export interface IntegrityViolation {
-  category: 'expired-halt' | 'expired-directive' | 'corrupt-peak' | 'orphan-dust-flag';
+  category:
+    | 'expired-halt'
+    | 'expired-directive'
+    | 'corrupt-peak'
+    | 'orphan-dust-flag'
+    | 'stale-dust-flag-ttl-exceeded';
   key: string;
   detail: string;
 }
@@ -29,6 +34,15 @@ const DUST_FLAG_PREFIX = 'stale-dust-flag:';
 // Grace window — a halt that expired 30 sec ago is fine; we're looking
 // for state that has been dirty across at least one full cron cycle.
 const EXPIRY_GRACE_MS = 10 * 60 * 1000;
+
+// Dust-flag suppression is time-bound at 24h TTL (see
+// sui-hedge-reconcile stale-close block). If a flag on an ACTIVE hedge
+// is older than 2× TTL, autonomy has had two retry cycles to touch it
+// and hasn't — the permanent-suppression bug is back. This class was
+// silently in prod 2026-07-22 to 2026-08-28 and let hedge #190 sit
+// open for 37d after auto-close was ostensibly enabled.
+const DUST_FLAG_TTL_MS = 24 * 60 * 60 * 1000;
+const DUST_FLAG_MAX_AGE_MS = 2 * DUST_FLAG_TTL_MS;
 
 export function findIntegrityViolations(
   entries: CronStateEntry[],
@@ -76,6 +90,24 @@ export function findIntegrityViolations(
           key,
           detail: `dust flag references hedge #${idPart}, but that hedge is not in active DB rows — clean up`,
         });
+      } else {
+        // Active hedge — check flag age. Fixed code stores Date.now()
+        // and auto-retries after 24h. Legacy `true` booleans coerce to
+        // Number(true) = 1 (epoch 1ms) → huge age → correctly flagged
+        // as broken suppression that let the pre-fix bug hide.
+        const flaggedAt = Number(value);
+        const flagAgeMs =
+          Number.isFinite(flaggedAt) && flaggedAt > 0 ? now - flaggedAt : Infinity;
+        if (flagAgeMs > DUST_FLAG_MAX_AGE_MS) {
+          violations.push({
+            category: 'stale-dust-flag-ttl-exceeded',
+            key,
+            detail:
+              value === true || value === 'true'
+                ? `dust flag on active hedge #${idPart} is legacy boolean — should be reset by fixed suppression code within the first retry cycle`
+                : `dust flag on active hedge #${idPart} unchanged for ${Math.round(flagAgeMs / 3600_000)}h (max ${DUST_FLAG_MAX_AGE_MS / 3600_000}h) — autonomy retry loop stalled`,
+          });
+        }
       }
     }
   }
