@@ -210,9 +210,58 @@ async function fetchPoolSummary(): Promise<PoolSummary | null> {
 // reduced-motion). Not useReducedMotion() — that returns null on server
 // and a real value on client's first render, which caused a hydration
 // mismatch on the earlier revision.
-const HERO_NODES: Array<[number, number]> = [
-  [120, 180], [340, 120], [580, 200], [820, 140], [1080, 220], [400, 340], [680, 380],
-];
+// Front layer geometry — replaced the previous 7-node polygon graph
+// with Vogel's phyllotaxis (sunflower seed spiral). Each dot sits at
+// angle i × golden-angle from the center and radius √i × scale. The
+// resulting pattern shows both clockwise and counter-clockwise
+// Fibonacci-numbered spiral arms — the exact math nature uses for
+// sunflower disks, pinecone scales, and galaxy arms. Universe math
+// that reads as intentional rather than decorative.
+const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5)); // ~137.508°
+// Coordinates rounded to 2 decimals to fix an SSR/CSR hydration
+// mismatch: Node's number-to-string emits 17-digit precision on the
+// server (cy="337.50384165405035") while the browser's DOM attribute
+// serializer trims to 16 (cy="337.5038416540504"). Same double, but
+// React sees the strings as different. Rounding produces identical
+// short strings on both sides. Visual impact of the round: zero
+// (subpixel).
+const HERO_PHYLLOTAXIS: Array<[number, number, number]> = (() => {
+  const pts: Array<[number, number, number]> = [];
+  const cx = 600, cy = 300;    // center of the 1200×600 viewBox
+  const scale = 14;
+  const N = 90;
+  const round = (n: number) => Number(n.toFixed(2));
+  for (let i = 1; i <= N; i++) {
+    const angle = i * GOLDEN_ANGLE_RAD;
+    const r = scale * Math.sqrt(i);
+    if (r > 260) break;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    // Dot radius grows subtly with distance so outer arms read stronger.
+    pts.push([round(x), round(y), round(1.4 + (i / N) * 2.2)]);
+  }
+  return pts;
+})();
+
+// Golden logarithmic spiral: r = a·e^(bθ) with b = ln(φ)/(π/2).
+// One continuous smooth curve winding out from the center — the
+// signature "shell/galaxy" shape. Traced as a polyline for SVG.
+const HERO_GOLDEN_SPIRAL_PATH: string = (() => {
+  const PHI = (1 + Math.sqrt(5)) / 2;
+  const b = Math.log(PHI) / (Math.PI / 2);
+  const a = 2.4;
+  const cx = 600, cy = 300;
+  const points: string[] = [];
+  for (let theta = 0; theta < 6.4 * Math.PI; theta += 0.06) {
+    const r = a * Math.exp(b * theta);
+    if (r > 270) break;
+    const x = cx + r * Math.cos(theta);
+    const y = cy + r * Math.sin(theta);
+    points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  return 'M' + points.join(' L');
+})();
+
 // Precomputed parallax styles — hoisting kills the per-render allocation
 // that would happen if we built these objects inside the component.
 // The factor triplet (-0.03, -0.07, -0.13) drives the differential
@@ -220,9 +269,15 @@ const HERO_NODES: Array<[number, number]> = [
 // depth (parent has perspective: 1400px). Combined, layers sit at
 // physically different distances AND drift at different apparent
 // speeds — the "3D" cue is both.
+//
+// Transition tightened 700ms → 250ms with a faster ease-out — previous
+// value felt sticky on rapid cursor movement (layers lagged the cursor
+// by nearly a full second). New value tracks close enough to feel
+// responsive without losing the "premium smoothness" character.
+const HERO_PARALLAX_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const parallaxStyle = (k: number, z: number): React.CSSProperties => ({
   transform: `translate3d(calc((var(--sx, 50%) - 50%) * ${k}), calc((var(--sy, 50%) - 50%) * ${k * 0.7}), ${z}px)`,
-  transition: `transform 700ms ${SPRING}`,
+  transition: `transform 250ms ${HERO_PARALLAX_EASE}`,
   willChange: 'transform',
 });
 const PX_LAYER_1 = parallaxStyle(-0.03, -40);
@@ -274,7 +329,14 @@ function HeroGraphBg() {
       ref={ref}
       aria-hidden
       data-hero-visible="true"
-      className="hero-graph-bg hidden md:block absolute inset-0 -z-10 pointer-events-none overflow-hidden"
+      // Extends 100px above section top so the graph reaches under
+      // the fixed navbar (h ~52px + safe-area). Navbar has
+      // `backdrop-blur-lg bg-system-bg-primary/90` → the phyllotaxis +
+      // chart + dot grid all get blurred through the glass, visually
+      // syncing the header with the hero backdrop instead of the
+      // previous sharp cutoff at section top. Section must NOT clip
+      // vertical overflow (see overflow-x-clip on the <section>).
+      className="hero-graph-bg hidden md:block absolute -top-24 left-0 right-0 bottom-0 -z-10 pointer-events-none overflow-hidden"
       style={{
         perspective: '1400px',
         perspectiveOrigin: '50% 30%',
@@ -282,7 +344,7 @@ function HeroGraphBg() {
         // `contain` isolates this subtree — the browser can skip layout
         // + paint work when nothing inside it changes, and knows the
         // effects don't leak out (accurate: all layers are z-negative
-        // absolutes clipped by overflow-hidden).
+        // absolutes clipped by our own overflow-hidden).
         contain: 'layout paint style',
       }}
     >
@@ -329,10 +391,15 @@ function HeroGraphBg() {
         />
       </svg>
 
-      {/* Layer 3 — node network, fastest parallax (feels closest to viewer).
-          Wrapped in a `hero-node-drift` outer group that adds a slow
-          continuous ambient float so the 3D effect is visible even
-          without cursor movement. Nodes themselves pulse subtly. */}
+      {/* Layer 3 — golden spiral + phyllotaxis dots, fastest parallax
+          (feels closest to viewer). The spiral is one continuous
+          logarithmic curve; the dots trace Vogel's sunflower model at
+          the golden angle — same math that produces the arm patterns
+          in galaxies + nautilus shells. Wrapped in a `hero-node-drift`
+          group for a slow ambient float, and each dot pulses subtly
+          so the disk breathes without cursor input. Additionally, the
+          whole layer slowly rotates (72s per revolution) — sub-liminal
+          but reinforces the "living system" read. */}
       <svg
         className="hero-graph-layer absolute inset-0 w-full h-full"
         preserveAspectRatio="xMidYMid slice"
@@ -340,15 +407,28 @@ function HeroGraphBg() {
         style={PX_LAYER_3}
       >
         <g className="hero-node-drift">
-          <g stroke="rgba(0,105,217,0.42)" strokeWidth="1" fill="none">
-            <path d="M120,180 L340,120 L580,200 L820,140 L1080,220" />
-            <path d="M340,120 L400,340 L580,200 L680,380 L820,140" />
-            <path d="M120,180 L400,340 L680,380 L1080,220" />
-          </g>
-          <g fill="rgba(0,105,217,0.85)">
-            {HERO_NODES.map(([cx, cy]) => (
-              <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={3.2} className="hero-node-pulse" />
-            ))}
+          <g className="hero-spiral-rotate">
+            <path
+              d={HERO_GOLDEN_SPIRAL_PATH}
+              fill="none"
+              stroke="rgba(0,105,217,0.32)"
+              strokeWidth="1"
+              strokeLinecap="round"
+            />
+            <g fill="rgba(0,105,217,0.75)">
+              {HERO_PHYLLOTAXIS.map(([cx, cy, r], idx) => (
+                <circle
+                  key={idx}
+                  cx={cx}
+                  cy={cy}
+                  r={r}
+                  className="hero-node-pulse"
+                  // toFixed(2) so 0.3×9 = 2.6999999999997 doesn't drift
+                  // between SSR (17-digit) and CSR (16-digit) strings.
+                  style={{ animationDelay: `${((idx % 12) * 0.3).toFixed(2)}s` }}
+                />
+              ))}
+            </g>
           </g>
         </g>
       </svg>
@@ -374,17 +454,30 @@ function HeroGraphBg() {
           0%, 100% { opacity: 0.65; }
           50%      { opacity: 1; }
         }
+        /* Spiral disk slowly rotates — 72s per revolution is glacial
+           but visible over a session. Combined with the phyllotaxis
+           dot arrangement it produces the "galaxy arm" read where
+           multiple spiral patterns emerge from the same points. */
+        .hero-spiral-rotate {
+          transform-origin: 600px 300px; /* matches phyllotaxis center */
+          animation: hero-spiral-rotate 72s linear infinite;
+        }
+        @keyframes hero-spiral-rotate {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
         /* CPU saver — pause every animation once the hero has fully
            scrolled out of view. The wrapper's data-hero-visible attr
            is flipped by an IntersectionObserver in HeroGraphBg. */
         .hero-graph-bg[data-hero-visible="false"] .hero-chart-tape,
         .hero-graph-bg[data-hero-visible="false"] .hero-node-drift,
-        .hero-graph-bg[data-hero-visible="false"] .hero-node-pulse {
+        .hero-graph-bg[data-hero-visible="false"] .hero-node-pulse,
+        .hero-graph-bg[data-hero-visible="false"] .hero-spiral-rotate {
           animation-play-state: paused;
         }
         @media (prefers-reduced-motion: reduce) {
           .hero-graph-layer { transform: none !important; transition: none !important; }
-          .hero-chart-tape, .hero-node-drift, .hero-node-pulse { animation: none; }
+          .hero-chart-tape, .hero-node-drift, .hero-node-pulse, .hero-spiral-rotate { animation: none; }
         }
       `}</style>
     </div>
@@ -416,19 +509,23 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
       {/* ─────────────────────────────────────────────────────────────── */}
       {/* HERO                                                            */}
       {/* ─────────────────────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative isolate pt-20 pb-12 sm:pt-32 sm:pb-24 lg:pt-40 lg:pb-32 px-4 sm:px-5 lg:px-8 overflow-hidden min-w-0">
-        {/* Apple-style soft gradient backdrop */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-system-bg-tertiary via-system-bg-primary to-system-bg-primary" />
+      <section ref={heroRef} className="relative isolate pt-20 pb-12 sm:pt-32 sm:pb-24 lg:pt-40 lg:pb-32 px-4 sm:px-5 lg:px-8 overflow-x-clip min-w-0">
+        {/* Apple-style soft gradient backdrop — extends 100px above so
+            the fixed navbar's backdrop-blur has something to blur
+            instead of solid white. Height compensated via inset. */}
+        <div className="absolute -top-24 left-0 right-0 bottom-0 -z-10 bg-gradient-to-b from-system-bg-tertiary via-system-bg-primary to-system-bg-primary" />
         {/* Depth-parallax graph backdrop (3 layers, cursor-driven).
-            Reuses --sx/--sy from useCursorSpotlight — no extra listener. */}
+            Reuses --sx/--sy from useCursorSpotlight — no extra listener.
+            Extends up under the navbar (see HeroGraphBg for details). */}
         <HeroGraphBg />
         {/* Cursor-follow spotlight (desktop) — reads --sx/--sy set by
             useCursorSpotlight. Falls back to a static center-top radial
             when the vars aren't set (initial paint, touch devices,
-            reduced-motion). */}
+            reduced-motion). Also extends up so the blue-tinted glow
+            softly bleeds through the navbar glass. */}
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 pointer-events-none"
+          className="absolute -top-24 left-0 right-0 bottom-0 -z-10 pointer-events-none"
           style={{
             background:
               'radial-gradient(ellipse 600px 400px at var(--sx, 50%) var(--sy, 20%), rgba(0,105,217,0.14) 0%, rgba(0,105,217,0) 60%)',
