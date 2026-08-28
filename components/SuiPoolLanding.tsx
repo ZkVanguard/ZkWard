@@ -347,16 +347,17 @@ function HeroGraphBg() {
         // absolutes clipped by our own overflow-hidden).
         contain: 'layout paint style',
         // Radial vignette centered on where the vault meter sits
-        // (approx 50% x, 62% y). The effect fades to transparent in
-        // a soft ellipse around the card so the meter reads as a
-        // clean "hero moment" instead of competing with dense
-        // phyllotaxis/chart lines behind it. Corners keep the full
-        // effect — depth cue preserved, clutter around the card
-        // eliminated. Both prefixed forms so Safari + Firefox agree.
+        // (approx 50% x, 66% y). The effect fades to transparent in
+        // a wider soft ellipse around the card so the meter reads as
+        // a clean "hero moment" instead of competing with dense
+        // phyllotaxis/chart lines behind it. Longer fade band (35%
+        // to 82%) makes the transition feel machined rather than
+        // hard-cut. Corners keep the full effect — depth cue
+        // preserved. Both prefixed forms so Safari + Firefox agree.
         WebkitMaskImage:
-          'radial-gradient(ellipse 44% 42% at 50% 62%, transparent 0%, transparent 40%, black 78%)',
+          'radial-gradient(ellipse 50% 46% at 50% 66%, transparent 0%, transparent 35%, black 82%)',
         maskImage:
-          'radial-gradient(ellipse 44% 42% at 50% 62%, transparent 0%, transparent 40%, black 78%)',
+          'radial-gradient(ellipse 50% 46% at 50% 66%, transparent 0%, transparent 35%, black 82%)',
       }}
     >
       {/* Layer 1 — dot grid via CSS radial-gradient (SVG pattern without a
@@ -382,7 +383,7 @@ function HeroGraphBg() {
       >
         <defs>
           <linearGradient id="hero-chart-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgba(0,105,217,0.18)" />
+            <stop offset="0%" stopColor="rgba(0,105,217,0.11)" />
             <stop offset="100%" stopColor="rgba(0,105,217,0)" />
           </linearGradient>
         </defs>
@@ -393,16 +394,16 @@ function HeroGraphBg() {
         <path
           d="M-200,480 L0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255 L1400,215"
           fill="none"
-          stroke="rgba(0,105,217,0.60)"
-          strokeWidth="2"
+          stroke="rgba(0,105,217,0.42)"
+          strokeWidth="1.5"
           strokeLinecap="round"
         />
         <path
           className="hero-chart-tape"
           d="M-200,540 L0,490 C180,455 300,470 460,438 S720,405 900,382 S1100,362 1200,338 L1400,298"
           fill="none"
-          stroke="rgba(0,105,217,0.38)"
-          strokeWidth="1.25"
+          stroke="rgba(0,105,217,0.28)"
+          strokeWidth="1"
           strokeLinecap="round"
           strokeDasharray="4 7"
         />
@@ -428,11 +429,11 @@ function HeroGraphBg() {
             <path
               d={HERO_GOLDEN_SPIRAL_PATH}
               fill="none"
-              stroke="rgba(0,105,217,0.32)"
+              stroke="rgba(0,105,217,0.22)"
               strokeWidth="1"
               strokeLinecap="round"
             />
-            <g fill="rgba(0,105,217,0.75)">
+            <g fill="rgba(0,105,217,0.62)">
               {HERO_PHYLLOTAXIS.map(([cx, cy, r], idx) => (
                 <circle
                   key={idx}
@@ -979,10 +980,10 @@ function VaultMeter({
   // Radii are mathematically concentric: outer 28px minus 6px padding
   // = 22px inner. Reads as machined hardware, not a flat browser card.
   return (
-    <div className="rounded-[28px] bg-black/[0.02] ring-1 ring-black/5 p-1.5">
-      <div className="relative bg-system-bg-primary rounded-[22px] p-4 sm:p-6 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]">
-      {/* Brand accent bar — the one signature flourish */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-ios-blue via-[#5AC8FA] to-ios-blue" />
+    <div className="rounded-[28px] bg-gradient-to-b from-black/[0.03] to-black/[0.015] ring-1 ring-black/[0.06] p-1.5">
+      <div className="relative bg-system-bg-primary rounded-[22px] p-4 sm:p-6 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(0,0,0,0.02)]">
+      {/* Brand accent bar — thinner + softer gradient for machined feel */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-ios-blue to-transparent" />
 
       {/* NAV + Share price */}
       <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6 pt-1">
