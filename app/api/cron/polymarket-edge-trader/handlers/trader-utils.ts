@@ -4,10 +4,17 @@
  * Extracted from route.ts on 2026-08-10. Nothing side-effectful except
  * recordSkip (which writes cron_state for operator diagnostics).
  */
-import { setCronState } from '@/lib/db/cron-state';
+import { setCronState, getCronStateOr } from '@/lib/db/cron-state';
+import { notifyDiscord } from '@/lib/utils/discord-notify';
 import type { BluefinPosition } from '@/lib/services/sui/BluefinService';
 import type { AggregatedPrediction } from '@/lib/services/market-data/PredictionAggregatorService';
-import { KEY_LAST_SKIP } from './config';
+import {
+  KEY_LAST_SKIP,
+  KEY_STARVATION_STREAK,
+  KEY_STARVATION_ALERT_FLAG,
+  STARVATION_STREAK_THRESHOLD,
+  STARVATION_ALERT_TTL_MS,
+} from './config';
 
 export function quantize(qty: number, step: number): number {
   return Math.floor(qty / step) * step;
@@ -51,5 +58,65 @@ export async function recordSkip(action: string, reason: string): Promise<void> 
     });
   } catch {
     /* non-critical — don't fail the tick because we couldn't record a diagnostic */
+  }
+}
+
+/**
+ * Track consecutive `no-collateral` skips and fire ONE actionable KILL
+ * alert per 24h once the streak crosses STARVATION_STREAK_THRESHOLD
+ * (~1 hour at the 5-min cron cadence). Solves the specific silent-
+ * dormancy failure observed 2026-08-16 to 2026-08-28: trader skipped
+ * 3411 consecutive ticks (~11 days) with `free=$0.00 < $7.50` while
+ * signals showed SOL/XRP/DOGE longs at 72-87% confidence — no alert,
+ * no operator visibility, no trades executed.
+ *
+ * Root cause of starvation is a Catch-22: BlueFin free collateral is
+ * $0 because existing hedge positions lock all margin. The operator
+ * needs to either (a) top up free collateral or (b) close a hedge to
+ * unlock margin. The alert names both remediations so the fix is
+ * obvious the moment it fires.
+ *
+ * Reset behaviour: any non-'no-collateral' skip (or a successful
+ * trade) resets the streak — matches "starvation ended" semantics.
+ * Alert flag uses same TTL pattern as stale-dust-flag so refactor
+ * doesn't accidentally revert to permanent suppression.
+ */
+export async function trackStarvation(
+  action: string,
+  freeCollateralUsd: number,
+): Promise<void> {
+  try {
+    if (action !== 'no-collateral') {
+      // Streak broken — clear it. Don't touch the alert flag; it TTLs
+      // on its own so a brief starvation window doesn't re-fire the
+      // KILL alert twice within a day.
+      await setCronState(KEY_STARVATION_STREAK, 0);
+      return;
+    }
+    const streak = Number(await getCronStateOr<number>(KEY_STARVATION_STREAK, 0)) + 1;
+    await setCronState(KEY_STARVATION_STREAK, streak);
+    if (streak < STARVATION_STREAK_THRESHOLD) return;
+
+    // Check TTL-bounded alert flag.
+    const flaggedAt = Number(await getCronStateOr<number>(KEY_STARVATION_ALERT_FLAG, 0));
+    if (flaggedAt > 0 && Date.now() - flaggedAt < STARVATION_ALERT_TTL_MS) return;
+
+    await setCronState(KEY_STARVATION_ALERT_FLAG, Date.now());
+    const hoursDormant = Math.round((streak * 5) / 60);
+    await notifyDiscord(
+      `🔴 Trader STARVED for ${hoursDormant}h+ (${streak} consecutive ticks, free=$${freeCollateralUsd.toFixed(2)}). ` +
+      `Missing every signal opportunity. Unstick via ONE of:\n` +
+      `  1. Fund BlueFin free collateral (deposit USDC to admin BlueFin account)\n` +
+      `  2. Close an existing hedge to unlock its margin — check /api/admin/bluefin-debug for positions\n` +
+      `Signals worth acting on: check agent-directives:by-asset in cron_state.\n` +
+      `Alert suppressed 24h.`,
+      'KILL',
+      { streakTicks: streak, hoursDormant, freeCollateralUsd },
+    ).catch(() => {
+      /* Discord webhook failures shouldn't fail the tick — alert is
+         diagnostic, not a control-plane action. */
+    });
+  } catch {
+    /* All starvation tracking is non-critical — swallow errors */
   }
 }

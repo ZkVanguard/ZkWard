@@ -91,6 +91,7 @@ import {
   recommendationToSide,
   utcDayKey,
   recordSkip,
+  trackStarvation,
 } from './handlers/trader-utils';
 import {
   applyOutcome,
@@ -512,6 +513,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<EdgeResult
     if (free < effectiveMinFree) {
       const reason = `free=$${free.toFixed(2)} < effective-min=$${effectiveMinFree.toFixed(2)} (configured min=$${MIN_FREE_COLLATERAL_USD}, base-stake=$${BASE_STAKE_USD}, bf-source=${bfSnap.source})`;
       await recordSkip('no-collateral', reason);
+      // Increment starvation streak + fire ONE KILL alert per 24h once
+      // ~1h dormant. Solves the silent-dormancy failure observed
+      // 2026-08-16 to 2026-08-28 (11 days, 3411 skips, no alert).
+      await trackStarvation('no-collateral', free);
       return NextResponse.json({
         success: true,
         ranAt,
@@ -522,6 +527,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<EdgeResult
         reason,
       });
     }
+    // Any non-starvation exit past this point resets the streak so the
+    // alert flag can re-fire cleanly if starvation returns later.
+    await trackStarvation('proceed', free);
 
     // ── MIN-QTY-AWARE CANDIDATE WALK ────────────────────────────────
     // Fetch reference prices for every ranked candidate in parallel so

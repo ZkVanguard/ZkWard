@@ -75,3 +75,14 @@ export const KEY_HALTED_UNTIL = CronKeys.polymarketEdgeHaltedUntil;
 export const KEY_DAILY = 'polymarket-edge:daily';
 export const KEY_LAST_SKIP = 'polymarket-edge:last-skip';
 export const KEY_NOEDGE_STREAK = 'polymarket-edge:noedge-streak';
+export const KEY_STARVATION_STREAK = 'polymarket-edge:starvation-streak';
+export const KEY_STARVATION_ALERT_FLAG = 'polymarket-edge:starvation-alert-flag';
+
+// Starvation alert config. When trader has skipped with 'no-collateral'
+// for STARVATION_STREAK_THRESHOLD consecutive ticks (12 * 5min = 1h),
+// fire ONE actionable KILL alert to Discord. Suppress subsequent
+// alerts for STARVATION_ALERT_TTL_MS (24h) — same pattern as the
+// stale-dust-flag suppression to avoid Discord spam. Reset streak on
+// any non-starvation action (successful trade, no-edge, halt).
+export const STARVATION_STREAK_THRESHOLD = 12;
+export const STARVATION_ALERT_TTL_MS = 24 * 60 * 60 * 1000;
