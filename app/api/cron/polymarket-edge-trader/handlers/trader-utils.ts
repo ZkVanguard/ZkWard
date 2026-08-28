@@ -131,7 +131,7 @@ export async function trackStarvation(
 
     const topUpNote = TRADER_AUTO_TOPUP_ENABLED
       ? `\n🤖 Auto-topup attempted: ${JSON.stringify(topUpResult).slice(0, 200)}`
-      : '\n💡 Enable TRADER_AUTO_TOPUP_ENABLED=1 to have this fixed autonomously (moves admin spot USDC → BlueFin margin bank, no external deposits needed).';
+      : '\n⚠️ Auto-topup DISABLED (TRADER_AUTO_TOPUP_ENABLED=0). Set it to 1 to re-enable the autonomous BlueFin top-up from admin spot USDC.';
 
     await notifyDiscord(
       `🔴 Trader STARVED for ${hoursDormant}h+ (${streak} consecutive ticks, free=$${freeCollateralUsd.toFixed(2)}). ` +
