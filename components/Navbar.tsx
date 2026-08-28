@@ -77,10 +77,16 @@ export const Navbar = memo(function Navbar() {
 
   return (
     <nav
+      // Translucency deliberately low + backdrop-blur strong so the
+      // hero's phyllotaxis + spotlight bleed through the navbar glass.
+      // Previously 90% opaque → only 10% show-through, reading as a
+      // hard white bar sitting on top of the effect instead of glass.
+      // The graph bg in SuiPoolLanding extends 96px above section top
+      // so the navbar has real content to blur across its full height.
       className={`fixed top-0 left-0 right-0 z-50 pt-safe pl-safe pr-safe transition-all duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${
         scrolled
-          ? 'bg-system-bg-primary/85 backdrop-blur-xl shadow-ios-1 border-b border-separator-opaque/40'
-          : 'bg-system-bg-primary/90 backdrop-blur-lg'
+          ? 'bg-system-bg-primary/72 backdrop-blur-xl shadow-ios-1 border-b border-separator-opaque/20'
+          : 'bg-system-bg-primary/60 backdrop-blur-xl'
       }`}
     >
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
