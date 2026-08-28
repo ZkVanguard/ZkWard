@@ -86,3 +86,20 @@ export const KEY_STARVATION_ALERT_FLAG = 'polymarket-edge:starvation-alert-flag'
 // any non-starvation action (successful trade, no-edge, halt).
 export const STARVATION_STREAK_THRESHOLD = 12;
 export const STARVATION_ALERT_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Auto-topup config. When the alert fires and TRADER_AUTO_TOPUP_ENABLED
+// is set, also call bluefinTreasury.autoTopUp() to move admin spot USDC
+// into the BlueFin margin bank (swaps SUI → USDC first if needed).
+// Breaks the "trader can't trade because free = $0 because hedges lock
+// all margin because hedges can't close because free = $0" Catch-22
+// without operator intervention. Env-gated default OFF for safety —
+// flip to 1 after 24h of log-observation. Same rollout pattern as
+// PORTFOLIO_DRIVER_EXECUTE per CLAUDE.md Appendix X.
+export const TRADER_AUTO_TOPUP_ENABLED =
+  (process.env.TRADER_AUTO_TOPUP_ENABLED || '').trim() === '1';
+export const TRADER_AUTO_TOPUP_MIN_MARGIN = Number(
+  process.env.TRADER_AUTO_TOPUP_MIN_MARGIN || 20,
+);
+export const TRADER_AUTO_TOPUP_TARGET_MARGIN = Number(
+  process.env.TRADER_AUTO_TOPUP_TARGET_MARGIN || 30,
+);

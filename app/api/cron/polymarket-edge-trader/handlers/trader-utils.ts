@@ -14,6 +14,9 @@ import {
   KEY_STARVATION_ALERT_FLAG,
   STARVATION_STREAK_THRESHOLD,
   STARVATION_ALERT_TTL_MS,
+  TRADER_AUTO_TOPUP_ENABLED,
+  TRADER_AUTO_TOPUP_MIN_MARGIN,
+  TRADER_AUTO_TOPUP_TARGET_MARGIN,
 } from './config';
 
 export function quantize(qty: number, step: number): number {
@@ -103,15 +106,43 @@ export async function trackStarvation(
 
     await setCronState(KEY_STARVATION_ALERT_FLAG, Date.now());
     const hoursDormant = Math.round((streak * 5) / 60);
+
+    // ── AUTO-REMEDIATION (env-gated) ──────────────────────────────────
+    // Attempt to break the Catch-22 by moving admin spot USDC into the
+    // BlueFin margin bank (swapping SUI → USDC first if spot is dry).
+    // Uses the existing bluefinTreasury.autoTopUp which is bounded by
+    // its own maxSwapSui + targetMargin caps. If it succeeds, the next
+    // trader tick will see free ≥ min and open a real position; if it
+    // fails, we still fire the Discord alert so the operator knows.
+    let topUpResult: unknown = null;
+    if (TRADER_AUTO_TOPUP_ENABLED) {
+      try {
+        const { bluefinTreasury } = await import('@/lib/services/sui/BluefinTreasuryService');
+        topUpResult = await bluefinTreasury.autoTopUp({
+          minMargin: TRADER_AUTO_TOPUP_MIN_MARGIN,
+          targetMargin: TRADER_AUTO_TOPUP_TARGET_MARGIN,
+          spotReserve: 1,
+          swapFromSui: true,
+        });
+      } catch (e) {
+        topUpResult = { error: e instanceof Error ? e.message : String(e) };
+      }
+    }
+
+    const topUpNote = TRADER_AUTO_TOPUP_ENABLED
+      ? `\n🤖 Auto-topup attempted: ${JSON.stringify(topUpResult).slice(0, 200)}`
+      : '\n💡 Enable TRADER_AUTO_TOPUP_ENABLED=1 to have this fixed autonomously (moves admin spot USDC → BlueFin margin bank, no external deposits needed).';
+
     await notifyDiscord(
       `🔴 Trader STARVED for ${hoursDormant}h+ (${streak} consecutive ticks, free=$${freeCollateralUsd.toFixed(2)}). ` +
       `Missing every signal opportunity. Unstick via ONE of:\n` +
       `  1. Fund BlueFin free collateral (deposit USDC to admin BlueFin account)\n` +
       `  2. Close an existing hedge to unlock its margin — check /api/admin/bluefin-debug for positions\n` +
-      `Signals worth acting on: check agent-directives:by-asset in cron_state.\n` +
-      `Alert suppressed 24h.`,
+      `Signals worth acting on: check agent-directives:by-asset in cron_state.` +
+      topUpNote +
+      `\nAlert suppressed 24h.`,
       'KILL',
-      { streakTicks: streak, hoursDormant, freeCollateralUsd },
+      { streakTicks: streak, hoursDormant, freeCollateralUsd, topUpResult },
     ).catch(() => {
       /* Discord webhook failures shouldn't fail the tick — alert is
          diagnostic, not a control-plane action. */
