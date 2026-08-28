@@ -160,16 +160,20 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
     if (HEDGE_MAX_HOLD_HOURS > 0) {
       const cutoffMs = Date.now() - HEDGE_MAX_HOLD_HOURS * 3600_000;
       for (const h of dbHedges) {
-        // Skip operational micro-hedges + reconstructed-orphan rows
-        // (those have no real open timestamp). Operational hedges are
-        // identified by BOTH sub-$1 notional AND leverage=1x; filtering
-        // on notional alone catches real low-priced hedges (SUI-PERP
-        // notional drops below $1 when SUI < $1, but at 3x leverage
-        // those are real positions that SHOULD be age-bounded).
+        // Skip operational micro-hedges. Reconstructed-orphan rows used
+        // to be skipped here too on the theory that their created_at is
+        // adoption-time (not real open-time on the venue) so max-hold
+        // would fire prematurely. In practice that made every orphan
+        // immortal — hedge #190 (adopted 2026-06-12, ETH SHORT $31 vs
+        // signal LONG for 77 days) sat here bleeding funding because
+        // this skip masked it from the age check. Use created_at as the
+        // best-available age proxy; false-positive early close is safer
+        // than never closing. Operational filter still requires BOTH
+        // sub-$1 notional AND leverage=1x — real low-priced 3x hedges
+        // (SUI-PERP when SUI < $1) must age-bound too.
         const notional = Number(h.notional_value ?? 0);
         const leverage = Number(h.leverage ?? 1);
         if (notional < 1 && leverage <= 1) continue;
-        if (String(h.order_id || '').startsWith('reconstructed_')) continue;
         const createdMs = new Date(h.created_at).getTime();
         if (!Number.isFinite(createdMs) || createdMs > cutoffMs) continue;
         // Confirm it's actually still open on BlueFin before closing —
@@ -468,9 +472,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
         if (liveSize <= 0) continue;
         const cls = classifyPosition(symbol, liveSize);
         if (cls.exitPath !== 'UNCLEARABLE') continue;
+        // Time-bound the dust flag (24h TTL). Boolean-forever prior rev
+        // permanently muted this KILL alert once fired; if the position
+        // ever un-sticks we want to re-page. See matching note in
+        // sui-hedge-reconcile/route.ts stale-close block.
         const dustFlagKey = `stale-dust-flag:${h.id}`;
-        if (await getCronStateOr<boolean>(dustFlagKey, false)) continue;
-        await setCronState(dustFlagKey, true);
+        const DUST_FLAG_TTL_MS = 24 * 60 * 60 * 1000;
+        const flaggedAt = Number(await getCronStateOr<number>(dustFlagKey, 0));
+        if (flaggedAt > 0 && Date.now() - flaggedAt < DUST_FLAG_TTL_MS) continue;
+        await setCronState(dustFlagKey, Date.now());
         await notifyDiscord(
           `🔒 Hedge #${h.id} ${symbol} ${h.side} DUST-LOCKED (venue size ${liveSize} < minQty ${cls.minQty}). Unclearable on-order-book — escalate via BlueFin Discord #ticket-desk. Auto-close will skip this hedge.`,
           'KILL', { hedgeId: h.id, symbol, side: h.side, liveSize, minQty: cls.minQty },

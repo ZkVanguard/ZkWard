@@ -244,9 +244,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
               // classifyPosition). openHedge snap-floors any topup, so
               // add-then-close always leaves the same-shape residue;
               // BlueFin support is the only clearing path. Once flagged,
-              // suppress retries so we don't spam Discord every hour.
+              // suppress retries so we don't spam Discord every hour —
+              // but TIME-BOUND the suppression. Prior rev stored a
+              // boolean that was never cleared, which permanently muted
+              // autonomy on hedges #5 and #190 for 37 days after the
+              // 2026-07-22 flagging event. If the position ever un-sticks
+              // (BlueFin support clears dust, or a topup lands), we must
+              // re-attempt. 24h TTL = 1 alert/day worst-case, self-healing.
               const dustFlagKey = `stale-dust-flag:${s.id}`;
-              if (await getCronStateOr<boolean>(dustFlagKey, false)) continue;
+              const DUST_FLAG_TTL_MS = 24 * 60 * 60 * 1000;
+              const flaggedAt = Number(await getCronStateOr<number>(dustFlagKey, 0));
+              if (flaggedAt > 0 && Date.now() - flaggedAt < DUST_FLAG_TTL_MS) continue;
               try {
                 // Omit size → full-position close (per BluefinService signature).
                 // Previous call passed { size: 0, leverage: 3 } which was
@@ -259,8 +267,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ReconcileR
                     hedgeId: s.id, symbol, error: result.error, isDust,
                   });
                   if (isDust) {
-                    // Page operator ONCE; further retries would be identical.
-                    await setCronState(dustFlagKey, true);
+                    // Store the timestamp so the TTL check above knows
+                    // when to allow the next retry. Boolean-flag prior
+                    // rev made this suppression permanent (see bug note
+                    // at TTL declaration above).
+                    await setCronState(dustFlagKey, Date.now());
                     await notifyDiscord(
                       `🔒 Hedge #${s.id} ${symbol} DUST-LOCKED (size < minQty). Venue math makes this unclearable on-order-book (step-floor + minQty ⇒ any topup leaves same residue). Escalate via BlueFin Discord #ticket-desk under Support, or leave for liquidation-driven decay. Retries suppressed.`,
                       'KILL', { hedge: s, result },
