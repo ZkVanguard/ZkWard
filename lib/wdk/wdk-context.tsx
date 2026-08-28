@@ -638,6 +638,28 @@ export function useWdkAccount() {
   };
 }
 
+/**
+ * Provider-tolerant variant of useWdkAccount for components that render
+ * both inside and outside WdkProvider. Marketing pages don't wrap in
+ * WdkProvider (bundle-size optimization); only `/dashboard/**` does.
+ * The <Navbar/> render tree crosses that boundary — same ConnectButton
+ * on `/dashboard` and `/`. useWdk() throws when no provider; this
+ * returns a disconnected default so ConnectButton renders as if no
+ * wallet were connected instead of crashing the page.
+ */
+export function useWdkAccountSafe() {
+  const context = useContext(WdkContext);
+  if (!context) {
+    return { address: null, isConnected: false, chainId: null, chainKey: null };
+  }
+  return {
+    address: context.state.address,
+    isConnected: context.state.isConnected,
+    chainId: context.state.chainId,
+    chainKey: context.state.chainKey,
+  };
+}
+
 export function useWdkChain() {
   const { state, switchChain, getSupportedChains } = useWdk();
   return {

@@ -20,7 +20,7 @@ import {
 } from '@mysten/dapp-kit';
 import type { WalletAccount, WalletWithRequiredFeatures } from '@mysten/wallet-standard';
 import { useSuiSafe } from '@/app/sui-providers';
-import { useWdk, useWdkAccount } from '@/lib/wdk/wdk-context';
+import { useWdkSafe, useWdkAccountSafe } from '@/lib/wdk/wdk-context';
 import { WDK_CHAINS } from '@/lib/config/wdk';
 import {
   SUI_MOBILE_WALLETS,
@@ -91,9 +91,13 @@ export function ConnectButton() {
     }
   }, [mounted, showMobileWallets]);
 
-  // WDK wallet hooks
-  const { disconnect: wdkDisconnect } = useWdk();
-  const { address: wdkAddress, isConnected: wdkIsConnected, chainKey } = useWdkAccount();
+  // WDK wallet hooks — SAFE variants so the button can render on any
+  // route (including outside WdkProvider). Previously threw on the
+  // Navbar-rendered ConnectButton on `/dashboard` because Navbar sits
+  // above DashboardLayout's <WalletProviders> in the layout tree.
+  const wdkCtx = useWdkSafe();
+  const wdkDisconnect = wdkCtx?.disconnect ?? (() => {});
+  const { address: wdkAddress, isConnected: wdkIsConnected, chainKey } = useWdkAccountSafe();
   const currentChain = chainKey ? WDK_CHAINS[chainKey] : null;
 
   // Sui wallet hooks
