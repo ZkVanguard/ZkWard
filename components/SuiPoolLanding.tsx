@@ -346,6 +346,17 @@ function HeroGraphBg() {
         // effects don't leak out (accurate: all layers are z-negative
         // absolutes clipped by our own overflow-hidden).
         contain: 'layout paint style',
+        // Radial vignette centered on where the vault meter sits
+        // (approx 50% x, 62% y). The effect fades to transparent in
+        // a soft ellipse around the card so the meter reads as a
+        // clean "hero moment" instead of competing with dense
+        // phyllotaxis/chart lines behind it. Corners keep the full
+        // effect — depth cue preserved, clutter around the card
+        // eliminated. Both prefixed forms so Safari + Firefox agree.
+        WebkitMaskImage:
+          'radial-gradient(ellipse 44% 42% at 50% 62%, transparent 0%, transparent 40%, black 78%)',
+        maskImage:
+          'radial-gradient(ellipse 44% 42% at 50% 62%, transparent 0%, transparent 40%, black 78%)',
       }}
     >
       {/* Layer 1 — dot grid via CSS radial-gradient (SVG pattern without a
@@ -356,11 +367,17 @@ function HeroGraphBg() {
       <div className="hero-graph-layer absolute -left-32 -right-32 top-0 bottom-0" style={LAYER_1_STYLE} />
 
       {/* Layer 2 — chart polylines. Slow dashoffset sweep on the dashed line
-          gives a "live tape" feel without any JS. */}
+          gives a "live tape" feel without any JS. Paths extended beyond
+          viewBox 0-1200 (starting at -200, ending at 1400) so the chart
+          keeps going off both sides — the visible container edges then
+          show a chart in mid-flow rather than trailing off. `overflow=
+          visible` allows the SVG to draw outside the viewBox. Layer
+          stays extended -left-32/-right-32 for the 3D depth cue. */}
       <svg
         className="hero-graph-layer absolute -left-32 -right-32 top-0 bottom-0 h-full"
         preserveAspectRatio="none"
         viewBox="0 0 1200 600"
+        overflow="visible"
         style={PX_LAYER_2}
       >
         <defs>
@@ -370,11 +387,11 @@ function HeroGraphBg() {
           </linearGradient>
         </defs>
         <path
-          d="M0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255 L1200,600 L0,600 Z"
+          d="M-200,480 L0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255 L1400,215 L1400,600 L-200,600 Z"
           fill="url(#hero-chart-fill)"
         />
         <path
-          d="M0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255"
+          d="M-200,480 L0,430 C150,395 250,350 380,368 S620,285 780,308 S1050,225 1200,255 L1400,215"
           fill="none"
           stroke="rgba(0,105,217,0.60)"
           strokeWidth="2"
@@ -382,7 +399,7 @@ function HeroGraphBg() {
         />
         <path
           className="hero-chart-tape"
-          d="M0,490 C180,455 300,470 460,438 S720,405 900,382 S1100,362 1200,338"
+          d="M-200,540 L0,490 C180,455 300,470 460,438 S720,405 900,382 S1100,362 1200,338 L1400,298"
           fill="none"
           stroke="rgba(0,105,217,0.38)"
           strokeWidth="1.25"
