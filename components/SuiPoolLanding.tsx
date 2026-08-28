@@ -353,12 +353,12 @@ function HeroGraphBg() {
           layout; CSS gradient tile is deterministic + one line). Vertical
           fade via mask-image so the grid does not clash with headline
           text or the vault meter card. */}
-      <div className="hero-graph-layer absolute inset-0" style={LAYER_1_STYLE} />
+      <div className="hero-graph-layer absolute -left-32 -right-32 top-0 bottom-0" style={LAYER_1_STYLE} />
 
       {/* Layer 2 — chart polylines. Slow dashoffset sweep on the dashed line
           gives a "live tape" feel without any JS. */}
       <svg
-        className="hero-graph-layer absolute inset-0 w-full h-full"
+        className="hero-graph-layer absolute -left-32 -right-32 top-0 bottom-0 h-full"
         preserveAspectRatio="none"
         viewBox="0 0 1200 600"
         style={PX_LAYER_2}
@@ -401,7 +401,7 @@ function HeroGraphBg() {
           whole layer slowly rotates (72s per revolution) — sub-liminal
           but reinforces the "living system" read. */}
       <svg
-        className="hero-graph-layer absolute inset-0 w-full h-full"
+        className="hero-graph-layer absolute -left-32 -right-32 top-0 bottom-0 h-full"
         preserveAspectRatio="xMidYMid slice"
         viewBox="0 0 1200 600"
         style={PX_LAYER_3}
