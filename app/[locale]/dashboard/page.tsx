@@ -38,6 +38,21 @@ const AgentActivity = nextDynamic(
   }
 );
 
+// LiveAutonomyPanel — wallet-agnostic proof-of-life. Reads
+// /api/dashboard/autonomy-status and renders cron heartbeats, trader
+// stats, signals, alarms. Shown ABOVE the per-wallet AgentActivity on
+// the AI Agents tab so anonymous visitors immediately see the
+// autonomy machinery is alive — the visible-track-record lever the
+// pool needs to attract deposits.
+const LiveAutonomyPanel = nextDynamic(
+  () =>
+    import('@/components/dashboard/LiveAutonomyPanel').then((mod) => ({ default: mod.LiveAutonomyPanel })),
+  {
+    loading: () => <LoadingSkeleton height="h-64" />,
+    ssr: false,
+  }
+);
+
 const RiskMetrics = nextDynamic(
   () => import('@/components/dashboard/RiskMetrics').then((mod) => ({ default: mod.RiskMetrics })),
   {
@@ -869,14 +884,30 @@ export default function DashboardPage() {
       case 'agents':
         return (
           <div className="space-y-3 sm:space-y-6">
+            {/* Live autonomy panel — wallet-agnostic, always visible.
+                Reads /api/dashboard/autonomy-status. Proves the machine
+                is alive for anonymous visitors. */}
             <Card>
               <CardHeader
-                title="AI Agents"
-                subtitle="Autonomous trading and risk management"
+                title="Live autonomy"
+                subtitle="Real-time system health from cron_state"
                 badge={<Badge color="green">ACTIVE</Badge>}
               />
-              <AgentActivity address={displayAddress} />
+              <LiveAutonomyPanel />
             </Card>
+
+            {/* Per-wallet agent activity — shown ONLY when connected.
+                The generic empty state added no signal for anonymous
+                visitors; the live panel above serves that need better. */}
+            {isConnected && (
+              <Card>
+                <CardHeader
+                  title="Your agent activity"
+                  subtitle="Recent tasks + ZK proofs for your wallet"
+                />
+                <AgentActivity address={displayAddress} />
+              </Card>
+            )}
 
             {agentMessage && (
               <div className="p-4 sm:p-6 bg-ios-blue/5 border border-ios-blue/20 rounded-[24px]">

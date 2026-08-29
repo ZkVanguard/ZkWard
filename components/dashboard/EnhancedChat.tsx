@@ -339,7 +339,7 @@ export function EnhancedChat({ address, onActionTrigger, hideHeader = false }: E
         <div className="flex-shrink-0 flex items-center justify-between p-3 sm:p-4 border-b border-[#e5e5ea] bg-gradient-to-r from-[#f5f5f7] to-white">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+              <div className="w-10 h-10 rounded-xl bg-ios-blue flex items-center justify-center shadow-ios-2">
                 <Bot className="w-5 h-5 text-white" />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
@@ -390,8 +390,8 @@ export function EnhancedChat({ address, onActionTrigger, hideHeader = false }: E
                 {/* Avatar */}
                 <div className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center ${
                   message.role === 'user'
-                    ? 'bg-gradient-to-br from-[#007AFF] to-[#5856D6]'
-                    : 'bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500'
+                    ? 'bg-ios-blue'
+                    : 'bg-ios-blue'
                 }`}>
                   {message.role === 'user' ? (
                     <User className="w-4 h-4 text-white" />
@@ -404,7 +404,7 @@ export function EnhancedChat({ address, onActionTrigger, hideHeader = false }: E
                 <div
                   className={`rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 ${
                     message.role === 'user'
-                      ? 'bg-gradient-to-br from-[#007AFF] to-[#5856D6] text-white rounded-tr-sm'
+                      ? 'bg-ios-blue text-white rounded-tr-sm'
                       : 'bg-[#f5f5f7] text-[#1d1d1f] rounded-tl-sm'
                   }`}
                 >
@@ -462,7 +462,7 @@ export function EnhancedChat({ address, onActionTrigger, hideHeader = false }: E
             className="flex justify-start"
           >
             <div className="flex gap-2.5">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-ios-blue flex items-center justify-center">
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div className="bg-[#f5f5f7] rounded-2xl rounded-tl-sm px-4 py-3">
