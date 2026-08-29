@@ -8,6 +8,7 @@ import { notifyDiscord } from '@/lib/utils/discord-notify';
 import { setCronState } from '@/lib/db/cron-state';
 import { BluefinService } from '@/lib/services/sui/BluefinService';
 import { evaluateKillSwitch } from '@/lib/services/trading/kill-switches';
+import { recordOutcome as recordCalibrationOutcome } from '@/lib/services/ai/probability-calibrator';
 import type { ActiveTrade } from '@/lib/services/trading/active-trade';
 import type { SupportedAsset } from '@/lib/config/trader-assets';
 import { utcDayKey } from './trader-utils';
@@ -126,6 +127,17 @@ export async function finalizeClosingExit(args: {
   const newStats = await applyOutcome(args.safeStats, realized, args.active.asset);
   const newDaily = await applyDaily(args.daily, realized);
   const halted = await maybeHalt(newStats, newDaily, args.haltedUntil);
+  // Feed the (asset, side, conf-bucket, outcome) tuple to the
+  // probability calibrator. Next time this bucket has a signal, the EV
+  // gate will see the empirically-shrunken probability instead of the
+  // raw (often mis-calibrated) confidence. Non-critical — swallows on
+  // error, never blocks the close finalisation.
+  await recordCalibrationOutcome({
+    asset: args.active.asset,
+    side: args.active.side,
+    openConfidencePct: args.active.confidence,
+    realizedPnl: realized,
+  });
   await setCronState(KEY_ACTIVE, null);
   return { exitPrice, fees, realized, newStats, newDaily, halted };
 }

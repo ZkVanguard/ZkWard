@@ -49,6 +49,7 @@ import { PredictionAggregatorService } from '@/lib/services/market-data/Predicti
 import { getCronStateOr, setCronState } from '@/lib/db/cron-state';
 import { query } from '@/lib/db/postgres';
 import { computeSizeMultiplier, computeRegretScore } from '@/lib/services/ai/regret-tracker';
+import { calibrate as calibrateProbability } from '@/lib/services/ai/probability-calibrator';
 import { regretBasedHalt, fundingEdge, exposureCap, riskGate } from '@/lib/services/trading/trade-quality-gates';
 import { checkBeforeTrade, completeTrade, getPriceAlertedSymbols } from '@/lib/services/agents/agent-trade-guard';
 import {
@@ -760,7 +761,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<EdgeResult
     // pattern from being visible before (100% phantom rate 2026-08-08).
     // Payoff odds = 1 for symmetric perp bet (win or lose 1× stake in
     // notional terms); leverage is captured via notionalUsd (= stake × L).
-    const evP = Math.min(0.999, Math.max(0.001, prediction.confidence / 100));
+    // Bayesian-shrunken probability from historical outcomes for this
+    // (asset, side, confidence-bucket). Falls back to raw when no
+    // history exists. Closes the biggest known PnL leak — historical
+    // conf 70-80 bucket won 12% of the time despite the model saying
+    // 74% confidence. Fed into EV gate so trades gate on truthful EV.
+    const calibration = await calibrateProbability({
+      asset,
+      side: side as 'LONG' | 'SHORT',
+      rawConfidencePct: prediction.confidence,
+    });
+    const evP = Math.min(0.999, Math.max(0.001, calibration.pCalibrated));
     const ev = expectedValueUsd({
       probability: evP,
       payoffOdds: 1,
@@ -768,6 +779,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<EdgeResult
       holdingHours: EV_HOLDING_HOURS,
       fundingRateApr: EV_FUNDING_APR,
       feeBpsRoundTrip: EV_FEE_BPS_ROUND_TRIP,
+    });
+    logger.info('[PolymarketEdge] probability calibration', {
+      asset, side,
+      rawConf: prediction.confidence,
+      pRaw: calibration.pRaw,
+      pCalibrated: calibration.pCalibrated,
+      nHistory: calibration.nHistory,
+      empiricalWinRate: calibration.empiricalWinRate,
     });
     if (ev.evUsd < EV_MIN_USD) {
       const evReason = `ev-gate blocked ${asset} ${side}: EV=$${ev.evUsd.toFixed(3)} < min $${EV_MIN_USD.toFixed(2)} ` +
