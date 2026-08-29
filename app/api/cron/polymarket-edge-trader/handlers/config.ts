@@ -111,3 +111,18 @@ export const TRADER_AUTO_TOPUP_MIN_MARGIN = Number(
 export const TRADER_AUTO_TOPUP_TARGET_MARGIN = Number(
   process.env.TRADER_AUTO_TOPUP_TARGET_MARGIN || 30,
 );
+
+// ── Skip-STRONG-signals gate ─────────────────────────────────────────────
+// Historical outcome analysis (2026-08-28, 22 real trades) revealed a
+// classic inverse-strength phenomenon:
+//   HEDGE_LONG (moderate):    3 trades, 100% win, +$0.07 PnL
+//   STRONG_HEDGE_LONG:       16 trades,  13% win, -$0.34 PnL
+// "STRONG_" signals fire when Polymarket consensus is already high,
+// which typically means the move is already priced in and mean-reversion
+// follows. Skipping strong signals in favor of moderate ones flips the
+// per-trade EV. Default ON with kill switch — set
+// POLYMARKET_EDGE_SKIP_STRONG_SIGNALS=0 to re-enable if a trend-
+// following regime returns.
+export const POLYMARKET_EDGE_SKIP_STRONG_SIGNALS = envFlagOnByDefault(
+  'POLYMARKET_EDGE_SKIP_STRONG_SIGNALS',
+);

@@ -19,8 +19,14 @@
  */
 
 // Import the REAL production code so tests fail on regressions rather than
-// silently agreeing with a shadow copy.
-import { computeEffectiveStopBps as computeEffectiveStopBpsProd } from '@/lib/services/trading/trailing-stop';
+// silently agreeing with a shadow copy. Tests pass an EXPLICIT config so
+// they lock the FORMULA rather than the current production defaults —
+// those change over time (see 2026-08-28: trailLockBps 10 → 20 after
+// historical PnL showed 10bp lock was below fee cost).
+import {
+  computeEffectiveStopBps as computeEffectiveStopBpsProd,
+  type TrailingStopConfig,
+} from '@/lib/services/trading/trailing-stop';
 
 const STOP_LOSS_BPS = 20;
 const TRAIL_ARM_BPS = 30;
@@ -28,10 +34,19 @@ const TRAIL_LOCK_BPS = 10;
 const TRAIL_STEP_BPS = 15;
 const TRAIL_LOCK_STEP_BPS = 10;
 
-// Wrapper so tests read naturally. The trailing-stop module reads env vars,
-// so as long as env is unset here, defaults match these constants.
+const TEST_CFG: TrailingStopConfig = {
+  stopLossBps: STOP_LOSS_BPS,
+  trailArmBps: TRAIL_ARM_BPS,
+  trailLockBps: TRAIL_LOCK_BPS,
+  trailStepBps: TRAIL_STEP_BPS,
+  trailLockStepBps: TRAIL_LOCK_STEP_BPS,
+  feeBreakevenBps: 12,
+  maxDeferCount: 3,
+  deferExtendMs: 5 * 60 * 1000,
+};
+
 function computeEffectiveStopBps(highWaterBps: number): number {
-  return computeEffectiveStopBpsProd(highWaterBps);
+  return computeEffectiveStopBpsProd(highWaterBps, TEST_CFG);
 }
 
 interface TickState {

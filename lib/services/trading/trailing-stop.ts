@@ -36,10 +36,17 @@ export interface TrailingStopConfig {
   deferExtendMs: number;
 }
 
+// trailLockBps raised 10 → 20 (2026-08-28) after historical outcome
+// analysis showed avg observed win was $0.017 on $22 notional = 7.7 bps,
+// which sits BELOW the 12 bps round-trip fee cost. Every "armed
+// trailing-stop exit" was net-negative after fees. New floor of 20 bps
+// guarantees +8 bps after fees on any armed exit (was -4 bps).
+// trailArmBps raised 30 → 35 for symmetry — must climb enough to clear
+// the new lock floor before the arm-lock reduces protection.
 export const DEFAULT_TRAILING_STOP_CONFIG: TrailingStopConfig = {
   stopLossBps:      Number(process.env.POLYMARKET_EDGE_STOP_LOSS_BPS       || 20),
-  trailArmBps:      Number(process.env.POLYMARKET_EDGE_TRAIL_ARM_BPS       || 30),
-  trailLockBps:     Number(process.env.POLYMARKET_EDGE_TRAIL_LOCK_BPS      || 10),
+  trailArmBps:      Number(process.env.POLYMARKET_EDGE_TRAIL_ARM_BPS       || 35),
+  trailLockBps:     Number(process.env.POLYMARKET_EDGE_TRAIL_LOCK_BPS      || 20),
   trailStepBps:     Number(process.env.POLYMARKET_EDGE_TRAIL_STEP_BPS      || 15),
   trailLockStepBps: Number(process.env.POLYMARKET_EDGE_TRAIL_LOCK_STEP_BPS || 10),
   feeBreakevenBps:  Number(process.env.POLYMARKET_EDGE_FEE_BREAKEVEN_BPS   || 12),

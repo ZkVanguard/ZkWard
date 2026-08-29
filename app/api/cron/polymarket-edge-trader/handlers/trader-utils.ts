@@ -17,6 +17,7 @@ import {
   TRADER_AUTO_TOPUP_ENABLED,
   TRADER_AUTO_TOPUP_MIN_MARGIN,
   TRADER_AUTO_TOPUP_TARGET_MARGIN,
+  POLYMARKET_EDGE_SKIP_STRONG_SIGNALS,
 } from './config';
 
 export function quantize(qty: number, step: number): number {
@@ -40,7 +41,15 @@ export function recommendationToSide(
 }
 
 export function isActionable(rec: AggregatedPrediction['recommendation']): boolean {
-  return rec.startsWith('HEDGE_') || rec.startsWith('STRONG_');
+  // Historical outcome analysis showed STRONG_ signals lose 87% of the
+  // time (16 trades, 13% win, -$0.34 PnL) while moderate HEDGE_ signals
+  // win 100% of the time (small sample but directionally clear). Gate
+  // controls whether STRONG_ signals participate — default ON (skip
+  // strong). See handlers/config.ts for the data-driven rationale.
+  if (rec.startsWith('STRONG_')) {
+    return !POLYMARKET_EDGE_SKIP_STRONG_SIGNALS;
+  }
+  return rec.startsWith('HEDGE_');
 }
 
 export function utcDayKey(ts: number): string {
