@@ -28,6 +28,7 @@ import { SUPPORTED_ASSETS } from '@/lib/config/trader-assets';
 import type { EdgeStats, DailyStats, EdgeResult } from './types';
 import { findActivePosition, recommendationToSide, isActionable } from './trader-utils';
 import { applyOutcome, applyDaily, maybeHalt, finalizeClosingExit } from './state-transitions';
+import { recordOutcome as recordCalibrationOutcome } from '@/lib/services/ai/probability-calibrator';
 import {
   KEY_ACTIVE,
   HALT_DURATION_MS,
@@ -69,6 +70,15 @@ export async function reconcileActiveTrade(args: ReconcileArgs): Promise<NextRes
     const newStats = await applyOutcome(safeStats, -active.stakeUsd, active.asset);
     const newDaily = await applyDaily(daily, -active.stakeUsd);
     const halted = await maybeHalt(newStats, newDaily, haltedUntil);
+    // Book vanished-position as loss in the calibrator too — helps the
+    // model learn that this (asset, side, conf-bucket) is prone to
+    // silent close/rejection.
+    await recordCalibrationOutcome({
+      asset: active.asset,
+      side: active.side,
+      openConfidencePct: active.confidence,
+      realizedPnl: -active.stakeUsd,
+    });
     await notifyDiscord(
       `Position vanished — booked as -$${active.stakeUsd.toFixed(2)} loss`,
       'WARN',
