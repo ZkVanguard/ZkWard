@@ -233,13 +233,13 @@ export const PredictionInsights = memo(function PredictionInsights({
         className="w-full px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between active:bg-[#f9f9f9] sm:hover:bg-[#f9f9f9] transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#AF52DE] rounded-[10px] sm:rounded-[12px] flex items-center justify-center">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-ios-blue rounded-[10px] sm:rounded-[12px] flex items-center justify-center">
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           <div className="text-left">
             <div className="flex items-center gap-2">
               <h3 className="text-[15px] sm:text-[17px] font-semibold text-[#1d1d1f]">Insights</h3>
-              <span className="px-1.5 py-0.5 bg-[#AF52DE]/10 text-[#AF52DE] text-[10px] font-bold rounded-full">
+              <span className="px-1.5 py-0.5 bg-ios-blue/10 text-ios-blue text-[10px] font-bold rounded-full">
                 {predictions.length}
               </span>
               {hedgeCount > 0 && (
@@ -285,7 +285,7 @@ export const PredictionInsights = memo(function PredictionInsights({
                   onClick={() => setFilter(f)}
                   className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all whitespace-nowrap ${
                     filter === f
-                      ? 'bg-[#AF52DE] text-white'
+                      ? 'bg-ios-blue text-white'
                       : 'bg-[#f5f5f7] text-[#86868b] active:bg-[#e8e8ed]'
                   }`}
                 >
@@ -298,13 +298,13 @@ export const PredictionInsights = memo(function PredictionInsights({
           {/* Unified AI Agent Summary */}
           {(agentSummary || summaryLoading) && (
             <div className="px-4 sm:px-6 pb-3">
-              <div className="bg-gradient-to-br from-[#AF52DE]/5 via-[#007AFF]/5 to-[#34C759]/5 border border-[#AF52DE]/15 rounded-[14px] overflow-hidden">
+              <div className="bg-ios-blue/5 border border-ios-blue/15 rounded-[14px] overflow-hidden">
                 {/* Summary Header */}
                 <button
                   onClick={() => setSummaryExpanded(!summaryExpanded)}
                   className="w-full px-4 py-3 flex items-start gap-3 text-left"
                 >
-                  <div className="w-8 h-8 bg-[#AF52DE] rounded-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-8 h-8 bg-ios-blue rounded-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
                     <Bot className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -547,8 +547,8 @@ export const PredictionInsights = memo(function PredictionInsights({
                     {/* Risk Agent */}
                     <div className="p-3 bg-white/60 rounded-[10px] border border-[#AF52DE]/10">
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <Zap className="w-3 h-3 text-[#AF52DE]" />
-                        <span className="text-[10px] font-bold text-[#AF52DE] uppercase tracking-wide">Risk Agent</span>
+                        <Zap className="w-3 h-3 text-ios-blue" />
+                        <span className="text-[10px] font-bold text-ios-blue uppercase tracking-wide">Risk Agent</span>
                       </div>
                       <p className="text-[12px] text-[#1d1d1f] leading-relaxed">
                         {agentSummary.riskAgent}
@@ -568,10 +568,10 @@ export const PredictionInsights = memo(function PredictionInsights({
 
                     {/* Agent attribution */}
                     <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-[#AF52DE]/10 text-[#AF52DE] rounded text-[9px] font-semibold">
+                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-ios-blue/10 text-ios-blue rounded text-[9px] font-semibold">
                         <Bot className="w-2.5 h-2.5" /> Lead Agent
                       </span>
-                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-[#AF52DE]/10 text-[#AF52DE] rounded text-[9px] font-semibold">
+                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-ios-blue/10 text-ios-blue rounded text-[9px] font-semibold">
                         <Zap className="w-2.5 h-2.5" /> Risk Agent
                       </span>
                       <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-[#007AFF]/10 text-[#007AFF] rounded text-[9px] font-semibold">
@@ -722,7 +722,7 @@ export const PredictionInsights = memo(function PredictionInsights({
                   href="https://delphi.markets"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-[11px] text-[#AF52DE] font-medium"
+                  className="flex items-center gap-1 text-[11px] text-ios-blue font-medium"
                 >
                   Delphi <ExternalLink className="w-3 h-3" />
                 </a>
@@ -813,10 +813,10 @@ export const PredictionInsights = memo(function PredictionInsights({
               </div>
 
               {/* Recommendation */}
-              <div className="p-3 bg-[#AF52DE]/5 border border-[#AF52DE]/10 rounded-[12px] mb-5">
+              <div className="p-3 bg-ios-blue/5 border border-[#AF52DE]/10 rounded-[12px] mb-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Bot className="w-4 h-4 text-[#AF52DE]" />
-                  <span className="text-[12px] font-bold text-[#AF52DE] uppercase tracking-wide">Agent Recommendation</span>
+                  <Bot className="w-4 h-4 text-ios-blue" />
+                  <span className="text-[12px] font-bold text-ios-blue uppercase tracking-wide">Agent Recommendation</span>
                 </div>
                 <p className="text-[13px] text-[#1d1d1f] leading-relaxed">
                   {selectedPrediction.recommendation === 'HEDGE' ? (

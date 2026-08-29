@@ -15,14 +15,13 @@ export const RiskMetrics = memo(function RiskMetrics({ address }: { address?: st
   const { positionsData, derived, loading } = usePositions();
 
   // Calculate metrics from context data - no fetching needed!
+  const noData = !address || !positionsData || !derived;
   const metrics = useMemo<RiskMetric[]>(() => {
-    if (!address || !positionsData || !derived) {
-      return [
-        { label: 'VaR (95%)', value: '--', status: 'low', icon: Shield },
-        { label: 'Volatility', value: '--', status: 'low', icon: TrendingUp },
-        { label: 'Risk Score', value: '--', status: 'low', icon: AlertTriangle },
-        { label: 'Sharpe Ratio', value: '--', status: 'low', icon: Activity },
-      ];
+    if (noData) {
+      // Placeholder shape is still returned so the layout doesn't
+      // shift; the render branch below shows a single empty state
+      // instead of 4 fake tinted cards with "--" that read as broken.
+      return [];
     }
 
     const { weightedVolatility, sharpeRatio } = derived;
@@ -88,6 +87,20 @@ export const RiskMetrics = memo(function RiskMetrics({ address }: { address?: st
       default: return { bg: 'bg-[#8E8E93]/10', text: 'text-[#8E8E93]', dot: 'bg-[#8E8E93]' };
     }
   };
+
+  // Empty state — replaces the 4 tinted "--" placeholder cards that
+  // read as broken widgets. Single clean message instead. Same
+  // pattern the homepage uses for empty data (skeleton or absence,
+  // never fake numbers).
+  if (noData) {
+    return (
+      <div className="px-4 sm:px-6 pb-6 sm:pb-8 flex items-center justify-center min-h-[160px]">
+        <p className="text-[13px] sm:text-caption-1 text-label-tertiary text-center max-w-[240px]">
+          Connect a wallet to see VaR, volatility, risk score and Sharpe ratio computed live from your portfolio.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 sm:px-6 pb-4 sm:pb-6">
