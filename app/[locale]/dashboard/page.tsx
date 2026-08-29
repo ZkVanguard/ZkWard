@@ -148,7 +148,7 @@ const CustodyTab = nextDynamic(
 
 // Reusable loading skeleton
 function LoadingSkeleton({ height = 'h-40' }: { height?: string }) {
-  return <div className={`animate-pulse bg-[#f5f5f7] ${height} rounded-[24px]`} />;
+  return <div className={`animate-pulse bg-system-bg-secondary ${height} rounded-[24px]`} />;
 }
 
 // Navigation configuration
@@ -391,7 +391,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7]">
+    <div className="min-h-screen bg-system-bg-secondary">
       {/* Mobile Header - Slim page-title bar. Primary navigation now lives in
           the bottom tab bar (see <MobileTabBar/> below). We keep only the
           current page title and the chat action here. Access to the drawer
@@ -403,13 +403,13 @@ export default function DashboardPage() {
               The desktop h1 below is display:none on mobile, and vice versa,
               but audit tools count both DOM nodes. Screen readers still
               announce this as a level-1 heading via ARIA. */}
-          <p role="heading" aria-level={1} className="text-[17px] font-semibold text-[#1d1d1f] tracking-tight truncate m-0">
+          <p role="heading" aria-level={1} className="text-[17px] font-semibold text-label-primary tracking-tight truncate m-0">
             {[...navItems, ...platformItems].find((n) => n.id === activeNav)?.label}
           </p>
 
           <button
             onClick={() => setShowChat(true)}
-            className="p-2 -mr-2 text-[#007AFF] active:scale-[0.96] transition-transform"
+            className="p-2 -mr-2 text-ios-blue active:scale-[0.96] transition-transform"
             aria-label="Open chat"
           >
             <MessageSquare className="w-5 h-5" />
@@ -436,10 +436,10 @@ export default function DashboardPage() {
         <div className="flex flex-col h-full">
           {/* Mobile Menu Header */}
           <div className="flex items-center justify-between p-4 border-b border-black/5">
-            <span className="text-lg font-bold text-[#1d1d1f]">Menu</span>
+            <span className="text-lg font-bold text-label-primary">Menu</span>
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="p-2 -mr-2 text-[#86868b] hover:text-[#1d1d1f]"
+              className="p-2 -mr-2 text-label-quaternary hover:text-label-primary"
               aria-label="Close menu"
             >
               <X className="w-5 h-5" />
@@ -461,12 +461,12 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#1d1d1f] truncate">
+                <p className="text-sm font-semibold text-label-primary truncate">
                   {displayAddress
                     ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
                     : 'Not Connected'}
                 </p>
-                <p className="text-xs text-[#86868b]">
+                <p className="text-xs text-label-quaternary">
                   {isConnected ? displayBalance : 'Connect Wallet'}
                 </p>
               </div>
@@ -487,17 +487,17 @@ export default function DashboardPage() {
                     w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
                     ${
                       isActive
-                        ? 'bg-[#007AFF]/10 border-r-2 border-[#007AFF]'
-                        : 'hover:bg-[#f5f5f7]'
+                        ? 'bg-ios-blue/10 border-r-2 border-ios-blue'
+                        : 'hover:bg-system-bg-secondary'
                     }
                   `}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-[#007AFF]' : 'text-[#86868b]'}`} />
-                  <span className={`font-medium ${isActive ? 'text-[#007AFF]' : 'text-[#1d1d1f]'}`}>
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-ios-blue' : 'text-label-quaternary'}`} />
+                  <span className={`font-medium ${isActive ? 'text-ios-blue' : 'text-label-primary'}`}>
                     {item.label}
                   </span>
                   {item.badge && (
-                    <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-[#34C759] text-white rounded-full">
+                    <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-ios-green text-white rounded-full">
                       {item.badge}
                     </span>
                   )}
@@ -513,10 +513,10 @@ export default function DashboardPage() {
                 setSettingsOpen(true);
                 setMobileMenuOpen(false);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f5f5f7] rounded-[18px] transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-system-bg-secondary rounded-[18px] transition-colors"
             >
-              <Settings className="w-5 h-5 text-[#86868b]" />
-              <span className="font-medium text-[#1d1d1f]">Settings</span>
+              <Settings className="w-5 h-5 text-label-quaternary" />
+              <span className="font-medium text-label-primary">Settings</span>
             </button>
           </div>
         </div>
@@ -530,7 +530,7 @@ export default function DashboardPage() {
           <div className="p-5 border-b border-black/5">
             <div className="flex items-center gap-3">
               <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,122,255,0.3)] ${suiConnected ? 'bg-[#4DA2FF]' : 'bg-gradient-to-br from-[#007AFF] to-[#5856D6]'}`}
+                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,105,217,0.3)] ${suiConnected ? 'bg-[#4DA2FF]' : 'bg-ios-blue'}`}
               >
                 <span className="text-white text-[15px] font-semibold">
                   {suiConnected
@@ -541,12 +541,12 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold text-[#1d1d1f] truncate tracking-[-0.01em]">
+                <p className="text-[15px] font-semibold text-label-primary truncate tracking-[-0.01em]">
                   {displayAddress
                     ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
                     : 'Not Connected'}
                 </p>
-                <p className="text-[13px] text-[#86868b] tracking-[-0.003em]">
+                <p className="text-[13px] text-label-quaternary tracking-[-0.003em]">
                   {isConnected ? displayBalance : 'Connect Wallet'}
                 </p>
               </div>
@@ -555,7 +555,7 @@ export default function DashboardPage() {
 
           {/* Desktop Navigation */}
           <nav className="flex-1 py-4 overflow-y-auto">
-            <p className="px-5 mb-3 text-[13px] font-semibold text-[#86868b] uppercase tracking-[0.06em]">
+            <p className="px-5 mb-3 text-[13px] font-semibold text-label-quaternary uppercase tracking-[0.06em]">
               Menu
             </p>
 
@@ -571,14 +571,14 @@ export default function DashboardPage() {
                     w-[calc(100%-16px)] mx-2 mb-1 flex items-center gap-3 px-4 py-2.5 rounded-[12px] text-left transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
                     ${
                       isActive
-                        ? 'bg-[#007AFF] shadow-[0_2px_8px_rgba(0,122,255,0.25)]'
-                        : 'hover:bg-[#f5f5f7]'
+                        ? 'bg-ios-blue shadow-[0_2px_8px_rgba(0,105,217,0.25)]'
+                        : 'hover:bg-system-bg-secondary'
                     }
                   `}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[#86868b]'}`} />
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-label-quaternary'}`} />
                   <span
-                    className={`text-[15px] font-medium tracking-[-0.01em] ${isActive ? 'text-white' : 'text-[#1d1d1f]'}`}
+                    className={`text-[15px] font-medium tracking-[-0.01em] ${isActive ? 'text-white' : 'text-label-primary'}`}
                   >
                     {item.label}
                   </span>
@@ -586,7 +586,7 @@ export default function DashboardPage() {
                     <span
                       className={`
                       ml-auto px-2 py-0.5 text-[11px] font-semibold rounded-full shadow-sm
-                      ${isActive ? 'bg-white/20 text-white' : 'bg-[#34C759] text-white'}
+                      ${isActive ? 'bg-white/20 text-white' : 'bg-ios-green text-white'}
                     `}
                     >
                       {item.badge}
@@ -598,7 +598,7 @@ export default function DashboardPage() {
 
             <div className="my-4 mx-4 border-t border-black/5" />
 
-            <p className="px-5 mb-3 text-[13px] font-semibold text-[#86868b] uppercase tracking-[0.06em]">
+            <p className="px-5 mb-3 text-[13px] font-semibold text-label-quaternary uppercase tracking-[0.06em]">
               Platform
             </p>
 
@@ -611,11 +611,11 @@ export default function DashboardPage() {
                   onClick={() => setActiveNav(item.id)}
                   className={`
                     w-[calc(100%-16px)] mx-2 mb-1 flex items-center gap-3 px-4 py-2.5 rounded-[12px] text-left transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
-                    ${isActive ? 'bg-[#007AFF] shadow-[0_2px_8px_rgba(0,122,255,0.25)]' : 'hover:bg-[#f5f5f7]'}
+                    ${isActive ? 'bg-ios-blue shadow-[0_2px_8px_rgba(0,105,217,0.25)]' : 'hover:bg-system-bg-secondary'}
                   `}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[#86868b]'}`} />
-                  <span className={`text-[15px] font-medium tracking-[-0.01em] ${isActive ? 'text-white' : 'text-[#1d1d1f]'}`}>
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-label-quaternary'}`} />
+                  <span className={`text-[15px] font-medium tracking-[-0.01em] ${isActive ? 'text-white' : 'text-label-primary'}`}>
                     {item.label}
                   </span>
                 </button>
@@ -626,10 +626,10 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setSettingsOpen(true)}
-              className="w-[calc(100%-16px)] mx-2 flex items-center gap-3 px-4 py-2.5 rounded-[12px] text-left hover:bg-[#f5f5f7] transition-colors duration-200"
+              className="w-[calc(100%-16px)] mx-2 flex items-center gap-3 px-4 py-2.5 rounded-[12px] text-left hover:bg-system-bg-secondary transition-colors duration-200"
             >
-              <Settings className="w-5 h-5 text-[#86868b]" strokeWidth={2} />
-              <span className="text-[15px] font-medium text-[#1d1d1f] tracking-[-0.01em]">
+              <Settings className="w-5 h-5 text-label-quaternary" strokeWidth={2} />
+              <span className="text-[15px] font-medium text-label-primary tracking-[-0.01em]">
                 Settings
               </span>
             </button>
@@ -639,7 +639,7 @@ export default function DashboardPage() {
           <div className="p-4 border-t border-black/5">
             <button
               onClick={() => setShowChat(true)}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-[#007AFF] text-white rounded-[14px] text-[15px] font-semibold hover:opacity-90 active:scale-[0.98] transition-all duration-200 shadow-[0_4px_12px_rgba(0,122,255,0.3)]"
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-ios-blue text-white rounded-[14px] text-[15px] font-semibold hover:opacity-90 active:scale-[0.98] transition-all duration-200 shadow-[0_4px_12px_rgba(0,122,255,0.3)]"
             >
               <MessageSquare className="w-5 h-5" strokeWidth={2.5} />
               AI Assistant
@@ -652,7 +652,7 @@ export default function DashboardPage() {
           <div className="max-w-[1280px] mx-auto px-3 sm:px-5 py-3 sm:py-6 lg:px-8 lg:py-10">
             {/* Page Header - Desktop only */}
             <div className="hidden lg:block mb-8">
-              <h1 className="text-[34px] font-bold text-[#1d1d1f] tracking-[-0.02em] leading-[1.1]">
+              <h1 className="text-[34px] font-bold text-label-primary tracking-[-0.02em] leading-[1.1]">
                 {[...navItems, ...platformItems].find((n) => n.id === activeNav)?.label}
               </h1>
             </div>
@@ -708,19 +708,19 @@ export default function DashboardPage() {
             <div className="bg-white lg:rounded-[24px] shadow-2xl border-t lg:border border-black/5 overflow-hidden">
               <div className="flex items-center justify-between p-3 sm:p-4 border-b border-black/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-gradient-to-br from-[#007AFF] to-[#5856D6] rounded-[12px] flex items-center justify-center shadow-[0_2px_8px_rgba(0,122,255,0.25)]">
+                  <div className="w-9 h-9 bg-ios-blue rounded-[12px] flex items-center justify-center shadow-[0_2px_8px_rgba(0,105,217,0.25)]">
                     <Bot className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <span className="font-semibold text-[15px] text-[#1d1d1f] block">
+                    <span className="font-semibold text-[15px] text-label-primary block">
                       AI Assistant
                     </span>
-                    <span className="text-[11px] text-[#86868b]">Your portfolio co-pilot</span>
+                    <span className="text-[11px] text-label-quaternary">Your portfolio co-pilot</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowChat(false)}
-                  className="p-2 text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] rounded-full transition-all"
+                  className="p-2 text-label-quaternary hover:text-label-primary hover:bg-system-bg-secondary rounded-full transition-all"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -759,7 +759,7 @@ export default function DashboardPage() {
       {!showChat && (
         <button
           onClick={() => setShowChat(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#007AFF] text-white rounded-full shadow-[0_8px_30px_rgba(0,122,255,0.3)] hover:opacity-90 hover:scale-105 transition-all flex items-center justify-center"
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-ios-blue text-white rounded-full shadow-[0_8px_30px_rgba(0,122,255,0.3)] hover:opacity-90 hover:scale-105 transition-all flex items-center justify-center"
         >
           <MessageSquare className="w-6 h-6" />
         </button>
@@ -809,7 +809,7 @@ export default function DashboardPage() {
                   action={
                     <button
                       onClick={() => setActiveNav('hedges')}
-                      className="flex items-center gap-1 text-sm text-[#007AFF] font-medium hover:opacity-80 transition-opacity"
+                      className="flex items-center gap-1 text-sm text-ios-blue font-medium hover:opacity-80 transition-opacity"
                     >
                       View All <ChevronRight className="w-4 h-4" />
                     </button>
@@ -827,14 +827,14 @@ export default function DashboardPage() {
 
             {/* Agent Alert */}
             {agentMessage && (
-              <div className="p-4 sm:p-6 bg-[#007AFF]/5 border border-[#007AFF]/20 rounded-[24px]">
+              <div className="p-4 sm:p-6 bg-ios-blue/5 border border-ios-blue/20 rounded-[24px]">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#007AFF] rounded-[18px] flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-ios-blue rounded-[18px] flex items-center justify-center flex-shrink-0">
                     <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-[#1d1d1f] mb-1">AI Agent Alert</h3>
-                    <p className="text-[#86868b] text-sm sm:text-base whitespace-pre-line">
+                    <h3 className="font-semibold text-label-primary mb-1">AI Agent Alert</h3>
+                    <p className="text-label-quaternary text-sm sm:text-base whitespace-pre-line">
                       {agentMessage}
                     </p>
                   </div>
@@ -879,14 +879,14 @@ export default function DashboardPage() {
             </Card>
 
             {agentMessage && (
-              <div className="p-4 sm:p-6 bg-gradient-to-br from-[#007AFF]/5 to-[#AF52DE]/5 border border-[#007AFF]/20 rounded-[24px]">
+              <div className="p-4 sm:p-6 bg-ios-blue/5 border border-ios-blue/20 rounded-[24px]">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[#007AFF] rounded-[18px] flex items-center justify-center">
+                  <div className="w-12 h-12 bg-ios-blue rounded-[18px] flex items-center justify-center">
                     <Bot className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-[#1d1d1f] mb-1">Latest Analysis</h3>
-                    <p className="text-[#86868b] whitespace-pre-line">{agentMessage}</p>
+                    <h3 className="font-semibold text-label-primary mb-1">Latest Analysis</h3>
+                    <p className="text-label-quaternary whitespace-pre-line">{agentMessage}</p>
                   </div>
                 </div>
               </div>
@@ -960,13 +960,13 @@ function CardHeader({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-[17px] sm:text-[20px] font-semibold text-[#1d1d1f] tracking-[-0.01em]">
+            <h2 className="text-[17px] sm:text-[20px] font-semibold text-label-primary tracking-[-0.01em]">
               {title}
             </h2>
             {badge}
           </div>
           {subtitle && (
-            <p className="text-[12px] sm:text-[13px] text-[#86868b] mt-0.5">{subtitle}</p>
+            <p className="text-[12px] sm:text-[13px] text-label-quaternary mt-0.5">{subtitle}</p>
           )}
         </div>
         {action}
@@ -978,8 +978,8 @@ function CardHeader({
 // Badge component
 function Badge({ children, color }: { children: React.ReactNode; color: 'green' | 'blue' }) {
   const colors = {
-    green: 'bg-[#34C759] text-white',
-    blue: 'bg-[#007AFF] text-white',
+    green: 'bg-ios-green text-white',
+    blue: 'bg-ios-blue text-white',
   };
 
   return (
