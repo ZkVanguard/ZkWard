@@ -126,3 +126,18 @@ export const TRADER_AUTO_TOPUP_TARGET_MARGIN = Number(
 export const POLYMARKET_EDGE_SKIP_STRONG_SIGNALS = envFlagOnByDefault(
   'POLYMARKET_EDGE_SKIP_STRONG_SIGNALS',
 );
+
+// ── Max-hold windows (minutes) ───────────────────────────────────────────
+// Historical analysis (2026-08-28) showed EVERY closed trade hit exactly
+// its max-hold expiry (~5 min for HEDGE_, 10 min for STRONG_). Trades
+// weren't earning trailing-stop exits; they were dying at expiry after
+// small random-walk moves that didn't clear 12 bp round-trip fees.
+// Extending gives moves time to develop past the fee floor. If signal
+// flips, signal-flip exit fires (before max-hold) — no downside to
+// longer holds when signal exit is wired.
+export const MAX_HOLD_MIN_MODERATE = Number(
+  process.env.POLYMARKET_EDGE_MAX_HOLD_MODERATE_MIN || 20,
+);
+export const MAX_HOLD_MIN_STRONG = Number(
+  process.env.POLYMARKET_EDGE_MAX_HOLD_STRONG_MIN || 30,
+);

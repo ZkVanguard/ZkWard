@@ -82,6 +82,8 @@ import {
   KEY_HALTED_UNTIL,
   KEY_DAILY,
   KEY_NOEDGE_STREAK,
+  MAX_HOLD_MIN_MODERATE,
+  MAX_HOLD_MIN_STRONG,
 } from './handlers/config';
 import type { EdgeStats, DailyStats, EdgeResult } from './handlers/types';
 import { DEFAULT_STATS } from './handlers/types';
@@ -1019,7 +1021,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<EdgeResult
       sourceCount: prediction.sources.length,
       entryScore: scan.best.score,
       openedAt: now,
-      closeBy: now + (prediction.recommendation.startsWith('STRONG_') ? 10 : 5) * 60 * 1000,
+      // Max-hold extended 5→20 (HEDGE_) and 10→30 (STRONG_) minutes.
+      // Historical: every closed trade hit exactly max-hold expiry with
+      // near-zero PnL — trades weren't earning trailing-stop exits,
+      // they were dying at expiry before signals could develop past
+      // the fee floor. Signal-flip exit still fires FIRST when the
+      // signal actually inverts. See handlers/config.ts for rationale.
+      closeBy: now + (prediction.recommendation.startsWith('STRONG_') ? MAX_HOLD_MIN_STRONG : MAX_HOLD_MIN_MODERATE) * 60 * 1000,
       clientOrderId,
       highWaterBps: 0,
     };
