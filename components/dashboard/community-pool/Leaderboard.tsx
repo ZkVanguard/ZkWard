@@ -118,7 +118,7 @@ export const Leaderboard = memo(function Leaderboard({
   return (
     <div className="p-4 sm:p-5">
       {/* Pool Contract Info */}
-      <div className="mb-4 p-3 sm:p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
+      <div className="mb-4 p-3 sm:p-4 rounded-lg bg-ios-blue/5 border border-ios-blue/15">
         <div className="flex items-center gap-2 mb-2">
           {isSui ? (
             <Database className="w-4 h-4 text-blue-500 flex-shrink-0" />

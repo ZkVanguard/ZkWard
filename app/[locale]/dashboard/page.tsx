@@ -175,9 +175,11 @@ interface NavItem {
 }
 
 // Primary nav — surfaces the daily user actions (deposit + monitor).
-// Vault first: flagship product; user lands on deposit/withdraw immediately.
+// "Pool" first (was "Vault" — collided with the top-navbar entry link).
+// Top navbar's "Vault" is the product entry; sidebar tab is the specific
+// deposit/withdraw section, so keep the labels distinct.
 const navItems: NavItem[] = [
-  { id: 'community', label: 'Vault', icon: Users },
+  { id: 'community', label: 'Pool', icon: Users },
   { id: 'overview', label: 'Overview', icon: BarChart3 },
   { id: 'positions', label: 'Positions', icon: Briefcase },
   { id: 'hedges', label: 'Hedges', icon: Shield },
@@ -224,7 +226,7 @@ export default function DashboardPage() {
   const { requestCustomAction } = usePortfolioAction();
   // Portfolio count available via derived?.portfolioCount if needed
 
-  // Default to the Vault tab — clicking "Vault" in the top nav should land the
+  // Default to the Pool tab — clicking "Vault" in the top nav should land the
   // user on the actual deposit/withdraw surface, not a generic dashboard view.
   const [activeNav, setActiveNav] = useState<NavId>('community');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -465,7 +467,7 @@ export default function DashboardPage() {
           <div className="p-4 border-b border-black/5">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${suiConnected ? 'bg-[#4DA2FF]' : 'bg-gradient-to-br from-blue-500 to-purple-600'}`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${suiConnected ? 'bg-[#4DA2FF]' : 'bg-ios-blue'}`}
               >
                 <span className="text-white text-sm font-bold">
                   {suiConnected

@@ -84,8 +84,13 @@ export const PoolStats = memo(function PoolStats({ poolData, selectedChain }: Po
 
   const signedPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
   const signedUsd = (v: number) => `${v >= 0 ? '+' : '-'}${formatUSD(Math.abs(v))}`;
+  // Muted vs. the saturated red-600/green-600 the pre-refactor code used.
+  // Awesomedesign.md rule: semantic colours are text-only signals; they
+  // must NOT dominate the emotional read at first glance. ios-red is a
+  // meaningfully softer tone than red-600 and matches the homepage's
+  // vault-meter accent palette (blues + soft warnings, no shouting).
   const pnlColor = (v: number) =>
-    v >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    v >= 0 ? 'text-ios-green' : 'text-ios-red';
 
   // Single stale chip used on both breakpoints — one wording ("snapshot · Xh
   // old"), one tooltip. Was two different phrasings pre-2026-07-31 refactor.
@@ -105,12 +110,16 @@ export const PoolStats = memo(function PoolStats({ poolData, selectedChain }: Po
   const athChip = useMemo(() => {
     if (!isSui || !profit || profit.offAthPct == null || profit.offAthPct >= 0) return null;
     const dd = profit.offAthPct;
+    // Muted: soft-tinted background + ios-token text. Was red-100/amber-100
+    // Tailwind saturated tints which read as alarm chips on a dashboard
+    // where drawdown is expected. Softer palette = information-dense
+    // without emotional pressure.
     const tone =
       dd <= -15
-        ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+        ? 'bg-ios-red/10 text-ios-red'
         : dd <= -5
-          ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300'
-          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+          ? 'bg-ios-orange/10 text-ios-orange'
+          : 'bg-system-bg-secondary text-label-tertiary';
     const ath = Number(poolData.allTimeHighNav) || 0;
     return (
       <span

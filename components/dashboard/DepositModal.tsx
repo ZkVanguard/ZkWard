@@ -436,20 +436,20 @@ export function DepositModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl border border-[#e8e8ed] w-full max-w-md shadow-2xl">
+      <div className="bg-white rounded-2xl border border-separator-opaque w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#e8e8ed]">
+        <div className="flex items-center justify-between p-6 border-b border-separator-opaque">
           <div>
-            <h2 className="text-xl font-bold text-[#1d1d1f]">Fund Portfolio #{portfolioId}</h2>
-            <p className="text-sm text-[#86868b] mt-1">
+            <h2 className="text-xl font-bold text-label-primary">Fund Portfolio #{portfolioId}</h2>
+            <p className="text-sm text-label-secondary mt-1">
               {targetYield}% yield target • {riskTolerance}/100 risk
             </p>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-[#F5F5F7] rounded-lg transition-colors"
+            className="p-2 hover:bg-system-bg-secondary rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-[#86868b]" />
+            <X className="w-5 h-5 text-label-secondary" />
           </button>
         </div>
 
@@ -459,8 +459,8 @@ export function DepositModal({
             <>
               {/* Token Selection */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                  Select Token {isMainnetNetwork && <span className="text-[#34C759] text-xs ml-1">(Mainnet)</span>}
+                <label className="block text-sm font-medium text-label-primary mb-2">
+                  Select Token {isMainnetNetwork && <span className="text-ios-green text-xs ml-1">(Mainnet)</span>}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {availableTokens.slice(0, 6).map((token) => (
@@ -469,15 +469,15 @@ export function DepositModal({
                       onClick={() => setSelectedToken(token)}
                       className={`p-3 rounded-xl border transition-all ${
                         selectedToken.symbol === token.symbol
-                          ? 'border-[#007AFF] bg-[#007AFF]/10'
-                          : 'border-[#e8e8ed] hover:border-[#86868b] bg-[#f5f5f7]'
+                          ? 'border-ios-blue bg-ios-blue/10'
+                          : 'border-separator-opaque hover:border-label-tertiary bg-system-bg-secondary'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         {token.symbol === 'USDT' && (
                           <img src={USDT_METADATA.logo} alt="USDT" className="w-4 h-4" />
                         )}
-                        <span className="text-sm font-semibold text-[#1d1d1f]">{token.symbol}</span>
+                        <span className="text-sm font-semibold text-label-primary">{token.symbol}</span>
                       </div>
                     </button>
                   ))}
@@ -486,7 +486,7 @@ export function DepositModal({
 
               {/* Amount Input */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                <label className="block text-sm font-medium text-label-primary mb-2">
                   Amount
                 </label>
                 <div className="relative">
@@ -495,34 +495,34 @@ export function DepositModal({
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-[#f5f5f7] border border-[#e8e8ed] rounded-xl px-4 py-3 text-lg text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:border-[#007AFF] transition-colors"
+                    className="w-full bg-system-bg-secondary border border-separator-opaque rounded-xl px-4 py-3 text-lg text-label-primary placeholder-label-tertiary focus:outline-none focus:border-ios-blue transition-colors"
                   />
                   <button
                     onClick={() => setAmount(tokenBalance)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#007AFF] hover:text-[#0066CC]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-ios-blue hover:text-ios-blueHover"
                   >
                     MAX
                   </button>
                 </div>
                 <div className="flex justify-between mt-2 text-sm">
-                  <span className="text-[#86868b]">Available:</span>
-                  <span className="text-[#1d1d1f]">
+                  <span className="text-label-secondary">Available:</span>
+                  <span className="text-label-primary">
                     {parseFloat(tokenBalance).toLocaleString(undefined, { maximumFractionDigits: 6 })} {selectedToken.symbol}
                   </span>
                 </div>
               </div>
 
               {/* Info Box */}
-              <div className="bg-[#f5f5f7] rounded-lg p-4 mb-6">
+              <div className="bg-system-bg-secondary rounded-lg p-4 mb-6">
                 <div className="flex items-start gap-3">
-                  <Coins className="w-5 h-5 text-[#007AFF] mt-0.5" />
+                  <Coins className="w-5 h-5 text-ios-blue mt-0.5" />
                   <div className="text-sm">
-                    <p className="text-[#1d1d1f] mb-1">
+                    <p className="text-label-primary mb-1">
                       {selectedToken.isNative 
                         ? 'tCRO will be wrapped to WCRO then deposited'
                         : 'Depositing to smart contract portfolio'}
                     </p>
-                    <p className="text-[#86868b] text-xs">
+                    <p className="text-label-secondary text-xs">
                       {selectedToken.isNative
                         ? 'Native CRO will be wrapped to WCRO (ERC20) and then transferred to the portfolio contract.'
                         : 'Tokens will be transferred to the portfolio contract for automated strategy execution.'}
@@ -535,7 +535,7 @@ export function DepositModal({
               <button
                 onClick={handleSubmit}
                 disabled={!amount || parseFloat(amount) <= 0 || parseFloat(amount) > parseFloat(tokenBalance)}
-                className="w-full py-3 bg-[#007AFF] hover:bg-[#0066CC] disabled:bg-[#86868b] disabled:cursor-not-allowed rounded-xl font-semibold text-white transition-all"
+                className="w-full py-3 bg-ios-blue hover:bg-ios-blueHover disabled:bg-label-tertiary disabled:cursor-not-allowed rounded-xl font-semibold text-white transition-all"
               >
                 {selectedToken.isNative 
                   ? `Wrap & Deposit ${selectedToken.symbol}`
@@ -545,7 +545,7 @@ export function DepositModal({
               </button>
 
               {parseFloat(tokenBalance) === 0 && (
-                <p className="text-center text-[#FF9500] text-sm mt-3">
+                <p className="text-center text-ios-orange text-sm mt-3">
                   You don't have any {selectedToken.symbol}. Try a different token or get testnet tokens first.
                 </p>
               )}
@@ -554,13 +554,13 @@ export function DepositModal({
 
           {step === 'wrapping' && (
             <div className="text-center py-8">
-              <Loader2 className="w-16 h-16 text-[#007AFF] animate-spin mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-[#1d1d1f] mb-2">Wrapping tCRO...</h3>
-              <p className="text-[#86868b] mb-4">
+              <Loader2 className="w-16 h-16 text-ios-blue animate-spin mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-label-primary mb-2">Wrapping tCRO...</h3>
+              <p className="text-label-secondary mb-4">
                 Please confirm the wrap transaction in your wallet
               </p>
               {isWrapConfirming && (
-                <p className="text-sm text-[#007AFF]">
+                <p className="text-sm text-ios-blue">
                   Waiting for confirmation...
                 </p>
               )}
@@ -569,17 +569,17 @@ export function DepositModal({
 
           {(step === 'approve' || step === 'deposit') && (
             <div className="text-center py-8">
-              <Loader2 className="w-16 h-16 text-[#007AFF] animate-spin mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-[#1d1d1f] mb-2">
+              <Loader2 className="w-16 h-16 text-ios-blue animate-spin mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-label-primary mb-2">
                 {step === 'approve' ? 'Approving Token...' : 'Depositing...'}
               </h3>
-              <p className="text-[#86868b] mb-4">
+              <p className="text-label-secondary mb-4">
                 {step === 'approve' 
                   ? 'Please confirm the approval in your wallet'
                   : 'Please confirm the deposit in your wallet'}
               </p>
               {(isApproveConfirming || isDepositConfirming) && (
-                <p className="text-sm text-[#007AFF]">
+                <p className="text-sm text-ios-blue">
                   Waiting for confirmation...
                 </p>
               )}
@@ -588,9 +588,9 @@ export function DepositModal({
 
           {step === 'success' && (
             <div className="text-center py-8">
-              <CheckCircle className="w-16 h-16 text-[#34C759] mx-auto mb-4" />
+              <CheckCircle className="w-16 h-16 text-ios-green mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Deposit Successful!</h3>
-              <p className="text-[#86868b] mb-4">
+              <p className="text-label-secondary mb-4">
                 {amount} {selectedToken.symbol} has been deposited to Portfolio #{portfolioId}
               </p>
               {depositHash && (
@@ -598,14 +598,14 @@ export function DepositModal({
                   href={`${explorerUrl}/tx/${depositHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-[#007AFF] hover:text-[#0066CC]"
+                  className="inline-flex items-center gap-2 text-ios-blue hover:text-ios-blueHover"
                 >
                   View Transaction <ExternalLink className="w-4 h-4" />
                 </a>
               )}
               <button
                 onClick={onClose}
-                className="w-full mt-6 py-3 bg-[#F5F5F7] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1D1D1F] rounded-lg font-semibold transition-colors"
+                className="w-full mt-6 py-3 bg-system-bg-secondary border border-separator-opaque hover:bg-fill-tertiary text-label-primary rounded-lg font-semibold transition-colors"
               >
                 Close
               </button>
@@ -614,9 +614,9 @@ export function DepositModal({
 
           {step === 'error' && (
             <div className="text-center py-8">
-              <AlertCircle className="w-16 h-16 text-[#FF3B30] mx-auto mb-4" />
+              <AlertCircle className="w-16 h-16 text-ios-red mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Transaction Failed</h3>
-              <p className="text-[#86868b] mb-4 text-sm break-words">
+              <p className="text-label-secondary mb-4 text-sm break-words">
                 {errorMessage.slice(0, 200)}
               </p>
               <button
@@ -624,7 +624,7 @@ export function DepositModal({
                   setStep('input');
                   setErrorMessage('');
                 }}
-                className="w-full py-3 bg-[#F5F5F7] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1D1D1F] rounded-lg font-semibold transition-colors"
+                className="w-full py-3 bg-system-bg-secondary border border-separator-opaque hover:bg-fill-tertiary text-label-primary rounded-lg font-semibold transition-colors"
               >
                 Try Again
               </button>
