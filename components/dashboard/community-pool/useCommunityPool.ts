@@ -1820,6 +1820,25 @@ export function useCommunityPool(propAddress?: string) {
         dispatchTx({ type: 'SET_SUI_WITHDRAW_SHARES', payload: '' });
         dispatchTx({ type: 'SET_SHOW_WITHDRAW', payload: false });
 
+        // Persist the withdrawal to community_pool_transactions so
+        // lifetime analytics stay accurate. Prior code never called
+        // record-withdraw after a successful on-chain tx, so every
+        // mainnet withdrawal was invisible to the DB — total withdrawn
+        // read as \$0 in analyze-pool-pnl and the dashboard forever.
+        // Non-critical: DB write failure doesn't undo the on-chain
+        // withdraw; the reconciler will pick it up later. Fire-and-forget.
+        void fetch(`/api/sui/community-pool?action=record-withdraw&network=${suiNetwork}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: suiAddress,
+            sharesToBurn: Number(sharesRaw) / 1e6,
+            txDigest: result.digest,
+          }),
+        }).catch((err) => {
+          logger.warn('Record-withdraw failed (non-critical, reconciler will retry)', err);
+        });
+
         // Refresh pool data after a short delay
         setTimeout(() => {
           fetchPoolData(true);

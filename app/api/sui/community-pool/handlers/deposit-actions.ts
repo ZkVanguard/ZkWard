@@ -245,16 +245,32 @@ export async function handleRecordDeposit(ctx: ActionCtx): Promise<NextResponse>
     let newTotalShares = sharesToMint;
     let newCostBasis = amountUsdc;
     let onChainVerified = false;
+    // Actual share price at the moment of the deposit — used to log a
+    // truthful sharePrice in community_pool_transactions. Prior code
+    // hard-coded 1.0 which was only true at pool inception. Falls back
+    // to 1.0 if the pool stats read fails (same fallback as the
+    // rest of this handler).
+    let sharePrice = 1.0;
 
     try {
       service.clearCaches();
       if (isOnChainDeposit) {
         await new Promise(r => setTimeout(r, 2000));
       }
-      const onChainPos = await service.getMemberPosition(walletAddress);
+      const [onChainPos, stats] = await Promise.all([
+        service.getMemberPosition(walletAddress),
+        service.getPoolStats(),
+      ]);
+      if (stats?.sharePrice && stats.sharePrice > 0) sharePrice = stats.sharePrice;
       if (onChainPos.isMember && onChainPos.shares > 0) {
         newTotalShares = onChainPos.shares;
-        newCostBasis = onChainPos.shares; // 1 share ≈ 1 USDC
+        // Cost basis in USD: previous entries at their entry prices +
+        // this deposit at its USD amount. Prior code overwrote basis
+        // with `onChainPos.shares` (treating shares as USD). If we
+        // have no prior DB record, fall back to this deposit's USDC
+        // amount as the basis floor.
+        const existingShares = await getUserSharesFromDb(walletAddress, 'sui');
+        newCostBasis = (existingShares?.cost_basis_usd || 0) + amountUsdc;
         onChainVerified = true;
       } else {
         const existingShares = await getUserSharesFromDb(walletAddress, 'sui');
@@ -294,7 +310,7 @@ export async function handleRecordDeposit(ctx: ActionCtx): Promise<NextResponse>
       walletAddress,
       amountUSD: amountUsdc,
       shares: sharesToMint,
-      sharePrice: 1.0,
+      sharePrice,
       details: {
         network,
         txDigest,

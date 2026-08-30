@@ -411,12 +411,23 @@ export async function handleRecordWithdraw(ctx: ActionCtx): Promise<NextResponse
   return withWalletLock(walletAddress, async () => {
     let remainingShares = 0;
     let onChainVerified = false;
+    // Read pool stats FIRST so we know the current share price and can
+    // compute the actual USDC returned. Prior code used a hardcoded
+    // sharePrice = 1.0 (assumed dollar-parity), which is wrong every
+    // time NAV drifts from initial deposit — currently share price is
+    // ~$0.57 so withdrawals were being logged at 1.75x their real
+    // USDC value, corrupting analytics + cost-basis accounting.
+    let sharePrice = 1.0;
     try {
       service.clearCaches();
       await new Promise(r => setTimeout(r, 2000));
-      const onChainPos = await service.getMemberPosition(walletAddress);
+      const [onChainPos, stats] = await Promise.all([
+        service.getMemberPosition(walletAddress),
+        service.getPoolStats(),
+      ]);
       remainingShares = onChainPos.isMember ? onChainPos.shares : 0;
       onChainVerified = true;
+      if (stats?.sharePrice && stats.sharePrice > 0) sharePrice = stats.sharePrice;
     } catch (err) {
       logger.error('[SUI-API] On-chain read failed during withdrawal recording', {
         error: err instanceof Error ? err.message : err,
@@ -424,18 +435,25 @@ export async function handleRecordWithdraw(ctx: ActionCtx): Promise<NextResponse
       const { getUserSharesFromDb } = await import('@/lib/db/community-pool');
       const dbShares = await getUserSharesFromDb(walletAddress, 'sui');
       remainingShares = Math.max(0, (dbShares?.shares || 0) - sharesToBurn);
+      // Fall through with sharePrice=1.0 default — better a slightly
+      // stale value than a hard failure. Reconciler will correct.
     }
 
-    const withdrawUsdc = sharesToBurn;
+    // Real USDC returned = shares burned × current share price.
+    const withdrawUsdc = sharesToBurn * sharePrice;
 
     if (remainingShares <= 0.0001) {
       await deleteUserSharesFromDb(walletAddress, 'sui');
       remainingShares = 0;
     } else {
+      // Cost basis at share price — matches the deposit-side pattern.
+      // Not perfectly accurate (doesn't track weighted-avg entry) but
+      // consistent with how deposits get recorded now. FIFO accuracy
+      // is a separate refactor.
       await saveUserSharesToDb({
         walletAddress,
         shares: remainingShares,
-        costBasisUSD: remainingShares,
+        costBasisUSD: remainingShares * sharePrice,
         chain: 'sui',
       });
     }
@@ -446,7 +464,7 @@ export async function handleRecordWithdraw(ctx: ActionCtx): Promise<NextResponse
       walletAddress,
       amountUSD: withdrawUsdc,
       shares: sharesToBurn,
-      sharePrice: 1.0,
+      sharePrice,
       details: {
         network,
         onChain: true,
@@ -470,6 +488,7 @@ export async function handleRecordWithdraw(ctx: ActionCtx): Promise<NextResponse
         walletAddress,
         sharesBurned: sharesToBurn,
         usdcReturned: withdrawUsdc,
+        sharePrice,
         remainingShares,
         onChainVerified,
       },
