@@ -16,13 +16,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { logger } from '@/lib/utils/logger';
 import {
-  deposit,
-  withdraw,
   getPoolSummary,
   fetchLivePrices,
   calculatePoolNAV,
 } from '@/lib/services/cronos/CommunityPoolService';
-import { clearCaches as clearStatsCaches } from '@/lib/services/CommunityPoolStatsService';
 import {
   getUserShares,
   getPoolHistory,
@@ -31,9 +28,6 @@ import {
 import {
   resetNavHistory,
   insertInceptionSnapshot,
-  savePoolStateToDb,
-  saveUserSharesToDb,
-  deleteUserSharesFromDb,
   getUserSharesFromDb,
 } from '@/lib/db/community-pool';
 import { requireAuth } from '@/lib/security/auth-middleware';
@@ -43,24 +37,22 @@ import { POOL_CHAIN_CONFIGS } from '@/lib/contracts/community-pool-config';
 
 // Extracted modules
 import { getChainConfig } from '@/lib/community-pool/chain-config';
-import { clearRpcCaches } from '@/lib/community-pool/cache';
-import {
-  verifyOnChainDeposit,
-  verifyOnChainWithdraw,
-} from '@/lib/community-pool/on-chain-verifier';
 import {
   getOnChainPoolData,
   getOnChainUserPosition,
   getAllOnChainMembers,
   cachedJsonResponse,
-  buildAllocationsForDb,
 } from '@/lib/community-pool/on-chain-reader';
+import {
+  handleDeposit,
+  handleWithdraw,
+  handleSyncFromChain,
+  handleDeleteUser,
+  handleFullReset,
+  type HandlerContext,
+} from './post-handlers';
 
-export const runtime = 'nodejs';
-export const maxDuration = 15;
-export const dynamic = 'force-dynamic';
-
-/** Timing-safe cron secret verification to prevent timing attacks */
+/** Timing-safe cron-secret check — GET admin endpoints. */
 function verifyCronSecret(request: NextRequest): boolean {
   const cronSecret = request.headers.get('x-cron-secret');
   const expectedSecret = process.env.CRON_SECRET;
@@ -68,6 +60,10 @@ function verifyCronSecret(request: NextRequest): boolean {
   if (cronSecret.length !== expectedSecret.length) return false;
   return timingSafeEqual(Buffer.from(cronSecret), Buffer.from(expectedSecret));
 }
+
+export const runtime = 'nodejs';
+export const maxDuration = 15;
+export const dynamic = 'force-dynamic';
 
 /**
  * GET - Fetch pool info
@@ -654,428 +650,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const ctx: HandlerContext = {
+      request,
+      chainConfig,
+      walletAddress,
+      amount,
+      shares,
+      txHash,
+    };
+
     switch (action) {
-      case 'deposit': {
-        // SECURITY: txHash is REQUIRED - must verify on-chain deposit before recording
-        if (!txHash) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Transaction hash (txHash) is required. Deposit must be made on-chain first.',
-            },
-            { status: 400 }
-          );
-        }
-
-        if (!amount || amount <= 0) {
-          return NextResponse.json(
-            { success: false, error: 'Valid deposit amount required' },
-            { status: 400 }
-          );
-        }
-
-        // SECURITY: Verify the on-chain deposit before recording
-        const verification = await verifyOnChainDeposit(txHash, walletAddress, chainConfig);
-        if (!verification.verified) {
-          logger.warn(`[CommunityPool] Deposit verification failed: ${verification.error}`, {
-            txHash,
-            walletAddress,
-          });
-          return NextResponse.json(
-            { success: false, error: `On-chain verification failed: ${verification.error}` },
-            { status: 400 }
-          );
-        }
-
-        // Use the verified on-chain amount (not the client-provided amount)
-        // This prevents amount manipulation attacks
-        const verifiedAmount = verification.amountUSD;
-        if (Math.abs(verifiedAmount - amount) > 0.01) {
-          logger.warn(
-            `[CommunityPool] Amount mismatch: client=${amount}, on-chain=${verifiedAmount}`,
-            { txHash }
-          );
-          // Use the on-chain amount as source of truth
-        }
-
-        const result = await deposit(walletAddress, verifiedAmount, txHash, chainConfig.chainKey);
-
-        if (!result.success) {
-          return NextResponse.json({ success: false, error: result.error }, { status: 400 });
-        }
-
-        // CRITICAL: Sync from on-chain immediately after deposit
-        // On-chain is authoritative - overwrite any local calculation errors
-        try {
-          const onChainUser = await getOnChainUserPosition(walletAddress, chainConfig);
-          const onChainPool = await getOnChainPoolData(chainConfig);
-
-          if (onChainUser && onChainPool) {
-            await saveUserSharesToDb({
-              walletAddress: walletAddress.toLowerCase(),
-              shares: onChainUser.shares,
-              costBasisUSD: onChainUser.valueUSD,
-              chain: chainConfig.chainKey,
-            });
-
-            await savePoolStateToDb({
-              totalValueUSD: onChainPool.totalValueUSD,
-              totalShares: onChainPool.totalShares,
-              sharePrice: onChainPool.sharePrice,
-              allocations: buildAllocationsForDb(onChainPool),
-              lastRebalance: Date.now(),
-              lastAIDecision: null,
-              chain: chainConfig.chainKey,
-            });
-
-            logger.info(
-              `[CommunityPool] Post-deposit on-chain sync: ${walletAddress} has ${onChainUser.shares} shares`
-            );
-          }
-        } catch (syncError) {
-          logger.error('[CommunityPool] Post-deposit on-chain sync failed (non-fatal)', syncError);
-          // Continue - local calculation was already saved
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: `Deposited $${amount.toLocaleString()} and received ${result.sharesReceived.toFixed(4)} shares`,
-          deposit: {
-            amountUSD: amount,
-            sharesReceived: result.sharesReceived,
-            sharePrice: result.sharePrice,
-            newTotalShares: result.newTotalShares,
-            ownershipPercentage: result.ownershipPercentage,
-          },
-          txHash,
-        });
-      }
-
-      case 'withdraw': {
-        // SECURITY: txHash is REQUIRED - must verify on-chain withdrawal before recording
-        if (!txHash) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                'Transaction hash (txHash) is required. Withdrawal must be made on-chain first.',
-            },
-            { status: 400 }
-          );
-        }
-
-        if (!shares || shares <= 0) {
-          return NextResponse.json(
-            { success: false, error: 'Valid share amount required' },
-            { status: 400 }
-          );
-        }
-
-        // SECURITY: Verify the on-chain withdrawal before recording
-        const verification = await verifyOnChainWithdraw(txHash, walletAddress, chainConfig);
-        if (!verification.verified) {
-          logger.warn(`[CommunityPool] Withdrawal verification failed: ${verification.error}`, {
-            txHash,
-            walletAddress,
-          });
-          return NextResponse.json(
-            { success: false, error: `On-chain verification failed: ${verification.error}` },
-            { status: 400 }
-          );
-        }
-
-        // Use the verified on-chain shares burned (not the client-provided shares)
-        const verifiedShares = verification.sharesBurned;
-        if (Math.abs(verifiedShares - shares) > 0.0001) {
-          logger.warn(
-            `[CommunityPool] Shares mismatch: client=${shares}, on-chain=${verifiedShares}`,
-            { txHash }
-          );
-          // Use the on-chain shares as source of truth
-        }
-
-        const result = await withdraw(
-          walletAddress,
-          verifiedShares,
-          txHash,
-          undefined,
-          chainConfig.chainKey
-        );
-
-        if (!result.success) {
-          return NextResponse.json({ success: false, error: result.error }, { status: 400 });
-        }
-
-        // CRITICAL: Sync from on-chain immediately after withdrawal
-        // On-chain is authoritative - overwrite any local calculation errors
-        try {
-          const onChainUser = await getOnChainUserPosition(walletAddress, chainConfig);
-          const onChainPool = await getOnChainPoolData(chainConfig);
-
-          if (onChainPool) {
-            await savePoolStateToDb({
-              totalValueUSD: onChainPool.totalValueUSD,
-              totalShares: onChainPool.totalShares,
-              sharePrice: onChainPool.sharePrice,
-              allocations: buildAllocationsForDb(onChainPool),
-              lastRebalance: Date.now(),
-              lastAIDecision: null,
-              chain: chainConfig.chainKey,
-            });
-          }
-
-          if (onChainUser && onChainUser.shares > 0) {
-            // User still has shares - update with chain info
-            await saveUserSharesToDb({
-              walletAddress: walletAddress.toLowerCase(),
-              shares: onChainUser.shares,
-              costBasisUSD: onChainUser.valueUSD,
-              chain: chainConfig.chainKey,
-            });
-          } else {
-            // User fully withdrew - delete from DB for this chain
-            await deleteUserSharesFromDb(walletAddress, chainConfig.chainKey);
-          }
-
-          logger.info(
-            `[CommunityPool] Post-withdraw on-chain sync: ${walletAddress} has ${onChainUser?.shares || 0} shares`
-          );
-        } catch (syncError) {
-          logger.error('[CommunityPool] Post-withdraw on-chain sync failed (non-fatal)', syncError);
-          // Continue - local calculation was already saved
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: `Burned ${result.sharesBurned.toFixed(4)} shares and received $${result.amountUSD.toFixed(2)}`,
-          withdrawal: {
-            sharesBurned: result.sharesBurned,
-            amountUSD: result.amountUSD,
-            sharePrice: result.sharePrice,
-            remainingShares: result.remainingShares,
-          },
-          txHash,
-        });
-      }
-
-      case 'sync-from-chain': {
-        // Admin only - sync database with on-chain state
-        if (!verifyCronSecret(request)) {
-          return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Get on-chain pool data
-        const onChainData = await getOnChainPoolData(chainConfig);
-        if (!onChainData) {
-          return NextResponse.json(
-            { success: false, error: 'Failed to fetch on-chain data' },
-            { status: 500 }
-          );
-        }
-
-        // Build allocations with required fields
-        const allocations = buildAllocationsForDb(onChainData);
-
-        // Update pool state in DB
-        await savePoolStateToDb({
-          totalValueUSD: onChainData.totalValueUSD,
-          totalShares: onChainData.totalShares,
-          sharePrice: onChainData.sharePrice,
-          allocations,
-          lastRebalance: Date.now(),
-          lastAIDecision: null,
-          chain: chainConfig.chainKey,
-        });
-
-        // CRITICAL: Sync ALL on-chain members to database
-        const onChainMembers = await getAllOnChainMembers(chainConfig);
-        const syncedMembers: string[] = [];
-
-        if (onChainMembers && onChainMembers.length > 0) {
-          logger.info(
-            `[CommunityPool API] Syncing ${onChainMembers.length} on-chain members to database`
-          );
-
-          for (const member of onChainMembers) {
-            await saveUserSharesToDb({
-              walletAddress: member.walletAddress,
-              shares: member.shares,
-              costBasisUSD: member.depositedUSD,
-              chain: chainConfig.chainKey,
-            });
-            syncedMembers.push(member.walletAddress);
-            logger.info(
-              `[CommunityPool API] Synced member ${member.walletAddress}: ${member.shares} shares`
-            );
-          }
-        }
-
-        // Reset NAV history with correct values
-        const syncAllocPct: Record<string, number> = {};
-        if (onChainData.allocations) {
-          for (const [asset, data] of Object.entries(onChainData.allocations)) {
-            syncAllocPct[asset] = (data as { percentage: number }).percentage;
-          }
-        }
-        const resetResult = await resetNavHistory(
-          onChainData.totalValueUSD,
-          onChainData.sharePrice,
-          onChainData.totalShares,
-          onChainData.totalMembers,
-          syncAllocPct
-        );
-
-        return NextResponse.json({
-          success: true,
-          message: 'Database synced with on-chain state',
-          onChainData: {
-            totalValueUSD: onChainData.totalValueUSD,
-            totalShares: onChainData.totalShares,
-            sharePrice: onChainData.sharePrice,
-            totalMembers: onChainData.totalMembers,
-          },
-          syncedMembers,
-          navHistoryReset: resetResult,
-        });
-      }
-
-      case 'delete-user': {
-        // Admin only - delete stale user from database
-        if (!verifyCronSecret(request)) {
-          return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
-
-        if (!walletAddress) {
-          return NextResponse.json(
-            { success: false, error: 'walletAddress required' },
-            { status: 400 }
-          );
-        }
-
-        await deleteUserSharesFromDb(walletAddress.toLowerCase(), chainConfig.chainKey);
-
-        return NextResponse.json({
-          success: true,
-          message: `Deleted user ${walletAddress} from database for chain ${chainConfig.chainKey}`,
-        });
-      }
-
-      case 'full-reset': {
-        // Admin only - COMPLETE reset of all pool data to match on-chain V3 contract
-        // Use this when stats are corrupted and need to start fresh
-        if (!verifyCronSecret(request)) {
-          return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
-
-        logger.info('[CommunityPool API] Starting full reset to on-chain V3 state');
-
-        // Step 1: Get current on-chain data from V3 contract
-        const onChainData = await getOnChainPoolData(chainConfig);
-        if (!onChainData) {
-          return NextResponse.json(
-            { success: false, error: 'Failed to fetch on-chain data' },
-            { status: 500 }
-          );
-        }
-
-        // Step 2: Get all on-chain members
-        const onChainMembers = await getAllOnChainMembers(chainConfig);
-        if (!onChainMembers) {
-          return NextResponse.json(
-            { success: false, error: 'Failed to fetch on-chain members' },
-            { status: 500 }
-          );
-        }
-
-        // Step 3: Clear all user shares from database for this chain (removes stale/duplicate entries)
-        const { query: dbQuery } = await import('@/lib/db/postgres');
-        const deletedUsers = await dbQuery(
-          'DELETE FROM community_pool_shares WHERE chain = $1 RETURNING wallet_address',
-          [chainConfig.chainKey]
-        );
-        logger.info(
-          `[CommunityPool API] Deleted ${deletedUsers.length} users from database for chain ${chainConfig.chainKey}`
-        );
-
-        // Step 4: Re-sync only valid on-chain members
-        const syncedMembers: { address: string; shares: number }[] = [];
-        const activeMembers = onChainMembers.filter((m) => m.shares > 0);
-
-        for (const member of activeMembers) {
-          await saveUserSharesToDb({
-            walletAddress: member.walletAddress.toLowerCase(),
-            shares: member.shares,
-            costBasisUSD: member.depositedUSD,
-            chain: chainConfig.chainKey,
-          });
-          syncedMembers.push({ address: member.walletAddress, shares: member.shares });
-          logger.info(
-            `[CommunityPool API] Synced member: ${member.walletAddress} (${member.shares} shares)`
-          );
-        }
-
-        // Step 5: Build proper allocations object
-        const allocations = buildAllocationsForDb(onChainData);
-
-        // Step 6: Update pool state
-        await savePoolStateToDb({
-          totalValueUSD: onChainData.totalValueUSD,
-          totalShares: onChainData.totalShares,
-          sharePrice: onChainData.sharePrice,
-          allocations,
-          lastRebalance: Date.now(),
-          lastAIDecision: null,
-          chain: chainConfig.chainKey,
-        });
-
-        // Step 7: Reset NAV history completely with fresh on-chain data
-        const resetAllocPct: Record<string, number> = {};
-        for (const [asset, data] of Object.entries(allocations)) {
-          resetAllocPct[asset] = data.percentage;
-        }
-        const navReset = await resetNavHistory(
-          onChainData.totalValueUSD,
-          onChainData.sharePrice,
-          onChainData.totalShares,
-          activeMembers.length,
-          resetAllocPct
-        );
-
-        // Step 8: Clear all in-memory caches
-        clearStatsCaches();
-        clearRpcCaches();
-
-        logger.info('[CommunityPool API] Full reset completed successfully');
-
-        return NextResponse.json({
-          success: true,
-          message: 'Full reset completed - all data now matches on-chain V3 contract',
-          summary: {
-            deletedStaleUsers: deletedUsers.length,
-            syncedActiveMembers: syncedMembers.length,
-            navHistoryDeleted: navReset.deleted,
-            poolState: {
-              totalValueUSD: onChainData.totalValueUSD,
-              totalShares: onChainData.totalShares,
-              sharePrice: onChainData.sharePrice,
-              memberCount: activeMembers.length,
-              allocations: {
-                BTC: onChainData.allocations.BTC.percentage,
-                ETH: onChainData.allocations.ETH.percentage,
-                SUI: onChainData.allocations.SUI.percentage,
-                CRO: onChainData.allocations.CRO.percentage,
-              },
-            },
-            members: syncedMembers,
-          },
-          timestamp: new Date().toISOString(),
-        });
-      }
-
+      case 'deposit':
+        return await handleDeposit(ctx);
+      case 'withdraw':
+        return await handleWithdraw(ctx);
+      case 'sync-from-chain':
+        return await handleSyncFromChain(ctx);
+      case 'delete-user':
+        return await handleDeleteUser(ctx);
+      case 'full-reset':
+        return await handleFullReset(ctx);
       default:
         return NextResponse.json(
-          { success: false, error: 'Invalid action. Use: deposit, withdraw' },
-          { status: 400 }
+          { success: false, error: 'Invalid action. Use: deposit, withdraw, sync-from-chain, delete-user, full-reset' },
+          { status: 400 },
         );
     }
   } catch (error: unknown) {
