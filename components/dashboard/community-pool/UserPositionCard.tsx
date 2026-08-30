@@ -38,7 +38,7 @@ export const UserPositionCard = memo(function UserPositionCard({
   const txCount = (userPosition.depositCount || 0) + (userPosition.withdrawalCount || 0);
 
   return (
-    <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 bg-system-bg-secondary">
+    <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 bg-system-bg-secondary dark:bg-gray-800/50">
       <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-3 flex-wrap text-sm sm:text-base">
         <Wallet className="w-4 h-4 flex-shrink-0" />
         <span>Your Position</span>

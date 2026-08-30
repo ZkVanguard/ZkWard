@@ -62,7 +62,7 @@ export const PoolStatsSkeleton = memo(function PoolStatsSkeleton() {
 export const UserPositionSkeleton = memo(function UserPositionSkeleton() {
   return (
     <div className="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-700">
-      <div className="bg-system-bg-secondary rounded-2xl sm:rounded-xl p-3 sm:p-4">
+      <div className="bg-system-bg-secondary dark:bg-gray-800/50 rounded-2xl sm:rounded-xl p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-2 sm:mb-3">
           <SkeletonBox className="w-5 h-5 rounded-full" />
           <SkeletonBox className="h-4 sm:h-5 w-20 sm:w-24" />

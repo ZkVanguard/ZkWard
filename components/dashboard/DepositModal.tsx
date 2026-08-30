@@ -605,7 +605,7 @@ export function DepositModal({
               )}
               <button
                 onClick={onClose}
-                className="w-full mt-6 py-3 bg-system-bg-secondary border border-separator-opaque hover:bg-fill-tertiary text-label-primary rounded-lg font-semibold transition-colors"
+                className="w-full mt-6 py-3 bg-system-bg-secondary border border-separator-opaque hover:bg-ios-gray5 text-label-primary rounded-lg font-semibold transition-colors"
               >
                 Close
               </button>
@@ -624,7 +624,7 @@ export function DepositModal({
                   setStep('input');
                   setErrorMessage('');
                 }}
-                className="w-full py-3 bg-system-bg-secondary border border-separator-opaque hover:bg-fill-tertiary text-label-primary rounded-lg font-semibold transition-colors"
+                className="w-full py-3 bg-system-bg-secondary border border-separator-opaque hover:bg-ios-gray5 text-label-primary rounded-lg font-semibold transition-colors"
               >
                 Try Again
               </button>
