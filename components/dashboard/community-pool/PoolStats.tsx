@@ -84,13 +84,15 @@ export const PoolStats = memo(function PoolStats({ poolData, selectedChain }: Po
 
   const signedPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
   const signedUsd = (v: number) => `${v >= 0 ? '+' : '-'}${formatUSD(Math.abs(v))}`;
-  // Muted vs. the saturated red-600/green-600 the pre-refactor code used.
-  // Awesomedesign.md rule: semantic colours are text-only signals; they
-  // must NOT dominate the emotional read at first glance. ios-red is a
-  // meaningfully softer tone than red-600 and matches the homepage's
-  // vault-meter accent palette (blues + soft warnings, no shouting).
+  // Softer than red-600/green-600 (the pre-refactor default), still WCAG
+  // AA-compliant at every size the Metric component renders (12px mobile-
+  // strip up to 24px desktop). Cannot use text-ios-red / text-ios-green
+  // here: ios-red is #FF3B30 (3.76:1 on white — fails AA for small text),
+  // ios-green is #34C759 (1.85:1 — fails everywhere). red-700 / green-700
+  // are darker and more "serious", which also matches the user's request
+  // to de-shout the loss indicators without erasing them.
   const pnlColor = (v: number) =>
-    v >= 0 ? 'text-ios-green' : 'text-ios-red';
+    v >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
 
   // Single stale chip used on both breakpoints — one wording ("snapshot · Xh
   // old"), one tooltip. Was two different phrasings pre-2026-07-31 refactor.
@@ -110,16 +112,17 @@ export const PoolStats = memo(function PoolStats({ poolData, selectedChain }: Po
   const athChip = useMemo(() => {
     if (!isSui || !profit || profit.offAthPct == null || profit.offAthPct >= 0) return null;
     const dd = profit.offAthPct;
-    // Muted: soft-tinted background + ios-token text. Was red-100/amber-100
-    // Tailwind saturated tints which read as alarm chips on a dashboard
-    // where drawdown is expected. Softer palette = information-dense
-    // without emotional pressure.
+    // Soft tint background + dark WCAG-safe text. Was red-100 / amber-100
+    // Tailwind saturated tints reading as alarm chips; new bg-ios-red/10
+    // etc. give the same softer feel but text must stay a dark tailwind
+    // red-800 / orange-800 — text-ios-red on bg-ios-red/10 is 3.5:1 which
+    // fails AA for the 10px chip text.
     const tone =
       dd <= -15
-        ? 'bg-ios-red/10 text-ios-red'
+        ? 'bg-ios-red/10 text-red-800 dark:text-red-300'
         : dd <= -5
-          ? 'bg-ios-orange/10 text-ios-orange'
-          : 'bg-system-bg-secondary text-label-tertiary';
+          ? 'bg-ios-orange/10 text-orange-800 dark:text-orange-300'
+          : 'bg-system-bg-secondary text-label-tertiary dark:text-gray-400';
     const ath = Number(poolData.allTimeHighNav) || 0;
     return (
       <span
