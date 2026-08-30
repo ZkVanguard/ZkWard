@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useAccount, useBalance } from '@/lib/wdk/wdk-hooks';
 import {
@@ -20,7 +20,6 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { MobileTabBar } from '@/components/dashboard/MobileTabBar';
-import { PortfolioOverview } from '@/components/dashboard/PortfolioOverview';
 import { useContractAddresses } from '@/lib/contracts/hooks';
 import { usePositions } from '@/contexts/PositionsContext';
 import { usePortfolioAction, type CustomActionPayload } from '@/contexts/AIDecisionsContext';
@@ -131,6 +130,15 @@ const CommunityPool = nextDynamic(
   }
 );
 
+// PortfolioOverview — only used in the Overview tab (~220 LOC + wallet
+// context deps). Lazy so it doesn't ship in the initial dashboard chunk
+// when users land on the default Pool tab.
+const PortfolioOverview = nextDynamic(
+  () =>
+    import('@/components/dashboard/PortfolioOverview').then((mod) => ({ default: mod.PortfolioOverview })),
+  { loading: () => <LoadingSkeleton />, ssr: false },
+);
+
 // Platform sub-tabs — extracted from former /dashboard/{portfolio,risk,custody}
 // pages so they render as tabs inside this dashboard instead of separate routes.
 const PortfolioTab = nextDynamic(
@@ -234,13 +242,19 @@ export default function DashboardPage() {
     logger.debug('Notification state changed', { component: 'DashboardPage', data: notification });
   }, [notification]);
 
-  // Close mobile menu on nav change
-  const handleNavChange = (id: NavId) => {
+  // useCallback stabilises the refs so memoized children (ActiveHedges,
+  // MobileTabBar, etc.) don't re-render on every parent state change
+  // (notification, agentMessage, etc.). Setter fns from useState are
+  // stable by React contract, so the empty dep list is correct.
+  const handleNavChange = useCallback((id: NavId) => {
     setActiveNav(id);
     setMobileMenuOpen(false);
-  };
+  }, []);
 
-  const handleOpenHedge = async (market: PredictionMarket) => {
+  const openChat = useCallback(() => setShowChat(true), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+
+  const handleOpenHedge = useCallback(async (market: PredictionMarket) => {
     logger.info('Hedge button clicked', { component: 'DashboardPage', data: market });
     logger.info('🛡️ Opening hedge on Moonlander', { data: market.question });
 
@@ -322,7 +336,7 @@ export default function DashboardPage() {
       // Auto-clear error after 10 seconds
       setTimeout(() => setNotification(null), 10000);
     }
-  };
+  }, []);
 
   const handleAgentAnalysis = async (market: PredictionMarket) => {
     logger.info('🤖 Triggering AI Agent Analysis', { market: market.question });
@@ -778,7 +792,7 @@ export default function DashboardPage() {
 
       {/* Settings Modal */}
       {settingsOpen && (
-        <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal isOpen={settingsOpen} onClose={closeSettings} />
       )}
     </div>
   );
@@ -826,7 +840,7 @@ export default function DashboardPage() {
                   <ActiveHedges
                     address={displayAddress}
                     compact
-                    onOpenChat={() => setShowChat(true)}
+                    onOpenChat={openChat}
                   />
                 </div>
               </Card>
@@ -865,7 +879,7 @@ export default function DashboardPage() {
             <CardHeader title="Active Hedges" subtitle="Your protective positions and options" />
             <ActiveHedges
               address={displayAddress}
-              onOpenChat={() => setShowChat(true)}
+              onOpenChat={openChat}
             />
           </Card>
         );
