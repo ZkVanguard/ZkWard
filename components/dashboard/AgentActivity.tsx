@@ -162,8 +162,12 @@ export const AgentActivity = memo(function AgentActivity({ address, onTaskComple
   } = useQuery({
     queryKey: activityKey,
     queryFn: () => getAgentActivity(address || '0x0000000000000000000000000000000000000000'),
-    refetchInterval: autoRefresh ? 5000 : false,
-    staleTime: 5000,
+    // 15s poll (was 5s): the underlying activity feed changes every few
+    // minutes at most, and 5s meant 12 req/min per parked session — real
+    // cost at scale for a UX benefit no user can perceive. refetchInterval
+    // pauses automatically when the tab is hidden (react-query default).
+    refetchInterval: autoRefresh ? 15_000 : false,
+    staleTime: 15_000,
   });
   const error = queryError
     ? (queryError instanceof Error ? queryError.message : 'Unknown error')

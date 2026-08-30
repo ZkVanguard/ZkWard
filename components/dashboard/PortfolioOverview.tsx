@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { DollarSign, RefreshCw, ChevronRight } from 'lucide-react';
 import { usePositions } from '@/contexts/PositionsContext';
 import { logger } from '@/lib/utils/logger';
+import { ConnectPromptButton } from '@/components/ui/ConnectPromptButton';
 
 interface PortfolioOverviewProps {
   address?: string;
@@ -45,14 +46,17 @@ export function PortfolioOverview({ address, onNavigateToPositions, onNavigateTo
   if (!address) {
     return (
       <div className="bg-white rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-black/5 p-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[28px] font-semibold text-[#1d1d1f] mb-2 tracking-[-0.02em]">Dashboard</h1>
-            <p className="text-[15px] text-[#86868b] leading-[1.4]">Connect your wallet to view portfolio</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-14 h-14 bg-[#f5f5f7] rounded-[18px] flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-7 h-7 text-[#86868b]" strokeWidth={2} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-[22px] sm:text-[28px] font-semibold text-[#1d1d1f] mb-1 tracking-[-0.02em]">Dashboard</h1>
+              <p className="text-[15px] text-[#86868b] leading-[1.4]">Connect your wallet to view portfolio</p>
+            </div>
           </div>
-          <div className="w-14 h-14 bg-[#f5f5f7] rounded-[18px] flex items-center justify-center">
-            <DollarSign className="w-7 h-7 text-[#86868b]" strokeWidth={2} />
-          </div>
+          <ConnectPromptButton />
         </div>
       </div>
     );

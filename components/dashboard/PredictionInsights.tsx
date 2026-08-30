@@ -624,27 +624,26 @@ export const PredictionInsights = memo(function PredictionInsights({
                         </h4>
                       </div>
                       
-                      {/* Probability Badge */}
+                      {/* Probability Badge — neutral: probability magnitude
+                          is data, not alarm. The HIGH/MODERATE/LOW confidence
+                          chip already carries the "how much to weight this"
+                          signal; coloring the number red at 70% made a
+                          benign "75% chance ETH yields stay >4%" read like
+                          an alert. */}
                       <div className="flex-shrink-0 text-right">
-                        <div className={`text-[20px] sm:text-[24px] font-bold leading-none ${
-                          prediction.probability >= 70 ? 'text-[#FF3B30]' :
-                          prediction.probability >= 50 ? 'text-[#FF9500]' :
-                          'text-[#34C759]'
-                        }`}>
+                        <div className="text-[20px] sm:text-[24px] font-bold leading-none text-label-primary tabular-nums">
                           {prediction.probability}%
                         </div>
-                        <div className="text-[10px] text-[#86868b]">probability</div>
+                        <div className="text-[10px] text-label-tertiary">probability</div>
                       </div>
                     </div>
 
-                    {/* Progress Bar */}
+                    {/* Progress Bar — same neutral principle: bar length
+                        already conveys magnitude, blue accent keeps it
+                        info-not-alarm. */}
                     <div className="h-1 bg-[#f5f5f7] rounded-full overflow-hidden mb-2">
                       <div
-                        className={`h-full rounded-full transition-all ${
-                          prediction.probability >= 70 ? 'bg-[#FF3B30]' :
-                          prediction.probability >= 50 ? 'bg-[#FF9500]' :
-                          'bg-[#34C759]'
-                        }`}
+                        className="h-full rounded-full transition-all bg-ios-blue"
                         style={{ width: `${prediction.probability}%` }}
                       />
                     </div>
@@ -779,11 +778,7 @@ export const PredictionInsights = memo(function PredictionInsights({
                   <p className="text-[14px] font-medium text-[#1d1d1f] leading-snug flex-1">
                     {selectedPrediction.question}
                   </p>
-                  <div className={`text-[28px] font-bold ${
-                    selectedPrediction.probability >= 70 ? 'text-[#FF3B30]' :
-                    selectedPrediction.probability >= 50 ? 'text-[#FF9500]' :
-                    'text-[#34C759]'
-                  }`}>
+                  <div className="text-[28px] font-bold text-label-primary tabular-nums">
                     {selectedPrediction.probability}%
                   </div>
                 </div>

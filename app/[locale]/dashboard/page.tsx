@@ -111,16 +111,6 @@ const SettingsModal = nextDynamic(
   }
 );
 
-const TestnetUSDCFaucet = nextDynamic(
-  () =>
-    import('@/components/dashboard/MockUSDCFaucet').then((mod) => ({
-      default: mod.MockUSDCFaucet,
-    })),
-  {
-    ssr: false,
-  }
-);
-
 const FiveMinSignalWidget = nextDynamic(
   () =>
     import('@/components/dashboard/FiveMinSignalWidget').then((mod) => ({
@@ -871,16 +861,13 @@ export default function DashboardPage() {
 
       case 'hedges':
         return (
-          <div className="space-y-3 sm:space-y-6">
-            <Card>
-              <CardHeader title="Active Hedges" subtitle="Your protective positions and options" />
-              <ActiveHedges
-                address={displayAddress}
-                onOpenChat={() => setShowChat(true)}
-              />
-            </Card>
-            <TestnetUSDCFaucet />
-          </div>
+          <Card>
+            <CardHeader title="Active Hedges" subtitle="Your protective positions and options" />
+            <ActiveHedges
+              address={displayAddress}
+              onOpenChat={() => setShowChat(true)}
+            />
+          </Card>
         );
 
       case 'agents':

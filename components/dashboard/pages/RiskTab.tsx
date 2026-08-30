@@ -427,7 +427,32 @@ export function RiskTab() {
         )}
       </header>
 
-      {loading && !data && <div className="text-[14px] text-[#86868b]">Loading platform risk metrics…</div>}
+      {loading && !data && (
+        <div className="space-y-6">
+          {/* Platform AUM skeleton — 4-tile grid mirrors the loaded state. */}
+          <section>
+            <div className="h-3 w-32 bg-[#f5f5f7] rounded animate-pulse mb-3" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="bg-white border border-black/5 rounded-2xl p-4 h-[104px] animate-pulse">
+                  <div className="h-3 w-16 bg-[#f5f5f7] rounded mb-3" />
+                  <div className="h-6 w-24 bg-[#f5f5f7] rounded mb-2" />
+                  <div className="h-3 w-12 bg-[#f5f5f7] rounded" />
+                </div>
+              ))}
+            </div>
+          </section>
+          {/* Fund table skeleton */}
+          <section>
+            <div className="h-3 w-40 bg-[#f5f5f7] rounded animate-pulse mb-3" />
+            <div className="bg-white border border-black/5 rounded-2xl p-4 space-y-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-8 bg-[#f5f5f7] rounded animate-pulse" />
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-[13px]">
           Failed to load: {error}

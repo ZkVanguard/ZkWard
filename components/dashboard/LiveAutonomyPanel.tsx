@@ -193,22 +193,33 @@ export const LiveAutonomyPanel = memo(function LiveAutonomyPanel() {
         </section>
 
         <section>
-          <SectionHeader title="Cron heartbeats" caption="last-run age per background worker" />
-          <div className="border border-separator-opaque/30 rounded-ios-lg overflow-hidden bg-system-bg-primary max-h-[320px] overflow-y-auto">
-            {crons.map((c) => (
-              <div
-                key={c.name}
-                className="flex items-center gap-2.5 px-4 py-2 border-b border-separator-opaque/20 last:border-b-0"
-              >
-                <StatusDot status={c.status} />
-                <span className="text-caption-1 font-medium text-label-primary truncate">
-                  {c.name}
-                </span>
-                <span className="ml-auto text-caption-2 text-label-tertiary tabular-nums">
-                  {c.ageMinutes < 60 ? `${c.ageMinutes}m` : `${Math.round(c.ageMinutes / 60)}h`}
-                </span>
-              </div>
-            ))}
+          <SectionHeader
+            title="Cron heartbeats"
+            caption={`${crons.length} background worker${crons.length === 1 ? '' : 's'} · scroll for more`}
+          />
+          {/* Container + gradient fade at bottom to signal overflow.
+              Previously the list scrolled silently — users didn't know
+              hidden rows existed. */}
+          <div className="relative">
+            <div className="border border-separator-opaque/30 rounded-ios-lg overflow-hidden bg-system-bg-primary max-h-[320px] overflow-y-auto">
+              {crons.map((c) => (
+                <div
+                  key={c.name}
+                  className="flex items-center gap-2.5 px-4 py-2 border-b border-separator-opaque/20 last:border-b-0"
+                >
+                  <StatusDot status={c.status} />
+                  <span className="text-caption-1 font-medium text-label-primary truncate">
+                    {c.name}
+                  </span>
+                  <span className="ml-auto text-caption-2 text-label-tertiary tabular-nums">
+                    {c.ageMinutes < 60 ? `${c.ageMinutes}m` : `${Math.round(c.ageMinutes / 60)}h`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {crons.length > 9 && (
+              <div className="pointer-events-none absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-white to-transparent rounded-b-ios-lg" />
+            )}
           </div>
         </section>
       </div>
