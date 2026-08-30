@@ -94,17 +94,13 @@
     "@crypto.com/developer-platform-client": "^1.1.2",
     "@crypto.com/facilitator-client": "^1.0.4",
     "@heroicons/react": "^2.2.0",
-    "@modelcontextprotocol/sdk": "^1.25.1",
     "@mysten/dapp-kit": "^0.14.0",
     "@mysten/sui": "^1.0.0",
     "@noble/hashes": "^2.0.1",
-    "@oasisprotocol/sapphire-paratime": "^2.3.0",
     "@openzeppelin/contracts": "^5.6.1",
     "@openzeppelin/contracts-upgradeable": "^5.6.1",
     "@pythnetwork/pyth-sui-js": "^3.0.0",
-    "@shazow/whatsabi": "^0.25.0",
     "@tanstack/react-query": "^5.101.4",
-    "@tetherto/wdk": "^1.0.0-beta.6",
     "@upstash/qstash": "^2.11.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.1",
@@ -123,8 +119,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
-    "viem": "^2.55.10",
-    "zod": "^3.25.76"
+    "viem": "^2.55.10"
   },
   "optionalDependencies": {
     "openai": "^4.77.3"

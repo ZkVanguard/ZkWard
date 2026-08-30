@@ -43,7 +43,7 @@ const nextConfig = {
     optimizePackageImports: [
       'viem', 'lucide-react', '@heroicons/react', 'framer-motion',
       'chart.js', 'react-chartjs-2', '@mysten/dapp-kit', '@mysten/sui',
-      'ethers', 'zod', 'eventemitter3', 'uuid',
+      'ethers', 'eventemitter3', 'uuid',
       '@tanstack/react-query', 'react-markdown', 'remark-gfm',
     ],
     // optimizeCss removed: it's webpack-only + requires the `critters`

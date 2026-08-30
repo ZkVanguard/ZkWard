@@ -50,6 +50,36 @@ const PanelSkeleton = () => (
   <div className="animate-pulse bg-gray-100 dark:bg-gray-700 h-48 rounded-lg" />
 );
 
+// Skeleton + delayed "taking longer than usual" hint.
+// Pool loading normally resolves in <2s; when the SUI RPC is down the
+// skeleton previously spun forever with zero UX feedback. After 12s
+// we show a small non-blocking hint + retry button so users know the
+// dashboard hasn't frozen.
+function CommunityPoolSkeletonWithTimeout({ onRetry }: { onRetry: () => void }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 12_000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="relative">
+      <CommunityPoolSkeleton />
+      {slow && (
+        <div className="mt-3 flex items-center justify-center gap-3 text-caption-1 text-label-tertiary">
+          <span>Pool data slower than usual — SUI RPC may be busy.</span>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-ios-blue hover:text-ios-blueHover font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface CommunityPoolProps {
   address?: string;
   compact?: boolean;
@@ -240,7 +270,7 @@ export const CommunityPool = memo(function CommunityPool({
   // ============================================================================
 
   if (pool.loading) {
-    return <CommunityPoolSkeleton />;
+    return <CommunityPoolSkeletonWithTimeout onRetry={() => pool.fetchPoolData(true)} />;
   }
 
   // ============================================================================

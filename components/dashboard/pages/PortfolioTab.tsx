@@ -5,6 +5,7 @@ import { useAccount } from '@/lib/wdk/wdk-hooks';
 import { useSui } from '@/app/sui-providers';
 import { Briefcase, TrendingUp, TrendingDown, Layers, Shield, Activity } from 'lucide-react';
 import { logger } from '@/lib/utils/logger';
+import { ConnectPromptButton } from '@/components/ui/ConnectPromptButton';
 
 interface ProductPosition {
   product: string;
@@ -226,9 +227,10 @@ export function PortfolioTab() {
         <div className="bg-white border border-black/5 rounded-3xl p-6 sm:p-10 text-center min-w-0">
           <Briefcase className="w-8 h-8 sm:w-10 sm:h-10 text-[#86868b] mx-auto mb-3" />
           <h1 className="text-xl sm:text-2xl md:text-[28px] font-semibold text-[#1d1d1f] mb-2 break-words">Connect a wallet to view your platform overview</h1>
-          <p className="text-[#86868b] text-sm sm:text-[15px] leading-relaxed">
+          <p className="text-[#86868b] text-sm sm:text-[15px] leading-relaxed mb-6">
             Aggregates your positions across the SUI USDC pool, private hedges, and any custom portfolios into one view.
           </p>
+          <ConnectPromptButton />
         </div>
       </div>
     );

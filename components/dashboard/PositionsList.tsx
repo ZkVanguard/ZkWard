@@ -22,6 +22,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { useWallet } from '@/lib/hooks/useWallet';
+import { ConnectPromptButton } from '@/components/ui/ConnectPromptButton';
 import { useUserPortfolios } from '../../lib/contracts/hooks';
 import { DepositModal } from './DepositModal';
 import { WithdrawModal } from './WithdrawModal';
@@ -508,6 +509,8 @@ export function PositionsList({ address, onOpenHedge }: PositionsListProps) {
         <p className="text-[15px] text-[#86868b] max-w-[280px] mx-auto mb-6">
           Connect your wallet to view your token positions and portfolio strategies
         </p>
+
+        <ConnectPromptButton />
 
         {/* AI Assistant CTA - available even without wallet */}
         <div className="mt-6 pt-6 border-t border-[#e8e8ed]">

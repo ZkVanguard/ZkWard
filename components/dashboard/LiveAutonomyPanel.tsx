@@ -73,14 +73,20 @@ function SignalPill({
   asset, side, confidence,
 }: { asset: string; side: 'LONG' | 'SHORT' | null; confidence: number }) {
   const Icon = side === 'LONG' ? TrendingUp : side === 'SHORT' ? TrendingDown : Minus;
-  const tone =
+  // Icon uses ios-* (3:1 minimum for non-text — passes); text uses darker
+  // green-700 / red-700 (4.5:1 required for 12px small caption — ios-green
+  // is 1.85:1 and ios-red is 3.76:1, both fail).
+  const iconTone =
     side === 'LONG' ? 'text-ios-green' :
     side === 'SHORT' ? 'text-ios-red' : 'text-label-tertiary';
+  const textTone =
+    side === 'LONG' ? 'text-green-700 dark:text-green-400' :
+    side === 'SHORT' ? 'text-red-700 dark:text-red-400' : 'text-label-tertiary';
   return (
     <div className="flex items-center gap-2 py-1.5">
       <span className="w-10 text-caption-1 font-semibold text-label-primary tabular-nums">{asset}</span>
-      <Icon className={`w-3.5 h-3.5 ${tone}`} strokeWidth={2.5} />
-      <span className={`text-caption-1 font-semibold ${tone}`}>{side ?? 'WAIT'}</span>
+      <Icon className={`w-3.5 h-3.5 ${iconTone}`} strokeWidth={2.5} />
+      <span className={`text-caption-1 font-semibold ${textTone}`}>{side ?? 'WAIT'}</span>
       <span className="text-caption-2 text-label-tertiary tabular-nums ml-auto">{confidence}%</span>
     </div>
   );
@@ -187,22 +193,33 @@ export const LiveAutonomyPanel = memo(function LiveAutonomyPanel() {
         </section>
 
         <section>
-          <SectionHeader title="Cron heartbeats" caption="last-run age per background worker" />
-          <div className="border border-separator-opaque/30 rounded-ios-lg overflow-hidden bg-system-bg-primary max-h-[320px] overflow-y-auto">
-            {crons.map((c) => (
-              <div
-                key={c.name}
-                className="flex items-center gap-2.5 px-4 py-2 border-b border-separator-opaque/20 last:border-b-0"
-              >
-                <StatusDot status={c.status} />
-                <span className="text-caption-1 font-medium text-label-primary truncate">
-                  {c.name}
-                </span>
-                <span className="ml-auto text-caption-2 text-label-tertiary tabular-nums">
-                  {c.ageMinutes < 60 ? `${c.ageMinutes}m` : `${Math.round(c.ageMinutes / 60)}h`}
-                </span>
-              </div>
-            ))}
+          <SectionHeader
+            title="Cron heartbeats"
+            caption={`${crons.length} background worker${crons.length === 1 ? '' : 's'} · scroll for more`}
+          />
+          {/* Container + gradient fade at bottom to signal overflow.
+              Previously the list scrolled silently — users didn't know
+              hidden rows existed. */}
+          <div className="relative">
+            <div className="border border-separator-opaque/30 rounded-ios-lg overflow-hidden bg-system-bg-primary max-h-[320px] overflow-y-auto">
+              {crons.map((c) => (
+                <div
+                  key={c.name}
+                  className="flex items-center gap-2.5 px-4 py-2 border-b border-separator-opaque/20 last:border-b-0"
+                >
+                  <StatusDot status={c.status} />
+                  <span className="text-caption-1 font-medium text-label-primary truncate">
+                    {c.name}
+                  </span>
+                  <span className="ml-auto text-caption-2 text-label-tertiary tabular-nums">
+                    {c.ageMinutes < 60 ? `${c.ageMinutes}m` : `${Math.round(c.ageMinutes / 60)}h`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {crons.length > 9 && (
+              <div className="pointer-events-none absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-white to-transparent rounded-b-ios-lg" />
+            )}
           </div>
         </section>
       </div>
@@ -241,10 +258,14 @@ function KpiTile({
   tone?: 'good' | 'warn' | 'bad' | 'neutral';
   hint?: string;
 }) {
+  // 11px uppercase caption label: 4.5:1 required. ios-blue (#0069D9,
+  // 5.22:1) is safe; the others aren't at small size — swap for darker
+  // Tailwind tones. Actual big-value number renders text-label-primary
+  // (17.4:1 on white), so tone only styles the tiny caption chip.
   const toneClass =
-    tone === 'good' ? 'text-ios-green' :
-    tone === 'warn' ? 'text-ios-orange' :
-    tone === 'bad' ? 'text-ios-red' : 'text-ios-blue';
+    tone === 'good' ? 'text-green-700 dark:text-green-400' :
+    tone === 'warn' ? 'text-orange-700 dark:text-orange-400' :
+    tone === 'bad' ? 'text-red-700 dark:text-red-400' : 'text-ios-blue';
   return (
     <div className="rounded-ios-lg border border-separator-opaque/30 bg-system-bg-primary p-3">
       <div className={`flex items-center gap-1.5 ${toneClass} mb-1`}>
@@ -258,9 +279,13 @@ function KpiTile({
 }
 
 function AlarmChip({ tone, text }: { tone: 'info' | 'warn' | 'bad'; text: string }) {
+  // Chip text is 12px caption (small text → 4.5:1). Keep the softer
+  // ios-*/10 backgrounds but pair with dark Tailwind orange/red so text
+  // is readable. The pill dot uses bg-current, so it inherits the same
+  // dark tone — still visually red-on-red-tint, just accessible.
   const cls =
-    tone === 'warn' ? 'bg-ios-orange/10 text-ios-orange border-ios-orange/20' :
-    tone === 'bad' ? 'bg-ios-red/10 text-ios-red border-ios-red/20' :
+    tone === 'warn' ? 'bg-ios-orange/10 text-orange-800 dark:text-orange-300 border-ios-orange/20' :
+    tone === 'bad' ? 'bg-ios-red/10 text-red-800 dark:text-red-300 border-ios-red/20' :
     'bg-ios-blue/10 text-ios-blue border-ios-blue/20';
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-caption-1 font-medium ${cls}`}>

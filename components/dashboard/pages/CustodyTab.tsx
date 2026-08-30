@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ShieldCheck, Copy, AlertTriangle, FileText, ExternalLink, Mail, Download } from 'lucide-react';
 import { useSui } from '@/app/sui-providers';
 import { logger } from '@/lib/utils/logger';
+import { ConnectPromptButton } from '@/components/ui/ConnectPromptButton';
 
 interface AttestationView {
   objectId: string;
@@ -194,11 +195,12 @@ export function CustodyTab() {
           <h1 className="text-xl sm:text-2xl md:text-[28px] font-semibold text-[#1d1d1f] mb-2 break-words">
             Connect a SUI wallet to view your custody attestations
           </h1>
-          <p className="text-[#86868b] text-sm sm:text-[15px] max-w-2xl mx-auto leading-relaxed">
+          <p className="text-[#86868b] text-sm sm:text-[15px] max-w-2xl mx-auto leading-relaxed mb-6">
             Institutional custodians sign attestations that bind your portfolio to
             off-chain assets. The asset list stays private to you + the custodian;
             only the cryptographic hash hits chain.
           </p>
+          <ConnectPromptButton label="Connect SUI Wallet" />
         </div>
       </div>
     );

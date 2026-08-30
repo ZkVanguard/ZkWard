@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
 import { useAccount, useBalance } from '@/lib/wdk/wdk-hooks';
 import {
@@ -20,7 +20,6 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { MobileTabBar } from '@/components/dashboard/MobileTabBar';
-import { PortfolioOverview } from '@/components/dashboard/PortfolioOverview';
 import { useContractAddresses } from '@/lib/contracts/hooks';
 import { usePositions } from '@/contexts/PositionsContext';
 import { usePortfolioAction, type CustomActionPayload } from '@/contexts/AIDecisionsContext';
@@ -111,16 +110,6 @@ const SettingsModal = nextDynamic(
   }
 );
 
-const TestnetUSDCFaucet = nextDynamic(
-  () =>
-    import('@/components/dashboard/MockUSDCFaucet').then((mod) => ({
-      default: mod.MockUSDCFaucet,
-    })),
-  {
-    ssr: false,
-  }
-);
-
 const FiveMinSignalWidget = nextDynamic(
   () =>
     import('@/components/dashboard/FiveMinSignalWidget').then((mod) => ({
@@ -139,6 +128,15 @@ const CommunityPool = nextDynamic(
     loading: () => <LoadingSkeleton />,
     ssr: false,
   }
+);
+
+// PortfolioOverview — only used in the Overview tab (~220 LOC + wallet
+// context deps). Lazy so it doesn't ship in the initial dashboard chunk
+// when users land on the default Pool tab.
+const PortfolioOverview = nextDynamic(
+  () =>
+    import('@/components/dashboard/PortfolioOverview').then((mod) => ({ default: mod.PortfolioOverview })),
+  { loading: () => <LoadingSkeleton />, ssr: false },
 );
 
 // Platform sub-tabs — extracted from former /dashboard/{portfolio,risk,custody}
@@ -175,9 +173,11 @@ interface NavItem {
 }
 
 // Primary nav — surfaces the daily user actions (deposit + monitor).
-// Vault first: flagship product; user lands on deposit/withdraw immediately.
+// "Pool" first (was "Vault" — collided with the top-navbar entry link).
+// Top navbar's "Vault" is the product entry; sidebar tab is the specific
+// deposit/withdraw section, so keep the labels distinct.
 const navItems: NavItem[] = [
-  { id: 'community', label: 'Vault', icon: Users },
+  { id: 'community', label: 'Pool', icon: Users },
   { id: 'overview', label: 'Overview', icon: BarChart3 },
   { id: 'positions', label: 'Positions', icon: Briefcase },
   { id: 'hedges', label: 'Hedges', icon: Shield },
@@ -224,7 +224,7 @@ export default function DashboardPage() {
   const { requestCustomAction } = usePortfolioAction();
   // Portfolio count available via derived?.portfolioCount if needed
 
-  // Default to the Vault tab — clicking "Vault" in the top nav should land the
+  // Default to the Pool tab — clicking "Vault" in the top nav should land the
   // user on the actual deposit/withdraw surface, not a generic dashboard view.
   const [activeNav, setActiveNav] = useState<NavId>('community');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -242,13 +242,19 @@ export default function DashboardPage() {
     logger.debug('Notification state changed', { component: 'DashboardPage', data: notification });
   }, [notification]);
 
-  // Close mobile menu on nav change
-  const handleNavChange = (id: NavId) => {
+  // useCallback stabilises the refs so memoized children (ActiveHedges,
+  // MobileTabBar, etc.) don't re-render on every parent state change
+  // (notification, agentMessage, etc.). Setter fns from useState are
+  // stable by React contract, so the empty dep list is correct.
+  const handleNavChange = useCallback((id: NavId) => {
     setActiveNav(id);
     setMobileMenuOpen(false);
-  };
+  }, []);
 
-  const handleOpenHedge = async (market: PredictionMarket) => {
+  const openChat = useCallback(() => setShowChat(true), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+
+  const handleOpenHedge = useCallback(async (market: PredictionMarket) => {
     logger.info('Hedge button clicked', { component: 'DashboardPage', data: market });
     logger.info('🛡️ Opening hedge on Moonlander', { data: market.question });
 
@@ -330,7 +336,7 @@ export default function DashboardPage() {
       // Auto-clear error after 10 seconds
       setTimeout(() => setNotification(null), 10000);
     }
-  };
+  }, []);
 
   const handleAgentAnalysis = async (market: PredictionMarket) => {
     logger.info('🤖 Triggering AI Agent Analysis', { market: market.question });
@@ -465,7 +471,7 @@ export default function DashboardPage() {
           <div className="p-4 border-b border-black/5">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${suiConnected ? 'bg-[#4DA2FF]' : 'bg-gradient-to-br from-blue-500 to-purple-600'}`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${suiConnected ? 'bg-[#4DA2FF]' : 'bg-ios-blue'}`}
               >
                 <span className="text-white text-sm font-bold">
                   {suiConnected
@@ -786,7 +792,7 @@ export default function DashboardPage() {
 
       {/* Settings Modal */}
       {settingsOpen && (
-        <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal isOpen={settingsOpen} onClose={closeSettings} />
       )}
     </div>
   );
@@ -834,7 +840,7 @@ export default function DashboardPage() {
                   <ActiveHedges
                     address={displayAddress}
                     compact
-                    onOpenChat={() => setShowChat(true)}
+                    onOpenChat={openChat}
                   />
                 </div>
               </Card>
@@ -869,16 +875,13 @@ export default function DashboardPage() {
 
       case 'hedges':
         return (
-          <div className="space-y-3 sm:space-y-6">
-            <Card>
-              <CardHeader title="Active Hedges" subtitle="Your protective positions and options" />
-              <ActiveHedges
-                address={displayAddress}
-                onOpenChat={() => setShowChat(true)}
-              />
-            </Card>
-            <TestnetUSDCFaucet />
-          </div>
+          <Card>
+            <CardHeader title="Active Hedges" subtitle="Your protective positions and options" />
+            <ActiveHedges
+              address={displayAddress}
+              onOpenChat={openChat}
+            />
+          </Card>
         );
 
       case 'agents':

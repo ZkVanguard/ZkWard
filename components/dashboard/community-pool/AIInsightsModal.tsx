@@ -40,7 +40,7 @@ export const AIInsightsModal = memo(function AIInsightsModal({
               <div className="w-9 h-1 rounded-full bg-white/60" />
             </div>
 
-            <div className="p-4 sm:p-5 pt-6 sm:pt-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-600 to-purple-600">
+            <div className="p-4 sm:p-5 pt-6 sm:pt-5 border-b border-gray-200 dark:border-gray-700 bg-ios-blue">
               <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <Brain className="w-5 h-5 flex-shrink-0" />
                 <span className="truncate">AI Allocation Insights</span>

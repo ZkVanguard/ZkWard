@@ -62,7 +62,7 @@ export const PoolStatsSkeleton = memo(function PoolStatsSkeleton() {
 export const UserPositionSkeleton = memo(function UserPositionSkeleton() {
   return (
     <div className="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-700">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl sm:rounded-xl p-3 sm:p-4">
+      <div className="bg-system-bg-secondary dark:bg-gray-800/50 rounded-2xl sm:rounded-xl p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-2 sm:mb-3">
           <SkeletonBox className="w-5 h-5 rounded-full" />
           <SkeletonBox className="h-4 sm:h-5 w-20 sm:w-24" />
@@ -152,7 +152,7 @@ export const CommunityPoolSkeleton = memo(function CommunityPoolSkeleton() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-xl shadow-lg overflow-hidden">
       {/* Header skeleton */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-3 sm:p-4">
+      <div className="bg-ios-blue p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <SkeletonBox className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg !bg-white/20 flex-shrink-0" />

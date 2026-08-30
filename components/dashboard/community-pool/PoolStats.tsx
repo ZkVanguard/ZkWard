@@ -84,8 +84,15 @@ export const PoolStats = memo(function PoolStats({ poolData, selectedChain }: Po
 
   const signedPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
   const signedUsd = (v: number) => `${v >= 0 ? '+' : '-'}${formatUSD(Math.abs(v))}`;
+  // Softer than red-600/green-600 (the pre-refactor default), still WCAG
+  // AA-compliant at every size the Metric component renders (12px mobile-
+  // strip up to 24px desktop). Cannot use text-ios-red / text-ios-green
+  // here: ios-red is #FF3B30 (3.76:1 on white — fails AA for small text),
+  // ios-green is #34C759 (1.85:1 — fails everywhere). red-700 / green-700
+  // are darker and more "serious", which also matches the user's request
+  // to de-shout the loss indicators without erasing them.
   const pnlColor = (v: number) =>
-    v >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    v >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
 
   // Single stale chip used on both breakpoints — one wording ("snapshot · Xh
   // old"), one tooltip. Was two different phrasings pre-2026-07-31 refactor.
@@ -105,12 +112,17 @@ export const PoolStats = memo(function PoolStats({ poolData, selectedChain }: Po
   const athChip = useMemo(() => {
     if (!isSui || !profit || profit.offAthPct == null || profit.offAthPct >= 0) return null;
     const dd = profit.offAthPct;
+    // Soft tint background + dark WCAG-safe text. Was red-100 / amber-100
+    // Tailwind saturated tints reading as alarm chips; new bg-ios-red/10
+    // etc. give the same softer feel but text must stay a dark tailwind
+    // red-800 / orange-800 — text-ios-red on bg-ios-red/10 is 3.5:1 which
+    // fails AA for the 10px chip text.
     const tone =
       dd <= -15
-        ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+        ? 'bg-ios-red/10 text-red-800 dark:text-red-300'
         : dd <= -5
-          ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300'
-          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+          ? 'bg-ios-orange/10 text-orange-800 dark:text-orange-300'
+          : 'bg-system-bg-secondary text-label-tertiary dark:text-gray-400';
     const ath = Number(poolData.allTimeHighNav) || 0;
     return (
       <span

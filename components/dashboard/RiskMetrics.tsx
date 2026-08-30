@@ -3,6 +3,7 @@
 import { useMemo, memo } from 'react';
 import { AlertTriangle, TrendingUp, Shield, Activity } from 'lucide-react';
 import { usePositions } from '@/contexts/PositionsContext';
+import { ConnectPromptButton } from '@/components/ui/ConnectPromptButton';
 
 interface RiskMetric {
   label: string;
@@ -94,10 +95,11 @@ export const RiskMetrics = memo(function RiskMetrics({ address }: { address?: st
   // never fake numbers).
   if (noData) {
     return (
-      <div className="px-4 sm:px-6 pb-6 sm:pb-8 flex items-center justify-center min-h-[160px]">
+      <div className="px-4 sm:px-6 pb-6 sm:pb-8 flex flex-col items-center justify-center min-h-[160px] gap-4">
         <p className="text-[13px] sm:text-caption-1 text-label-tertiary text-center max-w-[240px]">
           Connect a wallet to see VaR, volatility, risk score and Sharpe ratio computed live from your portfolio.
         </p>
+        <ConnectPromptButton />
       </div>
     );
   }

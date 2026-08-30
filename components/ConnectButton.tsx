@@ -328,6 +328,7 @@ export function ConnectButton() {
       {showConnect && (
         <div className="relative">
           <button
+            data-connect-cta="true"
             onClick={handleConnectSui}
             disabled={isConnectingSui}
             className="px-5 h-11 bg-ios-blue hover:bg-[#0062CC] active:scale-[0.98] disabled:opacity-70 text-white rounded-[12px] font-semibold text-[15px] transition-all flex items-center gap-2"
