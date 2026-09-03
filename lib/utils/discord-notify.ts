@@ -29,8 +29,12 @@ export async function notifyDiscord(
   // Gap 8: also append to cron_state ring buffer so alert-response-loop
   // can act on patterns (3 KILL/hr → auto-shrink spot). Fire-and-forget
   // so a DB blip never breaks the Discord path or its caller.
+  // Chain tag: if context.chain is a string, propagate it so the
+  // response loop can scope halt rules to the emitting chain. Absent =
+  // legacy SUI (backfill-safe).
   if (level === 'KILL' || level === 'ERROR' || level === 'WARN') {
-    void appendAlertLog({ at: Date.now(), level, message }).catch(() => {});
+    const chain = typeof context?.chain === 'string' ? context.chain : undefined;
+    void appendAlertLog({ at: Date.now(), level, message, chain }).catch(() => {});
   }
 
   const url = (process.env.DISCORD_WEBHOOK_URL || '').trim();
@@ -65,6 +69,7 @@ interface AlertLogEntry {
   at: number;
   level: NotifyLevel;
   message: string;
+  chain?: string;
 }
 
 async function appendAlertLog(entry: AlertLogEntry): Promise<void> {

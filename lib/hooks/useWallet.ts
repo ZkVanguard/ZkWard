@@ -1,6 +1,6 @@
 'use client';
 
-import { useAccount } from '@/lib/wdk/wdk-hooks';
+import { useAccount } from '@/lib/evm-wallet/hooks';
 import { useSuiSafe } from '@/app/sui-providers';
 
 /**

@@ -99,6 +99,11 @@ export class SafeExecutionGuard {
   
   private limits: ExecutionLimits;
   private dailyVolumeUSD: number = 0;
+  // Per-chain daily volume buckets. Each chain has its own cap-tracking
+  // slot so a Hedera spike cannot exhaust the SUI budget (and vice
+  // versa). `dailyVolumeUSD` above is kept as the sum for existing
+  // status / audit consumers that expect a single number.
+  private dailyVolumeByChain: Map<string, number> = new Map();
   private dailyVolumeResetDate: string = '';
   private lastExecutionTime: number = 0;
   private activeExecutions: Set<string> = new Set();
@@ -144,6 +149,11 @@ export class SafeExecutionGuard {
     positionSizeUSD: number;
     leverage?: number;
     expectedSlippageBps?: number;
+    // Chain the execution belongs to. Enables per-chain daily-volume
+    // bucketing so one chain spiking cannot exhaust the cap for the
+    // others. Undefined = charge against the shared 'default' bucket
+    // (SUI backfill-safe).
+    chain?: string;
   }): Promise<ExecutionValidation> {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -188,13 +198,15 @@ export class SafeExecutionGuard {
       riskScore += 20;
     }
 
-    // 5. Check daily volume
+    // 5. Check daily volume — per-chain bucket if chain provided
     this.resetDailyVolumeIfNeeded();
-    const projectedDailyVolume = this.dailyVolumeUSD + params.positionSizeUSD;
-    if (projectedDailyVolume > this.limits.maxDailyVolumeUSD) {
-      errors.push(`📊 Daily volume limit exceeded. Current: $${this.dailyVolumeUSD.toLocaleString()}, Max: $${this.limits.maxDailyVolumeUSD.toLocaleString()}`);
-    } else if (projectedDailyVolume > this.limits.maxDailyVolumeUSD * 0.8) {
-      warnings.push(`⚠️ Approaching daily limit (${((projectedDailyVolume / this.limits.maxDailyVolumeUSD) * 100).toFixed(1)}%)`);
+    const chainKey = (params.chain ?? 'default').toLowerCase();
+    const chainVolume = this.dailyVolumeByChain.get(chainKey) ?? 0;
+    const projectedChainVolume = chainVolume + params.positionSizeUSD;
+    if (projectedChainVolume > this.limits.maxDailyVolumeUSD) {
+      errors.push(`📊 Daily volume limit exceeded for chain='${chainKey}'. Current: $${chainVolume.toLocaleString()}, Max: $${this.limits.maxDailyVolumeUSD.toLocaleString()}`);
+    } else if (projectedChainVolume > this.limits.maxDailyVolumeUSD * 0.8) {
+      warnings.push(`⚠️ Approaching daily limit for chain='${chainKey}' (${((projectedChainVolume / this.limits.maxDailyVolumeUSD) * 100).toFixed(1)}%)`);
     }
 
     // 6. Check leverage
@@ -490,17 +502,23 @@ export class SafeExecutionGuard {
   // ============================================================================
 
   /**
-   * Add to daily volume
+   * Add to daily volume. Charge against the chain's bucket if provided,
+   * otherwise a shared 'default' bucket (legacy SUI-only callers).
    */
-  addVolume(amountUSD: number): void {
+  addVolume(amountUSD: number, chain?: string): void {
     this.resetDailyVolumeIfNeeded();
+    const chainKey = (chain ?? 'default').toLowerCase();
+    const nextChainVolume = (this.dailyVolumeByChain.get(chainKey) ?? 0) + amountUSD;
+    this.dailyVolumeByChain.set(chainKey, nextChainVolume);
     this.dailyVolumeUSD += amountUSD;
 
     logger.info('📊 Volume added', {
+      chain: chainKey,
       added: amountUSD,
+      chainTotal: nextChainVolume,
       dailyTotal: this.dailyVolumeUSD,
       limit: this.limits.maxDailyVolumeUSD,
-      percentUsed: ((this.dailyVolumeUSD / this.limits.maxDailyVolumeUSD) * 100).toFixed(1),
+      percentUsed: ((nextChainVolume / this.limits.maxDailyVolumeUSD) * 100).toFixed(1),
     });
   }
 
@@ -508,6 +526,7 @@ export class SafeExecutionGuard {
     const today = new Date().toISOString().split('T')[0];
     if (this.dailyVolumeResetDate !== today) {
       this.dailyVolumeUSD = 0;
+      this.dailyVolumeByChain.clear();
       this.dailyVolumeResetDate = today;
       logger.info('📊 Daily volume reset', { date: today });
     }
@@ -556,15 +575,17 @@ export class SafeExecutionGuard {
     activeExecutions: number;
     dailyVolumeUSD: number;
     dailyVolumePercent: number;
+    dailyVolumeByChain: Record<string, number>;
     limits: ExecutionLimits;
   } {
     this.resetDailyVolumeIfNeeded();
-    
+
     return {
       circuitBreaker: { ...this.circuitBreaker },
       activeExecutions: this.activeExecutions.size,
       dailyVolumeUSD: this.dailyVolumeUSD,
       dailyVolumePercent: (this.dailyVolumeUSD / this.limits.maxDailyVolumeUSD) * 100,
+      dailyVolumeByChain: Object.fromEntries(this.dailyVolumeByChain),
       limits: { ...this.limits },
     };
   }
@@ -578,6 +599,7 @@ export class SafeExecutionGuard {
     this.auditLogs = [];
     this.pendingConsensus.clear();
     this.dailyVolumeUSD = 0;
+    this.dailyVolumeByChain.clear();
     this.dailyVolumeResetDate = '';
     this.lastExecutionTime = 0;
     this.circuitBreaker = {

@@ -5,7 +5,6 @@ import { Plus, Minus, Wallet, ExternalLink, Loader2, AlertTriangle } from 'lucid
 import { AnimatePresence, motion } from 'framer-motion';
 import type { PoolSummary, UserPosition, ChainKey, TxStatus } from './types';
 import { getDepositTokenInfo } from '@/lib/contracts/community-pool-config';
-import { WdkWalletConnect } from '@/components/WdkWalletConnect';
 import { OldPoolWithdraw } from './OldPoolWithdraw';
 
 interface DepositWithdrawActionsProps {
@@ -296,9 +295,6 @@ export const DepositWithdrawActions = memo(function DepositWithdrawActions({
               Connect your wallet (MetaMask, OKX, etc.) to deposit and withdraw from the pool.
             </p>
           </div>
-          
-          {/* WDK Treasury Status - AI Agent Wallet */}
-          <WdkWalletConnect className="w-full" />
           
           <div className="text-center text-xs text-gray-500 dark:text-gray-400">
             Use the Connect Wallet button in the header

@@ -1,9 +1,9 @@
 'use client';
 
-// Provider wrapping for /dashboard. WalletProviders (WdkProvider +
-// SuiWalletProviders — ~800 KB of @mysten/dapp-kit + @mysten/sui +
-// ethers) live here instead of root providers so marketing routes
-// (/, /agents, /zk, /rwa, /whitepaper) don't pay the bundle cost.
+// Provider wrapping for /dashboard. WalletProviders (SuiWalletProviders
+// — ~800 KB of @mysten/dapp-kit + @mysten/sui) live here instead of
+// root providers so marketing routes (/, /agents, /zk, /rwa,
+// /whitepaper) don't pay the bundle cost.
 
 import type { ReactNode } from 'react';
 import { PositionsProvider } from '@/contexts/PositionsContext';

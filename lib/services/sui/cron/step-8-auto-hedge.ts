@@ -22,6 +22,7 @@
  */
 import { logger } from '@/lib/utils/logger';
 import { envFlag } from '@/lib/utils/env-flag';
+import { isChainAutoHedgeDisabled } from '@/lib/utils/chain-halt';
 import { notifyDiscord } from '@/lib/utils/discord-notify';
 import { query } from '@/lib/db/postgres';
 import { getCronStateOr, getCronHalt, setCronHalt, deleteCronState, endOfUtcDayMs, CronKeys } from '@/lib/db/cron-state';
@@ -81,7 +82,7 @@ export async function runStep8AutoHedge(input: Step8Input): Promise<Step8Result>
 
   let autoHedgeResult: Step8Result = { triggered: false };
   const MIN_HEDGE_NAV_USD = Number(process.env.HEDGE_MIN_NAV_USD) || 20;
-  const HEDGE_DISABLED = envFlag('SUI_AUTO_HEDGE_DISABLE');
+  const HEDGE_DISABLED = isChainAutoHedgeDisabled('sui');
 
   // ── Drawdown auto-halt ─────────────────────────────────────────
   // The cron auto-opens positions every 30min but has no global

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAccount } from '@/lib/wdk/wdk-hooks';
+import { useAccount } from '@/lib/evm-wallet/hooks';
 import { useSui } from '@/app/sui-providers';
 import { Briefcase, TrendingUp, TrendingDown, Layers, Shield, Activity } from 'lucide-react';
 import { logger } from '@/lib/utils/logger';

@@ -7,7 +7,7 @@ import { usePolling, useToggle } from '@/lib/hooks';
 import { useApiAuth } from '@/lib/hooks/useApiAuth';
 import { useHedgeRecommendations } from '@/contexts/AIDecisionsContext';
 import { logger } from '@/lib/utils/logger';
-import { useWalletClient, useChainId } from '@/lib/wdk/wdk-hooks';
+import { useWalletClient, useChainId } from '@/lib/evm-wallet/hooks';
 import { getContractAddresses } from '@/lib/contracts/addresses';
 import { getExplorerUrl, getNetworkName, CHAIN_IDS } from '@/lib/utils/network';
 import {

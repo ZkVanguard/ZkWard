@@ -60,6 +60,52 @@ describe('evaluateAutoResponse — SHRINK_SPOT rule (3 KILL in 60min)', () => {
     });
     expect(responses.filter(r => r.type === 'SHRINK_SPOT')).toHaveLength(0);
   });
+
+  // Cross-chain isolation: KILL alerts emitted by non-SUI chains (Hedera,
+  // Sepolia, etc.) MUST NOT halt the SUI pool. Guards against a future
+  // EVM cron misfire cascading into a SUI trader halt.
+  it('does NOT fire when 3 KILLs come from a non-SUI chain (Hedera)', async () => {
+    const hederaKill = (atMinAgo: number) => ({
+      ...kill(atMinAgo, 'hedera trip'),
+      chain: 'hedera',
+    });
+    const responses = await evaluateAutoResponse({
+      alertLog: [hederaKill(45), hederaKill(20), hederaKill(5)],
+      now: NOW,
+    });
+    expect(responses.filter(r => r.type === 'SHRINK_SPOT')).toHaveLength(0);
+  });
+
+  it('fires when 3 KILLs are explicitly tagged chain=sui', async () => {
+    const suiKill = (atMinAgo: number) => ({ ...kill(atMinAgo), chain: 'sui' });
+    const responses = await evaluateAutoResponse({
+      alertLog: [suiKill(45), suiKill(20), suiKill(5)],
+      now: NOW,
+    });
+    expect(responses.filter(r => r.type === 'SHRINK_SPOT')).toHaveLength(1);
+  });
+
+  it('counts untagged KILLs as SUI (legacy backfill safety)', async () => {
+    const responses = await evaluateAutoResponse({
+      alertLog: [kill(45), kill(20), kill(5)],
+      now: NOW,
+    });
+    expect(responses.filter(r => r.type === 'SHRINK_SPOT')).toHaveLength(1);
+  });
+
+  it('mixed SUI + Hedera KILLs: only SUI count toward threshold', async () => {
+    const hederaKill = (atMinAgo: number) => ({ ...kill(atMinAgo), chain: 'hedera' });
+    const suiKill = (atMinAgo: number) => ({ ...kill(atMinAgo), chain: 'sui' });
+    // 2 SUI + 5 Hedera = below SUI threshold
+    const responses = await evaluateAutoResponse({
+      alertLog: [
+        suiKill(45), suiKill(20),
+        hederaKill(50), hederaKill(40), hederaKill(30), hederaKill(15), hederaKill(3),
+      ],
+      now: NOW,
+    });
+    expect(responses.filter(r => r.type === 'SHRINK_SPOT')).toHaveLength(0);
+  });
 });
 
 describe('evaluateAutoResponse — UNWIND_ALL_SPOT rule (24h profit-lock)', () => {

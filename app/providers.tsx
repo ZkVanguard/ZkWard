@@ -8,9 +8,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider as CustomThemeProvider } from '../contexts/ThemeContext';
 
 // Light-weight providers used across every route (marketing + app).
-// Wallet-heavy providers (WdkProvider, SuiWalletProviders — ~800 KB of
-// @mysten SDKs + ethers) live in app/wallet-providers.tsx and only
-// wrap /dashboard/**. See dashboard/layout.tsx.
+// Wallet-heavy providers (SuiWalletProviders — ~800 KB of @mysten SDKs)
+// live in app/wallet-providers.tsx and only wrap /dashboard/**.
+// See dashboard/layout.tsx.
 
 function makeQueryClient() {
   return new QueryClient({

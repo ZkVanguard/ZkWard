@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { useSignMessage } from '../wdk/wdk-hooks';
+import { useSignMessage } from '@/lib/evm-wallet/hooks';
 
 /**
  * Session-cached wallet-signed auth headers for auth-guarded API routes

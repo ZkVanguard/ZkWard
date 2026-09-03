@@ -20,6 +20,10 @@ export interface AlertEntry {
   level: AlertLevel;
   message: string;
   category?: string;
+  // Chain that emitted the alert. Undefined = legacy SUI (backfill-safe).
+  // Rule 1 (SHRINK_SPOT via 3 KILLs) filters on this so a future Hedera /
+  // Sepolia cron KILL cannot halt the SUI pool by cross-contamination.
+  chain?: string;
 }
 
 export type AutoResponseType =
@@ -50,8 +54,12 @@ export async function evaluateAutoResponse(input: EvaluateInput): Promise<AutoRe
   const responses: AutoResponse[] = [];
 
   // Rule 1: ≥3 KILL alerts in last 60 min → SHRINK_SPOT
+  // SUI-scoped: entries with chain === undefined are legacy SUI alerts,
+  // entries with chain !== 'sui' are cross-chain and MUST NOT halt SUI.
   const hourAgo = now - 60 * 60 * 1000;
-  const recentKills = input.alertLog.filter((a) => a.level === 'KILL' && a.at >= hourAgo);
+  const recentKills = input.alertLog.filter(
+    (a) => a.level === 'KILL' && a.at >= hourAgo && (a.chain ?? 'sui') === 'sui',
+  );
   if (recentKills.length >= 3) {
     responses.push({
       type: 'SHRINK_SPOT',

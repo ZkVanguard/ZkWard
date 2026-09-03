@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { logger } from '@/lib/utils/logger';
 import { X, Loader2, CheckCircle, AlertCircle, ArrowDownToLine, ExternalLink } from 'lucide-react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient, useChainId } from '@/lib/wdk/wdk-hooks';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient, useChainId } from '@/lib/evm-wallet/hooks';
 import { parseUnits, formatUnits } from 'viem';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { RWA_MANAGER_ABI } from '../../lib/contracts/abis';
