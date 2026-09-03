@@ -26,14 +26,14 @@ import {
   useReadContract,
   useSwitchChain,
   useSignTypedData,
-} from '@/lib/wdk/wdk-hooks';
-import { useSmartAccount } from '@/lib/wdk/useSmartAccount';
+} from '@/lib/evm-wallet/hooks';
+import { useSmartAccount } from '@/lib/evm-wallet/smart-account';
 import { parseUnits, formatUnits } from 'viem';
 import { ethers } from 'ethers';
 import { logger } from '@/lib/utils/logger';
 import { usePolling } from '@/lib/hooks';
 import { useSuiSafe } from '@/app/sui-providers';
-import { useWdkSafe } from '@/lib/wdk/wdk-context';
+import { useWdkSafe } from '@/lib/evm-wallet/context';
 import {
   POOL_CHAIN_CONFIGS,
   getCommunityPoolAddress,

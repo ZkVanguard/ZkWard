@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
-import { useAccount, useBalance } from '@/lib/wdk/wdk-hooks';
+import { useAccount, useBalance } from '@/lib/evm-wallet/hooks';
 import {
   Bot,
   Shield,

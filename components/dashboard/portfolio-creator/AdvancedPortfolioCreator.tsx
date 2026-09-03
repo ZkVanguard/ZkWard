@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSignMessage } from '@/lib/wdk/wdk-hooks';
+import { useSignMessage } from '@/lib/evm-wallet/hooks';
 import { useWallet } from '@/lib/hooks/useWallet';
 import { useCreatePortfolio } from '../../../lib/contracts/hooks';
 import { useRWAManager } from '../../../lib/contracts/suiHooks';

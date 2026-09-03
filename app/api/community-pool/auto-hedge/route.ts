@@ -14,7 +14,7 @@ import { logger } from '@/lib/utils/logger';
 import {
   COMMUNITY_POOL_PORTFOLIO_ID,
   COMMUNITY_POOL_ADDRESS,
-  SUI_COMMUNITY_POOL_PORTFOLIO_ID,
+  chainToPortfolioId,
 } from '@/lib/constants';
 import { getAutoHedgeConfig, saveAutoHedgeConfig } from '@/lib/storage/auto-hedge-storage';
 import { getActiveHedges } from '@/lib/db/hedges';
@@ -315,7 +315,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const chain = request.nextUrl.searchParams.get('chain') || 'cronos';
   const isSui = chain === 'sui';
-  const portfolioId = isSui ? SUI_COMMUNITY_POOL_PORTFOLIO_ID : COMMUNITY_POOL_PORTFOLIO_ID;
+  const portfolioId = chainToPortfolioId(chain);
 
   // Return cached if fresh (prevents expensive re-assessment)
   const autoHedgeCache = autoHedgeCacheByChain.get(chain);

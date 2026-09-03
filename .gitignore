@@ -323,11 +323,6 @@ storybook-static/
 .sentryclirc
 
 # -------------------------------------------
-# External vendored sources (built locally, not committed)
-# -------------------------------------------
-external/wdk-wallet-evm/
-
-# -------------------------------------------
 # Large Media Files (keep locally, don't commit)
 # -------------------------------------------
 *.mp4

@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useChainId } from '@/lib/wdk/wdk-hooks';
+import { useChainId } from '@/lib/evm-wallet/hooks';
 import { useMemo } from 'react';
 
 // ============================================

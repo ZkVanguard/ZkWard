@@ -20,8 +20,6 @@ import {
 } from '@mysten/dapp-kit';
 import type { WalletAccount, WalletWithRequiredFeatures } from '@mysten/wallet-standard';
 import { useSuiSafe } from '@/app/sui-providers';
-import { useWdkSafe, useWdkAccountSafe } from '@/lib/wdk/wdk-context';
-import { WDK_CHAINS } from '@/lib/config/wdk';
 import {
   SUI_MOBILE_WALLETS,
   isMobileBrowser,
@@ -91,15 +89,6 @@ export function ConnectButton() {
     }
   }, [mounted, showMobileWallets]);
 
-  // WDK wallet hooks — SAFE variants so the button can render on any
-  // route (including outside WdkProvider). Previously threw on the
-  // Navbar-rendered ConnectButton on `/dashboard` because Navbar sits
-  // above DashboardLayout's <WalletProviders> in the layout tree.
-  const wdkCtx = useWdkSafe();
-  const wdkDisconnect = wdkCtx?.disconnect ?? (() => {});
-  const { address: wdkAddress, isConnected: wdkIsConnected, chainKey } = useWdkAccountSafe();
-  const currentChain = chainKey ? WDK_CHAINS[chainKey] : null;
-
   // Sui wallet hooks
   const {
     wallets,
@@ -161,9 +150,8 @@ export function ConnectButton() {
   }, []);
 
   // Wait for client mount to avoid hydration mismatch
-  const showWdk = mounted && wdkIsConnected && wdkAddress;
-  const showSui = mounted && !showWdk && isSuiConnected;
-  const showConnect = !showWdk && !showSui;
+  const showSui = mounted && isSuiConnected;
+  const showConnect = !showSui;
 
   return (
     <div className="relative">
@@ -336,81 +324,6 @@ export function ConnectButton() {
             <Wallet className="w-4 h-4" />
             <span>{isConnectingSui ? 'Connecting…' : 'Connect'}</span>
           </button>
-        </div>
-      )}
-
-      {/* WDK Connected */}
-      {showWdk && wdkAddress && (
-        <div className="relative">
-          <button
-            onClick={() => setShowSelector(!showSelector)}
-            className="h-11 bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] border border-black/5 dark:border-white/10 rounded-[12px] transition-colors flex items-center gap-2 px-3"
-          >
-            <div className="w-6 h-6 rounded-full bg-[#26A17B] flex items-center justify-center">
-              <span className="text-white font-bold text-[7px]">WDK</span>
-            </div>
-            <span className="text-label-primary dark:text-white font-medium text-[14px]">
-              {truncate(wdkAddress)}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-label-tertiary" />
-          </button>
-
-          {showSelector && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowSelector(false)} />
-              <div className="absolute top-full mt-2 right-0 w-56 bg-white dark:bg-[#1c1c1e] border border-[#E5E5EA] dark:border-[#38383a] rounded-xl shadow-lg overflow-hidden z-50">
-                <div className="p-3">
-                  <div className="flex items-center gap-2.5 mb-3">
-                    <div className="w-9 h-9 rounded-full bg-[#26A17B] flex items-center justify-center">
-                      <span className="text-white font-bold text-[9px]">WDK</span>
-                    </div>
-                    <div>
-                      <div className="font-medium text-label-primary dark:text-white text-[14px]">
-                        {currentChain?.name || 'WDK Wallet'}
-                      </div>
-                      <div className="text-[12px] text-label-tertiary font-mono">
-                        {truncate(wdkAddress)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      onClick={() => copyAddress(wdkAddress)}
-                      className="flex-1 py-1.5 bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] rounded-lg text-[12px] font-medium text-label-primary dark:text-white flex items-center justify-center gap-1 transition-colors"
-                    >
-                      {copied ? (
-                        <Check className="w-3.5 h-3.5 text-[#34C759]" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                      {copied ? 'Copied' : 'Copy'}
-                    </button>
-                    <a
-                      href={`${currentChain?.explorerUrl || 'https://explorer.cronos.org'}/address/${wdkAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-1.5 bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] rounded-lg text-[12px] font-medium text-label-primary dark:text-white flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Explorer
-                    </a>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      wdkDisconnect();
-                      setShowSelector(false);
-                    }}
-                    className="w-full py-2 text-[#FF3B30] hover:bg-[#FF3B30]/5 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    Disconnect
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
         </div>
       )}
 

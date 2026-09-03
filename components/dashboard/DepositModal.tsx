@@ -3,13 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { logger } from '@/lib/utils/logger';
 import { X, Loader2, CheckCircle, AlertCircle, ExternalLink, Coins } from 'lucide-react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient, useBalance, useChainId } from '@/lib/wdk/wdk-hooks';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient, useBalance, useChainId } from '@/lib/evm-wallet/hooks';
 import { parseUnits, formatUnits, parseEther } from 'viem';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { RWA_MANAGER_ABI } from '../../lib/contracts/abis';
 import { trackSuccessfulTransaction } from '@/lib/utils/transactionTracker';
 import { EXPLORER_URLS } from '@/lib/hooks/useNetwork';
-import { getUSDTAddress, getChainConfig, USDT_METADATA } from '../../lib/config/wdk';
+import { getUSDTAddress, getChainConfig, USDT_METADATA } from '@/lib/evm-wallet/chains';
 
 // WCRO contract address for wrapping native CRO
 const WCRO_ADDRESS = '0x6a3173618859C7cd40fAF6921b5E9eB6A76f1fD4' as `0x${string}`;

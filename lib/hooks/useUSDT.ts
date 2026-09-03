@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAccount, usePublicClient, useChainId, useWriteContract, useWaitForTransactionReceipt } from '@/lib/wdk/wdk-hooks';
+import { useAccount, usePublicClient, useChainId, useWriteContract, useWaitForTransactionReceipt } from '@/lib/evm-wallet/hooks';
 import { parseUnits, formatUnits } from 'viem';
-import { getUSDTAddress, getChainConfig, USDT_METADATA, WDK_SUPPORTED_CHAINS } from '../config/wdk';
+import { getUSDTAddress, getChainConfig, USDT_METADATA, WDK_SUPPORTED_CHAINS } from '@/lib/evm-wallet/chains';
 
 // ============================================
 // Types
