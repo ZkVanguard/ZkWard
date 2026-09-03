@@ -6,15 +6,19 @@
  * This test fails on that reintroduction.
  */
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { getSafeExecutionGuard } from '@/agents/core/SafeExecutionGuard';
+// Import the class, not the `getSafeExecutionGuard` getter. Another
+// test file (agent-trade-guard-decisions.test.ts) module-mocks the
+// getter with a stub missing resetState — bun runs tests in one
+// process and that mock can bleed into ours if we use the getter.
+import { SafeExecutionGuard } from '@/agents/core/SafeExecutionGuard';
 
 describe('SafeExecutionGuard — per-chain daily volume', () => {
   beforeEach(() => {
-    getSafeExecutionGuard().resetState();
+    SafeExecutionGuard.getInstance().resetState();
   });
 
   it('tracks volume in independent chain buckets', () => {
-    const guard = getSafeExecutionGuard();
+    const guard = SafeExecutionGuard.getInstance();
     guard.addVolume(1_000_000, 'sui');
     guard.addVolume(2_000_000, 'hedera');
     guard.addVolume(500_000, 'sepolia');
@@ -28,7 +32,7 @@ describe('SafeExecutionGuard — per-chain daily volume', () => {
   });
 
   it('caps EACH chain independently — Hedera filling its cap does not block SUI', async () => {
-    const guard = getSafeExecutionGuard();
+    const guard = SafeExecutionGuard.getInstance();
     const cap = guard.getStatus().limits.maxDailyVolumeUSD;
     guard.addVolume(cap, 'hedera');
 
@@ -55,7 +59,7 @@ describe('SafeExecutionGuard — per-chain daily volume', () => {
   });
 
   it('legacy calls without chain charge the shared default bucket, leave named chains alone', () => {
-    const guard = getSafeExecutionGuard();
+    const guard = SafeExecutionGuard.getInstance();
     guard.addVolume(5_000_000); // no chain — legacy SUI-only caller
     guard.addVolume(1_000_000, 'hedera');
 
