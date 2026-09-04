@@ -79,6 +79,7 @@
     "test",
     "scripts",
     "archive",
+    "subgraph",
     "test-e2e-ai-pipeline.ts",
     "test-ai-intelligence.ts"
   ]

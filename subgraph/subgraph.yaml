@@ -1,0 +1,59 @@
+specVersion: 1.0.0
+description: >
+  ZkWard Standardized Vault subgraph — proposed standard for AI-managed
+  vaults. Indexes CommunityPool.sol events (deposits, withdrawals,
+  rebalances with AI-reason-hash pointers, hedge lifecycle, fee events)
+  into a schema designed to work across every AI vault protocol on
+  every chain.
+repository: https://github.com/ZkVanguard/zkward-ethglobal
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: CommunityPool
+    network: sepolia
+    source:
+      # Sepolia deployment — see deployments/community-pool-sepolia.json
+      address: "0x07d68C2828F35327d12a7Ba796cCF3f12F8A1086"
+      abi: CommunityPool
+      # Block the proxy was deployed at. Backfill from here to head.
+      # (Update this to the actual deploy block; using placeholder now.)
+      startBlock: 5700000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/community-pool.ts
+      entities:
+        - Pool
+        - NavSnapshot
+        - PoolAllocation
+        - Rebalance
+        - RebalanceTrade
+        - Hedge
+        - Transaction
+        - Member
+      abis:
+        - name: CommunityPool
+          file: ./abis/CommunityPool.json
+      eventHandlers:
+        - event: Deposited(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleDeposited
+        - event: Withdrawn(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleWithdrawn
+        - event: Rebalanced(indexed address,uint256[4],uint256[4],bytes32,uint256)
+          handler: handleRebalanced
+        - event: RebalanceTradeExecuted(indexed uint8,uint256,uint256,bool,uint256)
+          handler: handleRebalanceTradeExecuted
+        - event: AllocationUpdated(indexed uint8,uint256,uint256)
+          handler: handleAllocationUpdated
+        - event: PoolHedgeOpened(indexed bytes32,uint8,uint256,uint256,bool,bytes32)
+          handler: handlePoolHedgeOpened
+        - event: PoolHedgeClosed(indexed bytes32,int256,bytes32)
+          handler: handlePoolHedgeClosed
+        - event: FeesCollected(uint256,uint256,uint256)
+          handler: handleFeesCollected
+        - event: FeesWithdrawn(indexed address,uint256,uint256)
+          handler: handleFeesWithdrawn
+        - event: MemberJoined(indexed address,uint256)
+          handler: handleMemberJoined

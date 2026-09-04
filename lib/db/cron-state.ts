@@ -17,6 +17,23 @@
 
 import { query, queryOne } from './postgres';
 import { logger } from '@/lib/utils/logger';
+import { envFlag } from '@/lib/utils/env-flag';
+import * as redisImpl from './cron-state-redis';
+
+// ─── Backend routing ───────────────────────────────────────────────────────
+// Migration flags (Aiven → Upstash Redis for cron_state / halt keys / heartbeats):
+//   CRON_STATE_REDIS_WRITE=1  → every write goes to both Postgres AND Redis
+//   CRON_STATE_REDIS_READ=1   → reads come from Redis; Postgres is dual-written but not read
+// Both default OFF so existing behavior is preserved. Flip WRITE first (safe —
+// just extra writes), verify parity via test suite, then flip READ. Once both
+// are green in prod, we can retire Postgres (Phase 5 of HACKATHON_TODO.md).
+
+function shouldDualWriteRedis(): boolean {
+  return envFlag('CRON_STATE_REDIS_WRITE');
+}
+function shouldReadFromRedis(): boolean {
+  return envFlag('CRON_STATE_REDIS_READ');
+}
 
 // ─── Table Setup ─────────────────────────────────────────────────────────────
 
@@ -48,6 +65,7 @@ async function ensureTable(): Promise<void> {
  * Returns null if key doesn't exist or DB is unavailable.
  */
 export async function getCronState<T = unknown>(key: string): Promise<T | null> {
+  if (shouldReadFromRedis()) return redisImpl.getCronState<T>(key);
   try {
     await ensureTable();
     const row = await queryOne<{ value: T }>(
@@ -73,16 +91,25 @@ export async function getCronStateOr<T>(key: string, defaultValue: T): Promise<T
  * Set (upsert) a value in the cron state store.
  */
 export async function setCronState<T = unknown>(key: string, value: T): Promise<void> {
+  // Dual-write: fire Redis first (fast, network); Postgres in parallel so a
+  // Redis blip doesn't slow the hot path. Both use try/catch so neither
+  // failure breaks the caller.
+  const redisWrite = shouldDualWriteRedis() ? redisImpl.setCronState(key, value) : Promise.resolve();
   try {
     await ensureTable();
-    await query(
-      `INSERT INTO cron_state (key, value, updated_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
-      [key, JSON.stringify(value)],
-    );
+    await Promise.all([
+      query(
+        `INSERT INTO cron_state (key, value, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, JSON.stringify(value)],
+      ),
+      redisWrite,
+    ]);
   } catch (error: any) {
     logger.warn(`[CronState] Failed to set "${key}":`, { error: error?.message });
+    // Redis write is fire-and-forget past this point (its own try/catch).
+    await redisWrite.catch(() => {});
   }
 }
 
@@ -90,11 +117,13 @@ export async function setCronState<T = unknown>(key: string, value: T): Promise<
  * Delete a key from the cron state store.
  */
 export async function deleteCronState(key: string): Promise<void> {
+  const redisDel = shouldDualWriteRedis() ? redisImpl.deleteCronState(key) : Promise.resolve();
   try {
     await ensureTable();
-    await query('DELETE FROM cron_state WHERE key = $1', [key]);
+    await Promise.all([query('DELETE FROM cron_state WHERE key = $1', [key]), redisDel]);
   } catch (error: any) {
     logger.warn(`[CronState] Failed to delete "${key}":`, { error: error?.message });
+    await redisDel.catch(() => {});
   }
 }
 
@@ -103,6 +132,7 @@ export async function deleteCronState(key: string): Promise<void> {
  * Returns a Map of key → value.
  */
 export async function getCronStateByPrefix<T = unknown>(prefix: string): Promise<Map<string, T>> {
+  if (shouldReadFromRedis()) return redisImpl.getCronStateByPrefix<T>(prefix);
   const result = new Map<string, T>();
   try {
     await ensureTable();
@@ -190,6 +220,10 @@ export async function tryClaimCronRun(
   minIntervalMs: number,
   now: number = Date.now(),
 ): Promise<{ claimed: boolean; lastRunMs: number; reason?: string }> {
+  // When Redis is the primary read backend, delegate the claim so both
+  // read AND CAS live on the same store — mixing backends here would
+  // race on hot cron intervals.
+  if (shouldReadFromRedis()) return redisImpl.tryClaimCronRun(cronId, minIntervalMs, now);
   const key = CronKeys.cronLastRun(cronId);
   try {
     await ensureTable();

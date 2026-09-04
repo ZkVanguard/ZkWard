@@ -1,19 +1,17 @@
-# ETHGlobal Online — Hackathon TODO
+# ETHGlobal Online — Hackathon Execution Plan
 
 **Repo:** `ZkVanguard/zkward-ethglobal` (canonical production repo since 2026-09-04)
 **Tracks:** 3 partners max — The Graph · Hedera · Privy
 **Addressable prize pool:** ~$18,000
 **Pool eligibility:** every submission is **Continuity** (live product on Sui mainnet since 2026-06-12, v0.4.0)
 
-See `docs/HACKATHON_STRATEGY.md` for the analysis behind these three picks and why the others were skipped.
-
 ---
 
 ## Coherent story (memorize for demos)
 
-> "Multi-chain AI-managed stablecoin pool where agents allocate capital autonomously across chains, discover on-chain state via The Graph, pay for their own inference on Hedera x402, and give users + admins first-class custody via Privy."
+> "Multi-chain AI-managed vault where seven agents allocate capital autonomously across chains, discover on-chain state through a **new Standardized Subgraph schema for AI-managed vaults** we're proposing, pay for their own signal-quality inference on **Hedera x402** with HCS-14 identity, and expose institutional admin controls (**Privy** org wallet + quorum) plus one-tap user deposits (**Privy** embedded wallet) to the humans in the loop."
 
-Each partner is load-bearing, not a token integration. Each demo video opens with 15 seconds on the pre-existing v0.4.0 mainnet product, then focuses on the new hackathon work.
+Every demo video opens with 15s on the pre-existing v0.4.0 mainnet product, then focuses on the new hackathon work.
 
 ---
 
@@ -34,11 +32,24 @@ Every Continuity README must clearly separate this baseline from event work.
 
 ---
 
-## Priority 1 — The Graph ($10K addressable) — full Aiven retirement
+## Priority 1 — The Graph ($10K addressable)
 
-**Why first:** we're **retiring Aiven Postgres entirely**, not just relieving pressure. All indexable state moves to The Graph; residual key-value state (cron heartbeats, halt keys, alert ring buffer, autohedge configs) moves to Upstash Redis (already in the stack for QStash). Zero Postgres after this. Would build this regardless of the prize. Two prize tracks addressable from one build.
+### Winning angle (what actually beats other submissions)
 
-### Data plane after migration
+The Composable/Standardized track is judged on **"leverage of standards: one query pattern spanning many protocols, or one pipeline reused across chains."** Most teams will submit a subgraph for ONE protocol on ONE chain. Winning move:
+
+**Publish a proposed Standardized Subgraph schema for AI-managed vaults, deploy it across three chains, and contribute a reusable Substreams module.**
+
+No such standard exists today. Messari's Standardized Subgraphs cover DEXs, lending, yield aggregators — not AI-managed vaults. We define the schema (following the Messari conventions), deploy for our pool on Cronos/Hedera/Sepolia, publish the Substreams module for `CommunityPool.sol` on GitHub. That's category-creating standards work, not usage.
+
+For the AI Continuity track, the killer angle is a **live 7-agent orchestrator using Subgraph MCP for decision-making** — not just querying, but reasoning over the returned data to size positions.
+
+### Prize tracks
+
+- [ ] **Composable/Standardized Graph Products** — $5K pool (1st $2.5K · 2nd $1.5K · 3rd $1K)
+- [ ] **AI Tooling / AI Use Case (Continuity)** — $5K pool (1st $2.5K · 2nd $1.5K · 3rd $1K)
+
+### Data plane after migration (Aiven retired)
 
 | Data | Old (Aiven) | New | Why |
 |---|---|---|---|
@@ -47,52 +58,52 @@ Every Continuity README must clearly separate this baseline from event work.
 | Pool state + allocations | `community_pool_state` | Subgraph (latest state per chain) | On-chain |
 | Deposit / withdraw history | `community_pool_transactions` | Subgraph indexes pool events | On-chain |
 | Cron heartbeats (`cron:lastRun:*`) | `cron_state` table | Upstash Redis KV | Not on-chain; 15-min TTL fine |
-| Halt keys (`cron:haltUntil:*`) | `cron_state` table | Upstash Redis KV + on-chain admin flags in pool contract (Subgraph indexes) | Redis for fast cron read; on-chain as source of truth |
-| Alert ring buffer | `cron_state` key | Upstash Redis LIST (native trim) | Actually a better fit than Postgres |
-| Autohedge configs | `autohedge_configs` | Upstash Redis KV + on-chain pool config | Mutable user config |
-| Agent decisions log | `agent_decisions` | Upstash Redis LIST (TTL 30d) | Audit trail, not queryable |
+| Halt keys (`cron:haltUntil:*`) | `cron_state` table | Upstash Redis KV | Redis for fast cron read; contract-level halts are v0.5.0 |
+| Alert ring buffer | `cron_state` key | Upstash Redis LIST (native LPUSH + LTRIM) | Better fit than Postgres |
+| Autohedge configs | `autohedge_configs` | Upstash Redis KV | Mutable user config |
+| Agent decisions log | `agent_decisions` | Upstash Redis LIST (TTL 30d) | Audit trail |
 | Signal outcomes | `signal_outcomes` | Upstash Redis LIST (TTL 30d) | Same |
 
 **Result:** Aiven Postgres retired. Reads flow through The Graph. Writes flow through on-chain contracts (indexed by Subgraph) + Upstash Redis for the residual off-chain metadata. Substreams push obviates the polling crons that were the biggest Aiven consumers.
 
-### Prize tracks
-
-- [ ] **Composable/Standardized Graph Products** — $5K pool (1st $2.5K · 2nd $1.5K · 3rd $1K)
-- [ ] **AI Tooling / AI Use Case (Continuity)** — $5K pool (1st $2.5K · 2nd $1.5K · 3rd $1K)
-
 ### Build checklist
 
-**Phase 1 — spike & Redis groundwork (2 days)**
-- [ ] Deploy Sepolia `CommunityPool.sol` subgraph via Subgraph Studio (standardized ERC-4626-style schema from day one)
-- [ ] Add `HedgeOpened` / `HedgeClosed` / `NavSnapshot` events to `CommunityPool.sol` + `HedgeExecutor.sol` if missing
-- [ ] Rewrite `/api/platform/nav-history` to hit the subgraph behind `AIVEN_DISABLE` env flag (start with one endpoint)
-- [ ] Set up Upstash Redis client for `cron_state` writes (`lib/db/cron-state-redis.ts`) with the same interface as current Postgres impl
-- [ ] Dual-write cron_state to both Aiven and Redis during migration window
+**Phase 1 — Redis client + subgraph scaffold (Day 1-2)**
+- [ ] `lib/db/cron-state-redis.ts` — Redis-backed implementation matching the current Postgres `cron-state.ts` interface (getCronState, setCronState, tryClaimCronRun with Redis WATCH/MULTI CAS, setCronHalt/getCronHalt)
+- [ ] Dual-write wrapper in `lib/db/cron-state.ts` — `CRON_STATE_REDIS_WRITE=1` writes to both, `CRON_STATE_REDIS_READ=1` reads from Redis
+- [ ] Unit test asserting Redis + Postgres return identical values for the full API surface
+- [ ] `subgraph/` directory with `schema.graphql` (Messari-style ERC-4626-inspired vault schema), `subgraph.yaml` for Sepolia deployment
+- [ ] Add `NavSnapshot`, `HedgeOpened`, `HedgeClosed` events to `CommunityPool.sol` + `HedgeExecutor.sol` if missing (contract diff, ready to deploy)
 
-**Phase 2 — extend subgraph coverage + Redis cutover (3 days)**
-- [ ] Extend subgraph to cover hedges, transactions, allocations, per-user positions
-- [ ] Migrate `/api/community-pool/*` and dashboard reads to subgraph
-- [ ] Cut cron_state reads from Redis (writes still dual-writing)
-- [ ] Move alert ring buffer to Redis LIST (native LPUSH + LTRIM instead of read-modify-write)
+**Phase 2 — deploy subgraph, migrate one endpoint (Day 3)**
+- [ ] Deploy Sepolia `CommunityPool.sol` subgraph via Subgraph Studio (real API key)
+- [ ] Rewrite `/api/platform/nav-history` to hit Subgraph behind `SUBGRAPH_READS_ENABLED` env flag
+- [ ] Vercel preview measures Aiven conn-count drop for the demo
+
+**Phase 3 — extend coverage + Redis cutover (Day 4-5)**
+- [ ] Extend subgraph to cover hedges, transactions, per-user positions
+- [ ] Migrate `/api/community-pool/*` and dashboard reads to Subgraph
+- [ ] Flip cron_state reads to Redis (writes still dual-writing)
+- [ ] Move alert ring buffer to Redis LIST (LPUSH + LTRIM instead of JSONB read-modify-write)
 - [ ] Move autohedge configs + agent_decisions + signal_outcomes to Redis
-- [ ] Health endpoint (`/api/health/production`) hits Subgraph + Redis only
 
-**Phase 3 — Substreams push replaces polling crons (2 days)**
-- [ ] Package `CommunityPool.sol` events as a reusable Substreams module (matches the "composable Substreams module" prize criterion)
-- [ ] Publish on the Substreams registry
+**Phase 4 — Substreams module + MCP wiring (Day 6-7)**
+- [ ] Package `CommunityPool.sol` events as a reusable Substreams module (`substreams/community-pool/`)
+- [ ] Publish on the Substreams registry (matches "composable Substreams module for an emerging standard" prize wording)
 - [ ] Replace `pool-nav-monitor` cron with Substreams push → dashboard SSE
-- [ ] Consider replacing `bluefin-db-reconcile` polling with venue webhooks + Substreams
+- [ ] Add Subgraph MCP as a tool in the 7-agent orchestrator (`agents/mcp-tools/subgraph.ts`)
+- [ ] Replace direct `getActiveHedges()` DB reads in agents with MCP tool calls
 
-**Phase 4 — Subgraph MCP wired into agents + Aiven kill (2 days)**
-- [ ] Add Subgraph MCP as a tool in the 7-agent orchestrator
-- [ ] Replace direct `getActiveHedges()` DB reads with MCP tool calls
-- [ ] Flip `AIVEN_DISABLE=1` — every read must route to Subgraph or Redis
+**Phase 5 — Aiven kill (Day 8)**
+- [ ] Flip `AIVEN_DISABLE=1` — every read routes to Subgraph or Redis
 - [ ] Delete `lib/db/postgres.ts` + Aiven env vars from Vercel
-- [ ] Optional stretch: x402-paid queries when agent needs bulk historical data
+- [ ] Remove `pg` + `pg-pool` from package.json
+- [ ] Update `test/integration/pool-drawdown-defense.test.ts` to use Redis + Subgraph fixtures
+- [ ] Confirm bulletproof-drawdown test 10/10 green with new backing
 
 ### Qualification proof (per official rules)
 
-- [ ] Public repo (this one) with README linking to hackathon README section
+- [ ] Public repo (this one) with README linking to hackathon story
 - [ ] Consume live data from Subgraph Studio (real API key, not mocked)
 - [ ] Compose ≥ 2 Graph products (Subgraphs + Substreams + MCP)
 - [ ] Standards leverage clear — one query pattern spans Cronos/Hedera/Sepolia pools
@@ -101,9 +112,17 @@ Every Continuity README must clearly separate this baseline from event work.
 
 ---
 
-## Priority 2 — Hedera ($3K addressable)
+## Priority 2 — Hedera ($3K addressable, up to $2K per team on the AI track)
 
-**Why:** we already have `hedera-community-pool` cron scaffolded, `CommunityPool.sol` is EVM-compatible via Hashio, portfolio ID -3 reserved. Deployment path is 90% done.
+### Winning angle
+
+The $6K AI & Agentic Payments track pays "up to 3 teams × $2K." Rules list explicit **extra points**: pay-per-call metering (not flat), A2A multi-agent negotiation, ERC-8004 / HCS-14 agent identity, HTS tokens, HCS audit trails, Scheduled Transactions.
+
+Most teams will submit a single agent that pays for one endpoint via x402. Winning move:
+
+**Multi-agent x402 payment negotiation where each of our 7 agents has an HCS-14 identity, they A2A-negotiate over signal-quality inference cost, budget across providers, and every fill lands on HCS as an auditable trail.**
+
+Nearly every "extra points" checkbox lit. Uses our existing 7-agent system as the "already impressive" baseline; agent-payment as the new work.
 
 ### Prize tracks
 
@@ -112,35 +131,46 @@ Every Continuity README must clearly separate this baseline from event work.
 
 ### Build checklist
 
-**Live Hedera pool (2 days)**
+**Live Hedera pool (Day 3-4, parallel with Graph Phase 3)**
 - [ ] Deploy `CommunityPool.sol` to Hedera testnet via Hashio
-- [ ] Wire hedera-community-pool cron end-to-end (already scaffolded)
+- [ ] Wire hedera-community-pool cron end-to-end (already scaffolded, portfolio ID -3 reserved)
 - [ ] First live deposit → AI allocation → NAV snapshot on Hedera
-- [ ] Add `HEDERA_AUTO_HEDGE_DISABLE` env kill switch (helper already exists — `isChainAutoHedgeDisabled('hedera')`)
+- [ ] Confirm `HEDERA_AUTO_HEDGE_DISABLE` env kill switch working (helper `isChainAutoHedgeDisabled('hedera')` already exists in `lib/utils/chain-halt.ts`)
 
-**x402-gated inference (2 days)**
-- [ ] Stand up an x402-gated signal-quality endpoint (wraps our existing predictions service) on Hedera testnet via Blocky402
-- [ ] Modify `polymarket-edge-trader` to pay per-call in HBAR/USDC for signal quality checks
-- [ ] Budget across providers (fall back to free tier when x402 balance is low)
+**x402-gated inference marketplace (Day 5-6)**
+- [ ] Stand up an x402-gated signal-quality endpoint (wraps our existing predictions service) on Hedera testnet via Blocky402 facilitator
+- [ ] `polymarket-edge-trader` pays per-call in HBAR/USDC for signal-quality checks
+- [ ] Multi-provider budget logic — trader picks cheapest quality-passing provider (uses SafeExecutionGuard per-chain volume buckets from PR #99)
+- [ ] Fall back to free tier when x402 balance is low
 - [ ] Log every fill on HCS for auditable payment trail
 
-**Bonus-points signals (1 day, if time)**
-- [ ] Agent identity via HCS-14 or ERC-8004
-- [ ] Multi-agent A2A negotiation for signal-quality vs cost tradeoff
+**Extra-points harvest (Day 7)**
+- [ ] Register each of 7 agents with HCS-14 identity
+- [ ] A2A negotiation between analyst-agent (proposes cost budget) and executor-agent (picks provider that fits budget)
+- [ ] Optional: HTS token for internal agent credits
+- [ ] Optional: Scheduled Transactions for recurring signal subscriptions
 
 ### Qualification proof
 
 - [ ] x402-gated service live on Hedera testnet, settled through Blocky402
 - [ ] Agent completes at least one real paid request end-to-end
-- [ ] README covers setup, architecture, payment flow
-- [ ] ≤5 min demo video showing the paid request executing
-- [ ] Continuity submission clearly separates pre-existing hedera-community-pool scaffold from new x402 + activation work
+- [ ] README covers setup, architecture, payment flow, agent identities
+- [ ] ≤5 min demo video showing the paid request executing + HCS audit trail
+- [ ] Continuity submission clearly separates pre-existing scaffold from new x402 + activation work
 
 ---
 
 ## Priority 3 — Privy ($5K addressable)
 
-**Why:** deleted WDK, left `lib/evm-wallet/hooks.ts` as a disconnected shim explicitly waiting for a universal EVM wallet. Privy IS that wallet. Prize + fills a real architectural gap.
+### Winning angle
+
+Two independent $2.5K tracks. B2B rewards "organization wallets, policies, team permissions, quorum approvals, intents." Financial-flow rewards "hide unnecessary onchain complexity from the user."
+
+Most teams will use Privy for a single embedded wallet. Winning move:
+
+**One integration serves BOTH tracks — org wallet with policies + quorum gates institutional admin ops (fee sweep, TVL cap raise, hedge reset), embedded wallet + funding tools power one-tap user deposits on Hedera.**
+
+Fills our real product gap (the WDK-removal shim), which reads as authenticity vs demo-ware.
 
 ### Prize tracks
 
@@ -149,29 +179,29 @@ Every Continuity README must clearly separate this baseline from event work.
 
 ### Build checklist
 
-**Wire Privy into the shim (2 days)**
+**Wire Privy into the shim (Day 8-9)**
 - [ ] Replace stub hooks in `lib/evm-wallet/hooks.ts` with Privy React hooks (useAccount, useWalletClient, useSignMessage, etc.)
 - [ ] Configure Privy for Sepolia, Cronos, Hedera chain IDs
 - [ ] Restore `lib/evm-wallet/context.ts` to bridge Privy state → existing `useWdkSafe` / `useWdkAccountSafe` API (kept for back-compat)
 - [ ] Wire Privy provider back into `app/wallet-providers.tsx`
 - [ ] Re-add EVM branch to `ConnectButton.tsx` (chain-family picker: SUI vs EVM)
 
-**B2B financial product — Privy organization wallet for admin (2 days)**
+**B2B — Privy organization wallet for admin (Day 10-11)**
 - [ ] Migrate pool AdminCap operations to a Privy org wallet
-- [ ] Admin actions (fee sweep, TVL cap raise, hedge reset) gated by policies + quorum
+- [ ] Admin actions (fee sweep, TVL cap raise, hedge reset, Aiven-kill flag flip) gated by policies + quorum (2-of-3 for most, 3-of-3 for cap raise)
 - [ ] Document what's still hot vs what's org-wallet-gated
 
-**Financial flow — user deposit UX (2 days)**
-- [ ] Embedded Privy wallet on Hedera/Sepolia for user deposits
+**Financial flow — user deposit UX (Day 11-12)**
+- [ ] Embedded Privy wallet on Hedera for user deposits (ties into Priority 2)
 - [ ] One signed intent: USDC approve + pool `deposit()`
 - [ ] Onramp integrated via Privy funding tools
-- [ ] Demo the flow end-to-end on Hedera testnet (ties into Priority 2)
+- [ ] Demo the flow end-to-end on Hedera testnet
 
 ### Qualification proof
 
 - [ ] Privy is a core part of the product, not a token integration
 - [ ] Uses at least one Privy wallet (embedded + org wallet = both)
-- [ ] B2B track: functional workflow with policies / quorum
+- [ ] B2B track: functional workflow with policies / quorum executing admin op
 - [ ] Financial flow track: complete deposit end-to-end via Privy
 - [ ] Working demo + public repo + explanation of how Privy enables the product
 
@@ -179,21 +209,41 @@ Every Continuity README must clearly separate this baseline from event work.
 
 ## Timeline (2-week hackathon window)
 
-**Week 1 — data + Hedera activation**
-- Day 1-2: The Graph Phase 1 (spike + measure Aiven relief)
-- Day 3-4: The Graph Phase 2 (standardized schema + coverage extension)
-- Day 5-7: Hedera pool activation + x402-gated inference
+**Week 1 — data plane + Hedera activation**
+- Day 1-2: Redis cron-state client + Subgraph scaffold (Graph Phase 1)
+- Day 3: Subgraph deployed on Sepolia, `/api/platform/nav-history` migrated (Graph Phase 2). Hedera pool contract deployed.
+- Day 4: Subgraph coverage extension. Hedera cron activation.
+- Day 5-6: Hedera x402 + agent consumer. Redis cutover for cron_state.
+- Day 7: Substreams module + MCP wiring. Extra-points Hedera work.
 
-**Week 2 — Privy + polish**
-- Day 8-9: Privy wiring (replace shim)
-- Day 10-11: Privy org wallet + embedded wallet flows
-- Day 12: The Graph Phase 3+4 (Substreams module + MCP tool)
-- Day 13: End-to-end demo path per partner, record 3 videos
-- Day 14: Submission polish, cross-linking, buffer for bugs
+**Week 2 — Privy + Aiven kill + polish**
+- Day 8: Aiven kill flip + fallout fixes.
+- Day 9-10: Privy shim replacement + org wallet.
+- Day 11-12: Privy user deposit flow on Hedera.
+- Day 13: End-to-end demo path per partner, record 3 videos.
+- Day 14: Submission polish, cross-linking READMEs, buffer for bugs.
 
 **Fallback plan:** if any partner slips, drop the weakest single track first (Hedera Continuity $1K, then Privy B2B $2.5K). Never ship a half-baked demo.
 
-**Honorable-mention bolt-on:** if week-2 buffer opens, drop in a Bazantic recipe combining our Hedera x402 endpoint with a Graph subgraph query — $500, ~1 afternoon.
+**Honorable-mention bolt-on:** if week-2 buffer opens, Bazantic recipe combining our Hedera x402 endpoint with a Graph subgraph query — $500, ~1 afternoon.
+
+---
+
+## Live progress tracker (updated as we ship)
+
+| Partner | Phase | Status | Notes |
+|---|---|---|---|
+| The Graph | 1 · Redis client + subgraph scaffold | 🟡 In progress | Redis singleton pattern exists in rate-limiter.ts |
+| The Graph | 2 · Deploy subgraph + first endpoint | ⬜ Not started | Sepolia via Subgraph Studio |
+| The Graph | 3 · Coverage extension + Redis cutover | ⬜ Not started | |
+| The Graph | 4 · Substreams module + MCP | ⬜ Not started | |
+| The Graph | 5 · Aiven kill | ⬜ Not started | Requires bulletproof test rewire |
+| Hedera | Pool live | ⬜ Not started | `HEDERA_AUTO_HEDGE_DISABLE` helper in place |
+| Hedera | x402 endpoint | ⬜ Not started | Blocky402 facilitator |
+| Hedera | Agent consumer + HCS-14 | ⬜ Not started | Multi-agent A2A budget negotiation |
+| Privy | Shim replaced | ⬜ Not started | `lib/evm-wallet/hooks.ts` swap |
+| Privy | Org wallet admin | ⬜ Not started | AdminCap ops with quorum |
+| Privy | Embedded user wallet | ⬜ Not started | Hedera deposit flow |
 
 ---
 
@@ -205,26 +255,9 @@ Every submission requires the same shape:
 - Track selection clearly stated (Continuity pool)
 - 2-5 min demo video (per each partner's time limit)
 - README section documenting pre-existing vs new work
-- FEEDBACK.md where required (The Graph, some others)
+- FEEDBACK.md where required (The Graph, others)
 - Architecture diagram
 - Live/deployed proof (subgraph URL, Hedera contract, Privy live app)
-
----
-
-## Live progress tracker (updated as we ship)
-
-| Partner | Phase | Status | Notes |
-|---|---|---|---|
-| The Graph | Phase 1 spike + Redis groundwork | ⬜ Not started | Sepolia subgraph + Redis cron_state client |
-| The Graph | Phase 2 coverage + Redis cutover | ⬜ Not started | Subgraph covers hedges/txs; Aiven reads gone |
-| The Graph | Phase 3 Substreams | ⬜ Not started | pool-nav-monitor → push |
-| The Graph | Phase 4 MCP + Aiven kill | ⬜ Not started | `AIVEN_DISABLE=1`, delete postgres.ts |
-| Hedera | Pool live | ⬜ Not started | `HEDERA_AUTO_HEDGE_DISABLE` helper already in place |
-| Hedera | x402 endpoint | ⬜ Not started | Blocky402 facilitator |
-| Hedera | Agent consumer | ⬜ Not started | Wire into `polymarket-edge-trader` |
-| Privy | Shim replaced | ⬜ Not started | `lib/evm-wallet/hooks.ts` swap |
-| Privy | Org wallet admin | ⬜ Not started | AdminCap ops |
-| Privy | Embedded user wallet | ⬜ Not started | Hedera deposit flow |
 
 ---
 
@@ -238,12 +271,13 @@ Non-negotiable "SUI stays safe" guardrails — everything below has been tested 
 - `test/integration/pool-drawdown-defense.test.ts` must stay 10/10 green as merge gate
 - Anything in `lib/db/hedges.ts` write path (reconciler is load-bearing) — new Subgraph coverage replaces READS only; hedge WRITES still route through the reconciler until proven safe
 
+If a hackathon build touches any of the above, stop and ask.
+
 ## Aiven → Redis + Graph migration safety rails
 
-- **Never delete `lib/db/postgres.ts` before Phase 4 flip.** Dual-write during migration; single-source only after full Subgraph coverage is proven.
+- **Never delete `lib/db/postgres.ts` before Phase 5 flip.** Dual-write during migration; single-source only after full Subgraph coverage is proven.
 - **`test/integration/pool-drawdown-defense.test.ts` uses live Aiven DB today** — during migration this test needs a version that hits Redis + Subgraph fixtures. Add before removing Aiven, not after.
 - **Redis TTLs matter.** `cron:lastRun:*` needs no TTL (heartbeat). Alert ring buffer = LTRIM to 200. Agent decisions = 30d TTL. Don't lose halt keys to TTL misconfig.
 - **Subgraph indexing lag (typ. 1-3 blocks).** Fine for dashboard, wrong for reconciler / fill verifier. Hot paths stay on venue-direct (BlueFin API) as they are today.
 - **On-chain halt flags need admin ops.** Adding `haltUntil` fields to `CommunityPool.sol` = new contract deploy. For hackathon window, keep halts in Redis; contract-level halts are v0.5.0 material.
-
-If a hackathon build touches any of the above, stop and ask.
+- **Redis CAS for `tryClaimCronRun`.** Postgres has native atomic CAS via `UPDATE ... WHERE value = $prev`. Redis needs WATCH/MULTI/EXEC transaction. Get this right or you'll fire duplicate hedges under load.
