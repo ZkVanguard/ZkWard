@@ -20,6 +20,10 @@ import { ethers } from 'ethers';
 import { logger } from '@/lib/utils/logger';
 import { safeErrorResponse } from '@/lib/security/safe-error';
 import { verifyCronRequest } from '@/lib/qstash';
+import { tryClaimCronRun, setCronState, getCronHalt } from '@/lib/db/cron-state';
+import { isChainAutoHedgeDisabled } from '@/lib/utils/chain-halt';
+import { notifyDiscord } from '@/lib/utils/discord-notify';
+import { HEDERA_COMMUNITY_POOL_PORTFOLIO_ID, chainToPortfolioId } from '@/lib/constants';
 import { errMsg } from '@/lib/utils/error-handler';
 import {
   initCommunityPoolTables,
@@ -162,10 +166,12 @@ function generateAllocation(
 // CRON HANDLER
 // ============================================
 
+const CRON_KEY = 'hedera-community-pool';
+const TICK_INTERVAL_MS = 25 * 60 * 1000; // 30-min cron, 25-min debounce leaves slack for cold starts
+
 export async function GET(request: NextRequest): Promise<NextResponse<HederaCronResult>> {
   const startTime = Date.now();
 
-  // Security: Verify QStash signature or CRON_SECRET
   const authResult = await verifyCronRequest(request, 'Hedera CommunityPool Cron');
   if (authResult !== true) {
     return NextResponse.json(
@@ -173,6 +179,45 @@ export async function GET(request: NextRequest): Promise<NextResponse<HederaCron
       { status: 401 },
     );
   }
+
+  // Multi-chain guardrails (mirrors sui-community-pool pattern; see
+  // HACKATHON_TODO.md for the Hedera-primary pivot). Every guard fails
+  // CLOSED — when in doubt we skip rather than risk a duplicate hedge
+  // or trade during an operator-declared halt window.
+
+  // 1. Per-chain kill switch (HEDERA_AUTO_HEDGE_DISABLE=1).
+  if (isChainAutoHedgeDisabled('hedera')) {
+    logger.warn('[Hedera Cron] halted via HEDERA_AUTO_HEDGE_DISABLE');
+    return NextResponse.json({
+      success: true, chain: 'hedera' as const,
+      error: 'chain kill switch active',
+      duration: Date.now() - startTime,
+    });
+  }
+
+  // 2. Operator halt window (cron:haltUntil:hedera-community-pool).
+  const halt = await getCronHalt(CRON_KEY);
+  if (halt) {
+    logger.warn('[Hedera Cron] halted', { untilMs: halt.untilMs, reason: halt.reason });
+    return NextResponse.json({
+      success: true, chain: 'hedera' as const,
+      error: `halted: ${halt.reason}`,
+      duration: Date.now() - startTime,
+    });
+  }
+
+  // 3. Cluster-wide claim — Vercel runs N parallel instances; without
+  // this two of them would double-execute allocation on the same tick.
+  const claim = await tryClaimCronRun(CRON_KEY, TICK_INTERVAL_MS, startTime);
+  if (!claim.claimed) {
+    return NextResponse.json({
+      success: true, chain: 'hedera' as const,
+      error: `debounced: ${claim.reason ?? 'rate-limit'}`,
+      duration: Date.now() - startTime,
+    });
+  }
+  // Heartbeat so /api/health/production can show liveness.
+  await setCronState(`cron:lastRun:${CRON_KEY}`, startTime).catch(() => {});
 
   const poolAddress = getHederaPoolAddress();
   if (!poolAddress || poolAddress === ethers.ZeroAddress) {
@@ -185,7 +230,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<HederaCron
     });
   }
 
-  logger.info('[Hedera Cron] Starting Hedera community pool management', { network: HEDERA_NETWORK });
+  logger.info('[Hedera Cron] Starting Hedera community pool management', {
+    network: HEDERA_NETWORK,
+    portfolioId: HEDERA_COMMUNITY_POOL_PORTFOLIO_ID,
+    poolAddress,
+  });
 
   try {
     await initCommunityPoolTables();
@@ -471,6 +520,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<HederaCron
     return NextResponse.json(result);
   } catch (error: unknown) {
     logger.error('[Hedera Cron] Fatal error', { error: errMsg(error) });
+    // Chain-tagged alert — Rule 1 in alert-response-loop counts only
+    // `chain === 'sui'` KILLs toward SUI halt. This Hedera ERROR must
+    // NOT contribute to a SUI trader halt (that isolation was the
+    // whole point of PR #99's cross-chain alert-log work).
+    await notifyDiscord(
+      `[Hedera] Fatal cron error: ${errMsg(error)}`,
+      'ERROR',
+      { chain: 'hedera', portfolioId: chainToPortfolioId('hedera') },
+    ).catch(() => {});
     return safeErrorResponse(error, 'Hedera community pool cron') as NextResponse<HederaCronResult>;
   }
 }

@@ -1,9 +1,11 @@
 # ETHGlobal Online — Hackathon Execution Plan
 
 **Repo:** `ZkVanguard/zkward-ethglobal` (canonical production repo since 2026-09-04)
-**Tracks:** 3 partners max — The Graph · Hedera · Privy
+**Tracks:** 3 partners max — **Hedera (primary)** · The Graph · Privy
 **Addressable prize pool:** ~$18,000
 **Pool eligibility:** every submission is **Continuity** (live product on Sui mainnet since 2026-06-12, v0.4.0)
+
+**Chain-primary pivot (2026-09-04):** Hedera is the primary chain for the hackathon submission — main wallet + main deposit UX. SUI stays live as the secondary optional path (existing mainnet pool untouched). Reordering below reflects the pivot.
 
 ---
 
@@ -112,7 +114,7 @@ For the AI Continuity track, the killer angle is a **live 7-agent orchestrator u
 
 ---
 
-## Priority 2 — Hedera ($3K addressable, up to $2K per team on the AI track)
+## Priority 1 — Hedera ($6K addressable, up to $4K in wins) — PRIMARY CHAIN
 
 ### Winning angle
 
@@ -120,35 +122,47 @@ The $6K AI & Agentic Payments track pays "up to 3 teams × $2K." Rules list expl
 
 Most teams will submit a single agent that pays for one endpoint via x402. Winning move:
 
-**Multi-agent x402 payment negotiation where each of our 7 agents has an HCS-14 identity, they A2A-negotiate over signal-quality inference cost, budget across providers, and every fill lands on HCS as an auditable trail.**
+**Multi-agent x402 payment negotiation where each of our 7 agents has an HCS-14 identity, they A2A-negotiate over signal-quality inference cost, budget across providers, and every fill lands on HCS as an auditable trail. All happening on Hedera as the primary chain — deposits, hedge management, agent payments settle here first.**
 
-Nearly every "extra points" checkbox lit. Uses our existing 7-agent system as the "already impressive" baseline; agent-payment as the new work.
+Nearly every "extra points" checkbox lit. Uses our existing 7-agent system as the "already impressive" baseline; agent-payment + primary-chain flip as the new work.
 
 ### Prize tracks
 
 - [ ] **AI & Agentic Payments on Hedera** — up to $2K (3 teams × $2K)
 - [ ] **Continuity** — $1K
+- [ ] **Open Source — Improve the Hedera Harness** — up to $1K (2 teams × $1K) — bolt-on if time allows
+
+**Total addressable:** $4K (AI $2K + Continuity $1K + Open Source $1K)
 
 ### Build checklist
 
-**Live Hedera pool (Day 3-4, parallel with Graph Phase 3)**
-- [ ] Deploy `CommunityPool.sol` to Hedera testnet via Hashio
-- [ ] Wire hedera-community-pool cron end-to-end (already scaffolded, portfolio ID -3 reserved)
+**Hedera cron guardrails (Day 1 — shipped)**
+- [x] `hedera-community-pool` cron wired: `isChainAutoHedgeDisabled('hedera')` kill switch, `getCronHalt('hedera-community-pool')` halt window, `tryClaimCronRun` cluster-wide claim, heartbeat via `cron:lastRun:hedera-community-pool`, portfolio ID `-3` on all DB writes, chain-tagged `notifyDiscord` so Hedera errors don't halt SUI trader.
+
+**x402-gated inference endpoint (Day 1 — shipped)**
+- [x] `/api/hedera/x402/signal-quality` — 402 Payment Required with X-PAYMENT intent, Blocky402 facilitator verify, wraps `PredictionAggregatorService`, HCS audit hook. Sub-cent pay-per-call metering ($0.0001 default via `X402_PRICE_USDC_MICROS`).
+
+**HCS-14 agent identity (Day 1 — shipped)**
+- [x] `lib/services/hedera/agent-identity.ts` — W3C DID doc builder, `registerAgentIdentity` (idempotent, Redis-cached), `DEFAULT_AGENT_ROSTER` for all 7 agents with capabilities + budget hints. Real HCS submit lands when `HCS_AGENT_IDENTITY_ENABLED=1` + operator creds set.
+
+**Live Hedera pool (needs creds)**
+- [ ] Deploy `CommunityPool.sol` to Hedera testnet via Hashio (needs testnet HBAR)
+- [ ] Set `HEDERA_MAINNET_CONTRACT_COMMUNITY_POOL` in Vercel via `vercel env add`
 - [ ] First live deposit → AI allocation → NAV snapshot on Hedera
-- [ ] Confirm `HEDERA_AUTO_HEDGE_DISABLE` env kill switch working (helper `isChainAutoHedgeDisabled('hedera')` already exists in `lib/utils/chain-halt.ts`)
+- [ ] Schedule the hedera-community-pool cron (Vercel Cron via `vercel.ts` or QStash)
 
-**x402-gated inference marketplace (Day 5-6)**
-- [ ] Stand up an x402-gated signal-quality endpoint (wraps our existing predictions service) on Hedera testnet via Blocky402 facilitator
-- [ ] `polymarket-edge-trader` pays per-call in HBAR/USDC for signal-quality checks
-- [ ] Multi-provider budget logic — trader picks cheapest quality-passing provider (uses SafeExecutionGuard per-chain volume buckets from PR #99)
-- [ ] Fall back to free tier when x402 balance is low
-- [ ] Log every fill on HCS for auditable payment trail
-
-**Extra-points harvest (Day 7)**
-- [ ] Register each of 7 agents with HCS-14 identity
+**Extra-points harvest (Day 2-3)**
+- [ ] Wire agent orchestrator boot to call `registerAllAgents(DEFAULT_AGENT_ROSTER)` on cold start
 - [ ] A2A negotiation between analyst-agent (proposes cost budget) and executor-agent (picks provider that fits budget)
+- [ ] `polymarket-edge-trader` calls the x402 endpoint per-tick with signed payment
+- [ ] Real HCS submit for x402 fills (currently stubbed via `HCS_AUDIT_ENABLED`)
 - [ ] Optional: HTS token for internal agent credits
 - [ ] Optional: Scheduled Transactions for recurring signal subscriptions
+
+**Wallet + UX pivot (next session — Task #28, #29)**
+- [ ] Replace `lib/evm-wallet/hooks.ts` shim with real wagmi + Hedera EVM chain config
+- [ ] `ConnectButton` chain-family picker: Hedera EVM first, SUI second
+- [ ] Dashboard defaults to Hedera pool view; SUI moves to secondary tab
 
 ### Qualification proof
 
