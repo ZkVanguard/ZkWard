@@ -18,6 +18,10 @@ Prediction markets print billions per month in alpha-bearing signal. Riding it c
 
 ---
 
+> **📍 Canonical repo (as of 2026-09-04).** ZkWard production ships from this repo.
+
+---
+
 **Contents** — [What your USDC does](#what-your-usdc-does) · [Verify in 60s](#verify-in-60-seconds) · [Safety](#safety--the-8-gate-autonomy-defense-system) · [Status](#status) · [Live metrics](#live-metrics) · [Roadmap](#roadmap) · [Built by](#built-by) · [How it works](#how-it-works) · [Revenue](#revenue-model) · [FAQ](#faq) · [Quickstart](#quickstart-contributors) · [Docs](#documentation--disclosure)
 
 ## What your USDC does
@@ -136,7 +140,7 @@ flowchart LR
 Node 18+, Bun, Python 3.11+, PostgreSQL.
 
 ```bash
-git clone https://github.com/ZkVanguard/ZkVanguard.git && cd ZkVanguard
+git clone https://github.com/ZkVanguard/zkward-ethglobal.git && cd zkward-ethglobal
 bun install --legacy-peer-deps
 
 # Terminal 1 — ZK-STARK prover
@@ -183,7 +187,7 @@ Responsible disclosure: report security issues privately to `ashishregmi2017@gma
 
 ## Acknowledgments
 
-Built on [Sui](https://sui.io), [BlueFin V2](https://bluefin.io), [Polymarket](https://polymarket.com), [Manifold](https://manifold.markets), [Crypto.com](https://crypto.com), [Aiven](https://aiven.io), [Upstash](https://upstash.com), [Vercel](https://vercel.com), and the [Tether WDK](https://github.com/tetherto/wdk) ecosystem.
+Built on [Sui](https://sui.io), [BlueFin V2](https://bluefin.io), [Polymarket](https://polymarket.com), [Manifold](https://manifold.markets), [Crypto.com](https://crypto.com), [Aiven](https://aiven.io), [Upstash](https://upstash.com), and [Vercel](https://vercel.com).
 
 ## License
 
