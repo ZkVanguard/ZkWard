@@ -1,0 +1,103 @@
+// Proposed generic proto shape for AI-managed vault events.
+//
+// Every event carries the block number + tx hash so downstream sinks
+// can dedupe and correlate. Amounts are strings so consumers can pick
+// a decimal library (JS number loses precision above 2^53).
+//
+// Standards story: this proto is intentionally protocol-agnostic. Any
+// AI vault that emits the equivalent events on-chain can swap the
+// contract address in substreams.yaml and reuse this same union.
+
+syntax = "proto3";
+
+package zkward.vault.v1;
+
+message VaultEvents {
+  repeated VaultEvent events = 1;
+}
+
+message VaultEvent {
+  uint64 block_number = 1;
+  bytes tx_hash = 2;
+  uint32 log_index = 3;
+  uint64 timestamp = 4;
+  bytes contract_address = 5;
+
+  oneof event {
+    NavSnapshot nav_snapshot = 10;
+    Rebalance rebalance = 11;
+    RebalanceTrade rebalance_trade = 12;
+    HedgeOpened hedge_opened = 13;
+    HedgeClosed hedge_closed = 14;
+    Deposit deposit = 15;
+    Withdraw withdraw = 16;
+    FeesCollected fees_collected = 17;
+    FeesWithdrawn fees_withdrawn = 18;
+    AllocationUpdated allocation_updated = 19;
+  }
+}
+
+message NavSnapshot {
+  string total_nav = 1;
+  string total_shares = 2;
+  string share_price = 3;
+}
+
+message Rebalance {
+  bytes executor = 1;
+  repeated string previous_bps = 2;
+  repeated string new_bps = 3;
+  bytes reason_hash = 4;
+}
+
+message RebalanceTrade {
+  uint32 asset_index = 1;
+  string amount_in = 2;
+  string amount_out = 3;
+  bool is_buy = 4;
+}
+
+message HedgeOpened {
+  bytes hedge_id = 1;
+  uint32 pair_index = 2;
+  string collateral_amount = 3;
+  string leverage = 4;
+  bool is_long = 5;
+  bytes reason_hash = 6;
+}
+
+message HedgeClosed {
+  bytes hedge_id = 1;
+  string realized_pnl = 2; // signed
+  bytes reason_hash = 3;
+}
+
+message Deposit {
+  bytes member = 1;
+  string amount_usd = 2;
+  string shares_minted = 3;
+  string share_price = 4;
+}
+
+message Withdraw {
+  bytes member = 1;
+  string shares_burned = 2;
+  string amount_usd = 3;
+  string share_price = 4;
+}
+
+message FeesCollected {
+  string management_fee = 1;
+  string performance_fee = 2;
+}
+
+message FeesWithdrawn {
+  bytes treasury = 1;
+  string amount = 2;
+}
+
+message AllocationUpdated {
+  uint32 asset_index = 1;
+  string old_bps = 2;
+  string new_bps = 3;
+}

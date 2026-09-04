@@ -1,0 +1,53 @@
+specVersion: v0.1.0
+package:
+  name: zkward_community_pool
+  version: v0.1.0
+  url: https://github.com/ZkVanguard/zkward-ethglobal
+  description: |
+    Composable Substreams module for CommunityPool.sol — the AI-managed
+    vault contract. Emits a normalized VaultEvents stream (NavSnapshot,
+    Rebalance, HedgeOpened/Closed, Deposit, Withdraw, FeesCollected)
+    that any downstream sink (subgraph, dashboard SSE, alert pipeline)
+    can consume. Proposed reusable module for the AI-managed vault
+    category.
+
+imports:
+  eth: https://github.com/streamingfast/sf-ethereum/releases/download/v0.1.0/ethereum-v0.1.0.spkg
+
+protobuf:
+  files:
+    - vault.proto
+  importPaths:
+    - ./proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ./target/wasm32-unknown-unknown/release/substreams.wasm
+
+modules:
+  - name: map_vault_events
+    kind: map
+    initialBlock: 5700000     # Sepolia CommunityPool proxy deploy block
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:zkward.vault.v1.VaultEvents
+
+network: sepolia
+
+networks:
+  sepolia:
+    initialBlock:
+      map_vault_events: 5700000
+    params:
+      map_vault_events: "0x07d68C2828F35327d12a7Ba796cCF3f12F8A1086"
+  # Add more chains here as the pool contract deploys. Same schema,
+  # same handler — one module, N chains. That's the composable-module
+  # story for the Graph judges.
+  # cronos-mainnet:
+  #   params:
+  #     map_vault_events: "0x..."
+  # hedera-mainnet:
+  #   params:
+  #     map_vault_events: "0x..."

@@ -10,6 +10,8 @@ import { logger } from '@/lib/utils/logger';
 import { requireAuth } from '@/lib/security/auth-middleware';
 import { readLimiter } from '@/lib/security/rate-limiter';
 import { safeErrorResponse } from '@/lib/security/safe-error';
+import { envFlag } from '@/lib/utils/env-flag';
+import { fetchHedgesFromSubgraph } from '@/lib/graph/queries';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -40,24 +42,46 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'all';
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
-    logger.info('📊 Fetching hedges from database', { portfolioId, walletAddress, status, limit });
+    logger.info('📊 Fetching hedges', { portfolioId, walletAddress, status, limit });
 
     let hedges;
-    
-    // If wallet address provided, filter by wallet
-    if (walletAddress) {
-      if (status === 'active') {
-        hedges = await getActiveHedgesByWallet(walletAddress);
+
+    // Subgraph read-path (Aiven retirement Phase 3): serve pool-scoped
+    // hedge listings from the subgraph when the flag is on AND the
+    // request has no per-wallet filter (subgraph indexes on-chain
+    // events keyed to the pool contract, not individual EOAs — wallet
+    // filtering stays on the DB reconciler view).
+    const canServeFromSubgraph =
+      envFlag('SUBGRAPH_READS_ENABLED') && !walletAddress;
+
+    if (canServeFromSubgraph) {
+      const subgraphStatus = status === 'active' ? 'OPEN' : undefined;
+      const subgraphHedges = await fetchHedgesFromSubgraph({
+        status: subgraphStatus,
+        first: limit,
+      });
+      if (subgraphHedges) {
+        hedges = subgraphHedges;
       } else {
-        hedges = await getAllHedgesByWallet(walletAddress, limit);
+        logger.warn('[hedging/list] subgraph failed — falling back to Aiven', { status });
       }
-    } else if (status === 'active') {
-      hedges = await getActiveHedges(portfolioId ? parseInt(portfolioId, 10) : undefined);
-    } else {
-      hedges = await getAllHedges(
-        portfolioId ? parseInt(portfolioId, 10) : undefined,
-        limit
-      );
+    }
+
+    if (!hedges) {
+      if (walletAddress) {
+        if (status === 'active') {
+          hedges = await getActiveHedgesByWallet(walletAddress);
+        } else {
+          hedges = await getAllHedgesByWallet(walletAddress, limit);
+        }
+      } else if (status === 'active') {
+        hedges = await getActiveHedges(portfolioId ? parseInt(portfolioId, 10) : undefined);
+      } else {
+        hedges = await getAllHedges(
+          portfolioId ? parseInt(portfolioId, 10) : undefined,
+          limit,
+        );
+      }
     }
 
     // Get stats if requested

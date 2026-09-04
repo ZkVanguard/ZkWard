@@ -10,6 +10,7 @@
  */
 
 import { logger } from './logger';
+import { envFlag } from './env-flag';
 
 export type NotifyLevel = 'INFO' | 'WARN' | 'ERROR' | 'TRADE' | 'KILL';
 
@@ -73,6 +74,14 @@ interface AlertLogEntry {
 }
 
 async function appendAlertLog(entry: AlertLogEntry): Promise<void> {
+  // Redis LIST-native path (CRON_STATE_REDIS_READ=1): LPUSH + LTRIM is
+  // O(1) instead of the O(n) read-modify-write pattern the Postgres impl
+  // needs. Ring buffer cutover for the Aiven retirement.
+  if (envFlag('CRON_STATE_REDIS_READ')) {
+    const { appendAlertLogRedis } = await import('@/lib/db/cron-state-redis');
+    await appendAlertLogRedis(entry).catch(() => {});
+    return;
+  }
   const { getCronState, setCronState } = await import('@/lib/db/cron-state');
   const existing = (await getCronState<AlertLogEntry[]>(ALERT_LOG_KEY).catch(() => null)) || [];
   const trimmed = [...existing, entry].slice(-ALERT_LOG_MAX);
@@ -80,6 +89,10 @@ async function appendAlertLog(entry: AlertLogEntry): Promise<void> {
 }
 
 export async function readAlertLog(): Promise<AlertLogEntry[]> {
+  if (envFlag('CRON_STATE_REDIS_READ')) {
+    const { readAlertLogRedis } = await import('@/lib/db/cron-state-redis');
+    return readAlertLogRedis<AlertLogEntry>();
+  }
   const { getCronState } = await import('@/lib/db/cron-state');
   return (await getCronState<AlertLogEntry[]>(ALERT_LOG_KEY).catch(() => null)) || [];
 }

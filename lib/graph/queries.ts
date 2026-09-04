@@ -126,5 +126,294 @@ function bucketNavSnapshots(
     }));
 }
 
+// ─── Hedges (open + closed lifecycle) ─────────────────────────────────────
+
+export interface HedgeRow {
+  id: string;                  // hedgeId from PoolHedgeOpened
+  pairIndex: number;
+  collateralAmount: number;    // normalized to plain USD
+  leverage: number;
+  isLong: boolean;
+  status: 'OPEN' | 'CLOSED';
+  realizedPnl: number | null;  // signed USD, null while OPEN
+  openedAt: string;            // ISO
+  closedAt: string | null;
+  openReasonHash: string;
+  closeReasonHash: string | null;
+}
+
+interface RawHedge {
+  id: string;
+  pairIndex: number;
+  collateralAmount: string;
+  leverage: string;
+  isLong: boolean;
+  status: 'OPEN' | 'CLOSED';
+  realizedPnl: string | null;
+  openReasonHash: string;
+  closeReasonHash: string | null;
+  openedAtTimestamp: string;
+  closedAtTimestamp: string | null;
+}
+
+interface HedgesResponse {
+  hedges: RawHedge[];
+}
+
+export async function fetchHedgesFromSubgraph(args?: {
+  status?: 'OPEN' | 'CLOSED';
+  first?: number;
+  skip?: number;
+}): Promise<HedgeRow[] | null> {
+  const first = Math.max(1, Math.min(args?.first ?? 100, 1000));
+  const skip = Math.max(0, args?.skip ?? 0);
+  const whereClause = args?.status ? `where: { status: ${args.status} }` : '';
+  const query = /* GraphQL */ `
+    query Hedges($first: Int!, $skip: Int!) {
+      hedges(
+        first: $first
+        skip: $skip
+        orderBy: openedAtTimestamp
+        orderDirection: desc
+        ${whereClause}
+      ) {
+        id
+        pairIndex
+        collateralAmount
+        leverage
+        isLong
+        status
+        realizedPnl
+        openReasonHash
+        closeReasonHash
+        openedAtTimestamp
+        closedAtTimestamp
+      }
+    }
+  `;
+  const data = await subgraphQuery<HedgesResponse>(query, { first, skip });
+  if (!data) return null;
+  return data.hedges.map((h) => ({
+    id: h.id,
+    pairIndex: h.pairIndex,
+    // 6-decimal USD normalization
+    collateralAmount: Number(h.collateralAmount) / 1e6,
+    leverage: Number(h.leverage),
+    isLong: h.isLong,
+    status: h.status,
+    realizedPnl: h.realizedPnl != null ? Number(h.realizedPnl) / 1e6 : null,
+    openedAt: new Date(Number(h.openedAtTimestamp) * 1000).toISOString(),
+    closedAt: h.closedAtTimestamp
+      ? new Date(Number(h.closedAtTimestamp) * 1000).toISOString()
+      : null,
+    openReasonHash: h.openReasonHash,
+    closeReasonHash: h.closeReasonHash,
+  }));
+}
+
+// ─── Pool transactions (DEPOSIT / WITHDRAW / FEES) ────────────────────────
+
+export interface TransactionRow {
+  id: string;
+  type: 'DEPOSIT' | 'WITHDRAW' | 'FEES_COLLECTED' | 'FEES_WITHDRAWN';
+  actor: string;
+  amount: number;              // USD
+  shares: number;
+  sharePrice: number;
+  managementFeeAmount: number | null;
+  performanceFeeAmount: number | null;
+  timestamp: string;           // ISO
+  txHash: string;
+}
+
+interface RawTransaction {
+  id: string;
+  type: 'DEPOSIT' | 'WITHDRAW' | 'FEES_COLLECTED' | 'FEES_WITHDRAWN';
+  actor: string;
+  amount: string;
+  shares: string;
+  sharePrice: string;
+  managementFeeAmount: string | null;
+  performanceFeeAmount: string | null;
+  timestamp: string;
+  transactionHash: string;
+}
+
+interface TransactionsResponse {
+  transactions: RawTransaction[];
+}
+
+export async function fetchPoolTransactionsFromSubgraph(args?: {
+  type?: 'DEPOSIT' | 'WITHDRAW' | 'FEES_COLLECTED' | 'FEES_WITHDRAWN';
+  actor?: string;              // 0x-address filter
+  first?: number;
+  skip?: number;
+}): Promise<TransactionRow[] | null> {
+  const first = Math.max(1, Math.min(args?.first ?? 50, 1000));
+  const skip = Math.max(0, args?.skip ?? 0);
+  const filters: string[] = [];
+  if (args?.type) filters.push(`type: ${args.type}`);
+  if (args?.actor) filters.push(`actor: "${args.actor.toLowerCase()}"`);
+  const whereClause = filters.length ? `where: { ${filters.join(', ')} }` : '';
+  const query = /* GraphQL */ `
+    query Transactions($first: Int!, $skip: Int!) {
+      transactions(
+        first: $first
+        skip: $skip
+        orderBy: timestamp
+        orderDirection: desc
+        ${whereClause}
+      ) {
+        id
+        type
+        actor
+        amount
+        shares
+        sharePrice
+        managementFeeAmount
+        performanceFeeAmount
+        timestamp
+        transactionHash
+      }
+    }
+  `;
+  const data = await subgraphQuery<TransactionsResponse>(query, { first, skip });
+  if (!data) return null;
+  return data.transactions.map((t) => ({
+    id: t.id,
+    type: t.type,
+    actor: t.actor,
+    amount: Number(t.amount) / 1e6,
+    shares: Number(t.shares) / 1e18,
+    sharePrice: Number(t.sharePrice) / 1e18,
+    managementFeeAmount: t.managementFeeAmount != null ? Number(t.managementFeeAmount) / 1e6 : null,
+    performanceFeeAmount: t.performanceFeeAmount != null ? Number(t.performanceFeeAmount) / 1e6 : null,
+    timestamp: new Date(Number(t.timestamp) * 1000).toISOString(),
+    txHash: t.transactionHash,
+  }));
+}
+
+// ─── Pool state (latest snapshot + allocations) ───────────────────────────
+
+export interface PoolStateRow {
+  address: string;
+  network: string;
+  totalNav: number;
+  totalShares: number;
+  sharePrice: number;
+  memberCount: number;
+  totalFeesCollected: number;
+  allocations: Array<{ assetIndex: number; targetBps: number }>;
+}
+
+interface RawPoolState {
+  id: string;
+  network: string;
+  totalNav: string;
+  totalShares: string;
+  sharePrice: string;
+  memberCount: number;
+  totalFeesCollected: string;
+  allocations: Array<{ assetIndex: number; targetBps: string }>;
+}
+
+interface PoolStateResponse {
+  pool: RawPoolState | null;
+}
+
+export async function fetchPoolStateFromSubgraph(
+  poolAddress: string,
+): Promise<PoolStateRow | null> {
+  const query = /* GraphQL */ `
+    query PoolState($id: Bytes!) {
+      pool(id: $id) {
+        id
+        network
+        totalNav
+        totalShares
+        sharePrice
+        memberCount
+        totalFeesCollected
+        allocations(orderBy: assetIndex, orderDirection: asc) {
+          assetIndex
+          targetBps
+        }
+      }
+    }
+  `;
+  const data = await subgraphQuery<PoolStateResponse>(query, {
+    id: poolAddress.toLowerCase(),
+  });
+  if (!data || !data.pool) return null;
+  const p = data.pool;
+  return {
+    address: p.id,
+    network: p.network,
+    totalNav: Number(p.totalNav) / 1e6,
+    totalShares: Number(p.totalShares) / 1e18,
+    sharePrice: Number(p.sharePrice) / 1e18,
+    memberCount: p.memberCount,
+    totalFeesCollected: Number(p.totalFeesCollected) / 1e6,
+    allocations: p.allocations.map((a) => ({
+      assetIndex: a.assetIndex,
+      targetBps: Number(a.targetBps),
+    })),
+  };
+}
+
+// ─── Member position (per-user aggregate) ─────────────────────────────────
+
+export interface MemberPositionRow {
+  address: string;
+  currentShares: number;
+  totalDeposited: number;
+  totalWithdrawn: number;
+  joinedAt: string;
+  lastActionAt: string;
+}
+
+interface RawMember {
+  address: string;
+  currentShares: string;
+  totalDeposited: string;
+  totalWithdrawn: string;
+  joinedAtTimestamp: string;
+  lastActionAtTimestamp: string;
+}
+
+interface MemberResponse {
+  member: RawMember | null;
+}
+
+export async function fetchMemberPositionFromSubgraph(
+  poolAddress: string,
+  memberAddress: string,
+): Promise<MemberPositionRow | null> {
+  const memberId = `${poolAddress.toLowerCase()}${memberAddress.slice(2).toLowerCase()}`;
+  const query = /* GraphQL */ `
+    query Member($id: Bytes!) {
+      member(id: $id) {
+        address
+        currentShares
+        totalDeposited
+        totalWithdrawn
+        joinedAtTimestamp
+        lastActionAtTimestamp
+      }
+    }
+  `;
+  const data = await subgraphQuery<MemberResponse>(query, { id: memberId });
+  if (!data || !data.member) return null;
+  const m = data.member;
+  return {
+    address: m.address,
+    currentShares: Number(m.currentShares) / 1e18,
+    totalDeposited: Number(m.totalDeposited) / 1e6,
+    totalWithdrawn: Number(m.totalWithdrawn) / 1e6,
+    joinedAt: new Date(Number(m.joinedAtTimestamp) * 1000).toISOString(),
+    lastActionAt: new Date(Number(m.lastActionAtTimestamp) * 1000).toISOString(),
+  };
+}
+
 // Exported for unit test coverage — bucketing is where subtle bugs hide.
 export const _internal = { bucketNavSnapshots };

@@ -233,11 +233,11 @@ Fills our real product gap (the WDK-removal shim), which reads as authenticity v
 
 | Partner | Phase | Status | Notes |
 |---|---|---|---|
-| The Graph | 1 · Redis client + subgraph scaffold | 🟡 In progress | Redis singleton pattern exists in rate-limiter.ts |
-| The Graph | 2 · Deploy subgraph + first endpoint | ⬜ Not started | Sepolia via Subgraph Studio |
-| The Graph | 3 · Coverage extension + Redis cutover | ⬜ Not started | |
-| The Graph | 4 · Substreams module + MCP | ⬜ Not started | |
-| The Graph | 5 · Aiven kill | ⬜ Not started | Requires bulletproof test rewire |
+| The Graph | 1 · Redis client + subgraph scaffold | ✅ Shipped (135ce5a4) | Redis singleton, Standardized Vault schema, 14 parity tests |
+| The Graph | 2 · Subgraph client + first endpoint | ✅ Shipped (dbb9a672) | nav-history behind SUBGRAPH_READS_ENABLED, 13 tests |
+| The Graph | 3 · Coverage extension + Redis cutover | ✅ Code shipped, waits on live deploy | +4 typed queries (hedges/txs/state/member), hedging/list migrated, alert-log Redis cutover, Vercel Cron config as QStash alt, Substreams scaffold |
+| The Graph | 4 · Substreams module impl + MCP | ⬜ Rust impl outstanding | Scaffold + proto in substreams/community-pool/; MCP tool next |
+| The Graph | 5 · Aiven kill | ⬜ Not started | Blocked on subgraph live deploy + parity soak |
 | Hedera | Pool live | ⬜ Not started | `HEDERA_AUTO_HEDGE_DISABLE` helper in place |
 | Hedera | x402 endpoint | ⬜ Not started | Blocky402 facilitator |
 | Hedera | Agent consumer + HCS-14 | ⬜ Not started | Multi-agent A2A budget negotiation |
