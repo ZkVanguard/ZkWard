@@ -33,6 +33,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const budget = (url.searchParams.get('budget') || '500').trim();
 
   try {
+    // Provider URL must be absolute — derive from this request's origin
+    // so the demo runs locally (http://localhost:3000) or on any preview
+    // without needing NEXT_PUBLIC_URL configured.
+    const origin = new URL(request.url).origin;
+    const providerUrl = `${origin}/api/hedera/x402/signal-quality`;
     const result = await negotiateAndFetch<{
       signal: string; confidence: number; reasoning: string;
     }>({
@@ -42,6 +47,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       params: { asset },
       maxBudgetMicros: budget,
       counterToleranceMicros: '250', // will accept up to 250 micros over budget
+      registry: [{
+        id: 'zkward-own-signal-quality',
+        url: providerUrl,
+        service: 'signal-quality',
+        priceMicros: (process.env.X402_PRICE_USDC_MICROS || '100').trim(),
+        network: (process.env.HEDERA_NETWORK === 'mainnet' ? 'hedera-mainnet' : 'hedera-testnet'),
+        operator: EXECUTOR_DID,
+        latencyP95Ms: 400,
+      }],
     });
 
     return NextResponse.json({
