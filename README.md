@@ -2,192 +2,294 @@
 
 # ZkWard
 
-**An AI-managed USDC vault on Sui — deposit once, autonomous agents allocate & hedge for you.**
+**Multi-chain AI-managed stablecoin vault where seven agents allocate capital autonomously, pay for their own inference, and settle through cryptographic proofs.**
 
-Prediction markets print billions per month in alpha-bearing signal. Riding it consistently needs bots, capital, and 24/7 attention — table stakes for hedge funds, impossible for retail. ZkWard collapses that workflow into a one-click USDC vault: 7 AI agents, BlueFin V2 perp hedging, 3-way reconciliation, 8-gate autonomy defense, ZK-STARK-attested at scale. Live on Sui mainnet.
+Live on Sui mainnet since 2026-06-12 · Hedera-primary pivot shipped 2026-09-04 · **ETHGlobal Online submission**
 
+[![Live](https://img.shields.io/badge/Live-www.zkward.com-brightgreen?style=flat-square)](https://www.zkward.com)
 [![Sui Mainnet](https://img.shields.io/badge/Sui-Mainnet%20Live-4ca3ff?style=flat-square)](https://suiscan.xyz/mainnet/object/0x107292a69eea2f6eaf4a4e4727ee25d747b04c1985441b138933f0ef33f7b726)
-[![Status](https://img.shields.io/badge/Status-Pre--audit%20%C2%B7%20TVL%20capped%20%2410K-orange?style=flat-square)](#status)
-[![Website](https://img.shields.io/badge/Website-zkward.com-brightgreen?style=flat-square)](https://www.zkward.com)
-[![Health API](https://img.shields.io/badge/Health-API%20live-blue?style=flat-square)](https://www.zkward.com/api/health/production)
+[![Hedera](https://img.shields.io/badge/Hedera-Testnet%20Primary-00A79F?style=flat-square)](https://hashscan.io/testnet)
+[![The Graph](https://img.shields.io/badge/The%20Graph-Standardized%20Vault-6f4ff2?style=flat-square)](./subgraph/README.md)
+[![Privy](https://img.shields.io/badge/Privy-B2B%20%2B%20Financial%20Flow-000?style=flat-square)](./DEPLOYMENT_CHECKLIST.md)
+[![Tests](https://img.shields.io/badge/tests-100%2B%20green-brightgreen?style=flat-square)](./scripts/hackathon-smoke.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey?style=flat-square)](LICENSE)
 
-[Deposit](https://www.zkward.com) · [Live PnL](https://www.zkward.com/dashboard/overview) · [Risk overview](https://www.zkward.com/dashboard/risk) · [Suiscan proof](https://suiscan.xyz/mainnet/object/0x107292a69eea2f6eaf4a4e4727ee25d747b04c1985441b138933f0ef33f7b726)
+[Live product](https://www.zkward.com) · [Health API](https://www.zkward.com/api/health/production) · [A2A demo](https://www.zkward.com/api/hedera/a2a/demo?asset=BTC&budget=500) · [x402 endpoint](https://www.zkward.com/api/hedera/x402/signal-quality?asset=BTC) · [Deploy checklist](./DEPLOYMENT_CHECKLIST.md)
 
 </div>
 
 ---
 
-> **📍 Canonical repo (as of 2026-09-04).** ZkWard production ships from this repo.
+## ETHGlobal Online — three sponsor tracks, ~$19K addressable
+
+Every submission is **Continuity** — the base product is a live SUI mainnet vault (v0.4.0, 46+ days running, real users, real capital). Everything below the "Anything below this line is event work" markers in [`HACKATHON_TODO.md`](./HACKATHON_TODO.md) shipped during the event window (2026-09-03 → 2026-09-05).
+
+### 🤖 Hedera — AI & Agentic Payments ($2K) + Continuity ($1K) + Open Source ($1K) — $4K addressable
+
+The trader agent pays for its own signal-quality inference per tick through a real x402-gated endpoint on Hedera. Seven agents negotiate cost, discover providers, settle payment, and every fill is auditable on HCS. Nearly every "extra points" checkbox on the AI track is lit.
+
+| Extra-points criterion | How we hit it |
+|---|---|
+| Pay-per-call metering (not flat) | [`/api/hedera/x402/signal-quality`](./app/api/hedera/x402/signal-quality/route.ts) with sub-cent per-call price via `X402_PRICE_USDC_MICROS` |
+| Multi-agent A2A negotiation | Analyst ↔ Executor round-trip via [`lib/services/a2a/negotiate.ts`](./lib/services/a2a/negotiate.ts) — proposal → acceptance → settlement, provider discovery cheapest-under-budget |
+| On-chain agent identity (HCS-14) | W3C DID document builder in [`lib/services/hedera/agent-identity.ts`](./lib/services/hedera/agent-identity.ts) — all seven agents in `DEFAULT_AGENT_ROSTER` |
+| Verifiable payment audit trail on HCS | Every A2A message + every x402 fill posts to HCS via [`lib/services/a2a/bus.ts`](./lib/services/a2a/bus.ts) (activate with `HCS_AUDIT_ENABLED=1`) |
+| Per-agent budget accounting | Redis-backed daily caps in [`lib/services/x402/budget.ts`](./lib/services/x402/budget.ts) |
+| Cross-chain isolation | Hedera KILL alerts cannot halt SUI trader — see [`lib/utils/chain-halt.ts`](./lib/utils/chain-halt.ts) + [`lib/services/alerting/alert-response-loop.ts`](./lib/services/alerting/alert-response-loop.ts) |
+
+**Live demo (30 seconds):**
+
+```bash
+# 1. Fresh x402 call — spec-compliant 402 with intent
+curl -i https://www.zkward.com/api/hedera/x402/signal-quality?asset=BTC
+
+# 2. Full A2A round-trip with real signal + trace
+curl -s "https://www.zkward.com/api/hedera/a2a/demo?asset=BTC&budget=500" | jq
+# → ok:true, paid:true, provider:'zkward-own-signal-quality',
+#   data:{signal:'BEARISH', confidence:70, source:'PredictionAggregatorService v0.4.0'},
+#   trace:{state:'settled', messages:[proposal, acceptance, settlement]}
+```
+
+**Hedera-primary wallet UX:** [`components/EvmConnectSection.tsx`](./components/EvmConnectSection.tsx) leads with the "Connect Hedera" CTA, injected + Coinbase Wallet connectors, HashScan explorer link, testnet↔mainnet switcher.
+
+### 📊 The Graph — Composable/Standardized ($5K) + AI Continuity ($5K) — $10K addressable
+
+Proposed **Standardized Subgraph schema for AI-managed vaults** — a category that Messari's existing standards don't cover. Same query shape works across every chain we deploy the pool to (Sepolia today, Cronos + Hedera next). Companion Substreams module scaffolded so any AI vault emitting the same event surface plugs into the same schema.
+
+| Prize criterion | How we hit it |
+|---|---|
+| Standards leverage — one query across many protocols | Schema in [`subgraph/schema.graphql`](./subgraph/schema.graphql). Mapping in [`subgraph/src/community-pool.ts`](./subgraph/src/community-pool.ts) targets `CommunityPool.sol` on Sepolia; same event surface deploys anywhere |
+| Composable Substreams module | [`substreams/community-pool/`](./substreams/community-pool/) with generic `VaultEvents` proto union — protocol-agnostic |
+| AI agent uses The Graph as a live data source | [`lib/graph/queries.ts`](./lib/graph/queries.ts) — typed queries for nav-history, hedges, transactions, pool-state, member-position. All fall back to Aiven on subgraph failure. |
+| Reusable pattern | The migration is behind `SUBGRAPH_READS_ENABLED` env flag with the Aiven query still in code — flip the flag, get subgraph-backed reads with zero risk |
+
+**Aiven retirement plan (in progress):** All dashboard reads migrate to Subgraph; residual off-chain state (cron heartbeats, halt keys, alert ring buffer, autohedge configs, agent decision log) moves to Upstash Redis. Full data-plane spec in [`docs/GRAPH_MIGRATION_PLAN.md`](./docs/GRAPH_MIGRATION_PLAN.md). Redis client + parity tests + dual-write bridge already shipped.
+
+**Live demo:**
+
+```bash
+# Existing endpoint — behind SUBGRAPH_READS_ENABLED it serves from The Graph
+curl -s "https://www.zkward.com/api/platform/nav-history?window=7d&bucket=hour" | jq '.count, .peak'
+```
+
+### 💳 Privy — Best B2B ($2.5K) + Best Financial Flow ($2.5K) — $5K addressable
+
+Two independent tracks addressable with one integration: email/social login + embedded EVM wallet (Financial Flow) plus admin allowlist with quorum approvals (B2B). Privy layered above wagmi so both flows coexist — a user can Sign In with email OR connect their MetaMask.
+
+| Prize criterion | How we hit it |
+|---|---|
+| B2B: organization wallet + policies + quorum | [`POST /api/admin/hedera-pool/quorum-action`](./app/api/admin/hedera-pool/quorum-action/route.ts) — Bearer JWT auth + [`PRIVY_ADMIN_ALLOWLIST`](./lib/services/privy/admin-auth.ts) match + N-of-M distinct-approver quorum |
+| Financial Flow: hide onchain complexity | [`components/PrivyConnectSection.tsx`](./components/PrivyConnectSection.tsx) — "Sign in" primary, wallet advanced. Embedded wallet created on login for users without one |
+| Feature-gated rollout | Entire Privy layer is skipped when `NEXT_PUBLIC_PRIVY_APP_ID` is unset — zero regression to existing wagmi-only flow |
+| Both wallet paths coexist | `@privy-io/wagmi` bridge — same wagmi hooks work whether signer is Privy embedded or wagmi injected |
+
+**B2B demo (once app id + allowlist set):**
+
+```bash
+# Alice approves — quorum not reached yet
+curl -X POST https://www.zkward.com/api/admin/hedera-pool/quorum-action \
+  -H "Authorization: Bearer $ALICE_PRIVY_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"raise-tvl-cap","actionId":"raise-2026-09-05","params":{"newCapUsdc":50000}}'
+# → 202 { status:"pending-approvals", approvers:1, required:2 }
+
+# Bob approves — quorum reached, action queued
+curl -X POST https://www.zkward.com/api/admin/hedera-pool/quorum-action \
+  -H "Authorization: Bearer $BOB_PRIVY_JWT" ...
+# → 200 { status:"quorum-reached", downstream:"queue → raise-tvl-cap" }
+```
 
 ---
-
-**Contents** — [What your USDC does](#what-your-usdc-does) · [Verify in 60s](#verify-in-60-seconds) · [Safety](#safety--the-8-gate-autonomy-defense-system) · [Status](#status) · [Live metrics](#live-metrics) · [Roadmap](#roadmap) · [Built by](#built-by) · [How it works](#how-it-works) · [Revenue](#revenue-model) · [FAQ](#faq) · [Quickstart](#quickstart-contributors) · [Docs](#documentation--disclosure)
-
-## What your USDC does
-
-1. **AI allocates it across BTC / ETH / SUI.** Seven agents fuse Polymarket 5-min binaries, Delphi/Polymarket category markets, Manifold, BlueFin funding rates, and Crypto.com momentum into one directional signal per asset. Rebalances every 30 minutes only when conviction ≥ 65%.
-2. **Hedges the downside on BlueFin V2 perps.** Spot leg routed via BlueFin 7k aggregator (Cetus · DeepBook · Turbos · FlowX · Aftermath · BlueFin), directional perp overlay on BlueFin. When AI turns bearish, the perp shorts. When perps are physically unopenable at small NAV, spot cap → 0 for that asset.
-3. **Attests decisions on-chain with post-quantum ZK-STARKs.** Python STARK prover (NIST P-521, no trusted setup) is live and unit-tested; configured to attest any trade > $1M. Activation waits on the audit-gated cap lift. On-chain hedge state is reconciled against BlueFin and Postgres every 15 min.
-
-**Fees:** 50 bps annual mgmt + 10% performance. Both charged by the Move contract itself and routed to an MSafe multisig — public, auditable, no operator custody.
 
 ## Verify in 60 seconds
 
 ```bash
-# No clone required — hits live production endpoints
-curl -s https://www.zkward.com/api/health/production | jq
-curl -s https://www.zkward.com/api/predictions/per-asset | jq
+# Live prod smoke — anywhere
+curl -s https://www.zkward.com/api/health/production | jq '.status'
+curl -s "https://www.zkward.com/api/hedera/a2a/demo?asset=BTC&budget=500" | jq '.trace.state'
 
-# With clone — canonical "is the pool in profit?" script
-bun run scripts/analyze-pool-pnl.ts
-bun run scripts/check-hedge-signal-alignment.ts
+# Local — 16-pillar hackathon smoke test (~65s)
+git clone https://github.com/ZkVanguard/zkward-ethglobal.git && cd zkward-ethglobal
+bun install --legacy-peer-deps
+bun run scripts/hackathon-smoke.ts
+# → 16/16 pillars green: tsc + 11 jest suites + bulletproof drawdown 10/10 + Hedera testnet RPC
 ```
 
-Or inspect the pool object directly on Suiscan:
+## Continuity — what existed vs what shipped this event
 
-- Package: [`0x107292a69eea2f6eaf4a4e4727ee25d747b04c1985441b138933f0ef33f7b726`](https://suiscan.xyz/mainnet/object/0x107292a69eea2f6eaf4a4e4727ee25d747b04c1985441b138933f0ef33f7b726)
-- USDC pool state: `0xe814e0948e29d9c10b73a0e6fb23c9997ccc373bed223657ab65ff544742fb3a`
-- Deployed 2026-06-12 · [deploy record](./docs/DEPLOY_2026-06-12_v0.2.0.md)
+**Pre-existing baseline (documented for judges):**
 
-## Safety — the 8-gate autonomy defense system
+- SUI USDC Community Pool live on Sui mainnet since 2026-06-12 (`0x107292…7b726`)
+- 7-agent AI orchestrator + `SafeExecutionGuard`
+- 8-gate autonomy defense system (v0.3.0, shipped 2026-07-15)
+- BlueFin V2 perp integration (silent-reject prevention, fill delta verification)
+- ZK-STARK prover (Python + Move verifier)
+- 15 internal audit phases (Jun 4-12, 2026)
+- Bulletproof drawdown test (10/10 green as merge gate)
 
-Shipped July 2026 after a real drawdown revealed passive-only defenses. Each gate defends a specific failure mode; the full stack is verified by an integration test that replays the historical scenario and asserts max NAV loss ≤ 15%.
+**Event work (2026-09-03 → 2026-09-05):**
 
-| Gate | Defends against |
-|---|---|
-| **PortfolioDriver** | Existing spot never unwound when profit-lock fires — corrective actions actively reshape the balance sheet |
-| **Fill verifier** | BlueFin "silent-reject" — orders returning orderHash but never landing on the exchange |
-| **Hedgeability spot-cap** | At small NAV, perp minQty makes hedging impossible — spot cap for that asset forced to 0 |
-| **Symmetric sell trigger** | Rebalance was one-sided (bought on 65% conviction, never sold on 65% opposing) — now symmetric |
-| **Stale-hedge detector** | Positions > 7d old with ≥ 2 signal flips force-close on contradiction |
-| **Signal-flip drift-close** | On direction flip, both perp and spot legs unwind — not just perps |
-| **AI regret weighting** | Position size shrinks after losing streaks, recovers on wins — prevents AI-euphoria buying tops |
-| **Alert response loop** | 3 KILL alerts/hr auto-shrinks spot; 24h profit-lock auto-unwinds; phantom hedge rate > 1% halts trader |
+| Commit | Feature | Sponsor |
+|---|---|---|
+| `135ce5a4` | Redis cron-state + Standardized Vault subgraph scaffold | Graph |
+| `dbb9a672` | Subgraph client + first Aiven-read migration | Graph |
+| `021b2179` | Extended queries + Redis cutover + Substreams scaffold | Graph |
+| `a14c6b4c` | Hedera pivot — cron guardrails + x402 endpoint + HCS-14 | Hedera |
+| `7e7c787b` | Wagmi + Hedera-primary EVM wallet | Hedera |
+| `355436b4` | Agent x402 consumer + per-agent budget | Hedera |
+| `d9887590` | A2A negotiation + demo endpoint | Hedera |
+| `4c12c2d0` | Deployment checklist + 16-pillar smoke test | All |
+| `4b154fb5` | Privy — email/social + B2B quorum admin | Privy |
 
-Verify: `bun jest test/integration/pool-drawdown-defense.test.ts` (10/10 green).
-
-**Always-on structural guards:** 2-of-3 agent consensus on trades > $100K · 10% peak-NAV drawdown halt · circuit breaker after 3 failures · 3-way reconciliation (Move ↔ BlueFin ↔ Postgres) · OFAC geo-block (KP/IR/SY/CU/RU/BY) · strict NAV-oracle mode (deposits/withdrawals revert when cron oracle > 2h stale).
-
-## Status
-
-Live on Sui mainnet (v0.2.0, deployed 2026-06-12). **Pre-external-audit**, TVL **deliberately capped at $10K by contract**. Cap lifts after external audit closes — the constraint is intentional operational proof, not a TVL claim.
-
-15 internal audit phases completed pre-mainnet. Engine has been running autonomously since June 2026 with continuous on-chain NAV snapshots; every production incident to date has been caught, remediated, and documented in the [deploy record](./docs/DEPLOY_2026-06-12_v0.2.0.md) and [`docs/DEPLOY_RUNBOOK.md`](./docs/DEPLOY_RUNBOOK.md).
-
-## Live metrics
-
-Snapshot pulled from the Aiven Postgres replica against live Sui mainnet state. Rerun `bun run scripts/analyze-pool-pnl.ts` any time.
-
-| Metric | Value |
-|---|---|
-| Days running since first NAV snapshot | **46+** (from 2026-05-29; live-computed) |
-| NAV snapshots recorded | **2,200+** (≈48/day, matches 30-min cron cadence) |
-| Hedges executed lifetime | **214** across BTC / ETH / SUI / SOL PERPs |
-| Active crons with heartbeats | **13** — see `/api/health/production` |
-| Active members | **3** (limited by $10K TVL cap) |
-| Lifetime USDC deposits | **~$38** (rerun `scripts/analyze-pool-pnl.ts` for live number) |
-| External auditors engaged | Pending (SUI Foundation grant Tranche 1 deliverable) |
-
-Small absolute numbers by design — the $10K cap is enforced by the contract. Operating metrics prove the engine works; audit + cap-lift unlock scale.
-
-## Roadmap
-
-| Quarter | Milestone |
-|---|---|
-| **Q3 2026** | External audit close · TVL cap ratchet $10K → $100K · Founding-100 points program live |
-| **Q4 2026** | TVL cap ratchet to $1M · Institutional tier live (custody attestations via [`rwa_custody_attestor.move`](./contracts/sui/sources/rwa_custody_attestor.move)) · first EVM chain expansion |
-| **Q1 2027** | TVL cap ratchet to $10M · Enterprise white-label API · TGE (utility token, governance + fee-share) |
-
-Cap ratchets are contract-gated via `admin_set_tvl_cap` and gated on each milestone's success criteria (audit pass, incident-free operating window, TVL sustained). Not aspirational — each unlock is a specific contract call after a specific evidence bundle.
-
-**Multi-chain posture.** SUI is the lead chain by design and gets new features first. Cronos, Oasis, Hedera, and Sepolia contracts are compiled, tested, and configured in `hardhat.config.cjs`; deployment triggers on institutional demand from that chain, not a race.
-
-## Built by
-
-**Ashish Regmi** ([@HarveReg](https://x.com/HarveReg)) — CS, Cryptography + AI majors. Formerly senior engineer at multiple Fortune 500 companies. Multi-chain hackathon winner across EVM, Aptos, and ICP. Upstream contributor to the [Tether WDK EVM wallet](./patches/PR_wdk-wallet-evm-memzero-fix.md) (accepted PR). Solo builder — open to core contributors and institutional partners.
-
-Contact: `ashishregmi2017@gmail.com` · Telegram [@anstemple](https://t.me/anstemple)
-
-## How it works
+## Architecture
 
 ```mermaid
 flowchart LR
-    PM["Polymarket + Manifold + Delphi<br/>(prediction markets)"] --> SF
-    BF["BlueFin funding rates"] --> SF
-    CDC["Crypto.com 24h momentum"] --> SF
-    SF["Signal fusion +<br/>synthetic-STRONG layer"] --> AG
-    AG["7 AI agents<br/>2-of-3 consensus<br/>SafeExecutionGuard"] --> PD
-    AG --> ZK["ZK-STARK attestation<br/>(trades > $1M)"]
-    PD["PortfolioDriver<br/>+ 8 autonomy gates"] --> VA["USDC vault<br/>BTC · ETH · SUI"]
-    PD --> PERP["BlueFin V2 perps<br/>+ 7k aggregator (6 DEXes)"]
+    subgraph "Sponsor Tracks (this event)"
+      Hedera["Hedera — x402 + A2A + HCS-14"]
+      Graph["The Graph — Standardized Vault subgraph"]
+      Privy["Privy — email/social + B2B quorum"]
+    end
+
+    subgraph "Signal fusion"
+      PM["Polymarket + Manifold + Delphi"] --> SF
+      BF["BlueFin funding"] --> SF
+      CDC["Crypto.com momentum"] --> SF
+      SF["Signal fusion +<br/>synthetic-STRONG"]
+    end
+
+    subgraph "Agents + Defense"
+      SF --> AG["7 AI agents<br/>2-of-3 consensus<br/>SafeExecutionGuard"]
+      AG --> ZK["ZK-STARK attest<br/>(trades > $1M)"]
+      AG --> PD["PortfolioDriver<br/>8 autonomy gates"]
+    end
+
+    subgraph "Multi-chain venues"
+      PD --> SUI["SUI USDC vault<br/>(mainnet — flagship)"]
+      PD --> HED["Hedera pool<br/>(testnet — primary EVM)"]
+      PD --> PERP["BlueFin V2 perps"]
+    end
+
+    subgraph "Data plane"
+      SUI --> GRAPH_IDX["Standardized Vault subgraph"]
+      HED --> GRAPH_IDX
+      GRAPH_IDX --> DASH["Dashboard reads"]
+      AG -.pay-per-call.-> HEDX402["x402 endpoint on Hedera<br/>audit trail on HCS"]
+      AG -.HCS-14 identity.-> HED
+    end
+
+    Hedera -.wraps.-> HEDX402
+    Graph -.replaces Aiven for.-> DASH
+    Privy -.gates admin ops on.-> HED
 ```
 
-## Revenue model
+## 8-gate autonomy defense (pre-existing SUI safety stack — untouched by hackathon work)
 
-**Live today:** 50 bps annual mgmt + 10% performance fee on vault deposits — charged automatically by `community_pool_usdc.move`, routed to `FeeManagerCap` on MSafe.
+| Gate | Defends against |
+|---|---|
+| **PortfolioDriver** | Existing spot never unwound when profit-lock fires |
+| **Fill verifier** | BlueFin "silent-reject" — orders with `orderHash` but never on the exchange |
+| **Hedgeability spot-cap** | Small NAV where perp minQty makes hedging impossible |
+| **Symmetric sell trigger** | Rebalance was one-sided — now symmetric on ≥65% opposing conviction |
+| **Stale-hedge detector** | Positions > 7d with ≥2 signal flips force-close |
+| **Signal-flip drift-close** | On flip, both perp and spot legs unwind |
+| **AI regret weighting** | Position size shrinks after losing streaks |
+| **Alert response loop** | 3 KILL alerts/hr auto-shrinks; 24h profit-lock auto-unwinds; phantom rate > 1% halts trader — **SUI-scoped** so Hedera alerts can't cross-contaminate |
 
-**Post-audit (all mapped to shipped code in [`lib/config/pricing.ts`](./lib/config/pricing.ts)):**
+Verify: `bun jest test/integration/pool-drawdown-defense.test.ts` (10/10 green — hackathon work regressed none of them).
 
-- Per-use fees: private hedges ($5 / 25 bps), private portfolios ($100 + 50 bps), custody attestation ($2.5K enrollment + $0.50/submission)
-- Subscription tiers: Retail $99 → Pro $499 → Institutional $2,499 → Enterprise
-- Per-trade fees on the autonomous perp trader
+## Live metrics (Sui mainnet, updated live)
 
-**Token:** utility-first, designed not launched. Governance over fee parameters, staking gates discounted vault fees. TGE targeted Month 9–12 post-audit.
+| Metric | Value |
+|---|---|
+| Days running since first NAV snapshot | **46+** |
+| NAV snapshots recorded | **2,200+** |
+| Hedges executed lifetime | **214** across BTC / ETH / SUI / SOL perps |
+| Active crons with heartbeats | **13** — see `/api/health/production` |
+| Active members | **3** (limited by $10K TVL cap) |
+| Lifetime USDC deposits | **~$60** (rerun `scripts/analyze-pool-pnl.ts` for live number) |
 
-## Quickstart (contributors)
+Small absolute numbers by design — cap is enforced by the Move contract. Operating metrics prove the engine; audit + cap-lift unlock scale.
 
-Node 18+, Bun, Python 3.11+, PostgreSQL.
+## Test evidence
+
+**Hackathon smoke test:** [`scripts/hackathon-smoke.ts`](./scripts/hackathon-smoke.ts)
+
+```
+═══ ZkWard Hackathon Smoke Test ═══
+
+[1] TypeScript compile                                    ✓ passed  ·  6504ms
+[2] Unit tests — Hedera pillars
+  ✓ chain-halt (per-chain kill switches)                  6 passed  ·  2927ms
+  ✓ constants (portfolio-id routing)                      8 passed  ·  2832ms
+  ✓ hedera-agent-identity (HCS-14 DID docs)               8 passed  ·  2871ms
+  ✓ x402-client-budget (pay-per-call + budget cap)        7 passed  ·  2984ms
+  ✓ a2a-negotiation (proposal → acceptance → settlement)  10 passed ·  2966ms
+[3] Unit tests — The Graph pillars
+  ✓ subgraph-queries (client + bucketing)                 13 passed ·  2820ms
+  ✓ subgraph-queries-extended (hedges/txs/state/member)   10 passed ·  2861ms
+  ✓ cron-state-redis (Aiven-retirement backend)           14 passed ·  2836ms
+[4a] Privy — B2B admin allowlist + quorum
+  ✓ privy-admin-auth (fail-closed allowlist + quorum)     7 passed  ·  3152ms
+[4] Cross-chain isolation guardrails
+  ✓ alert-response-loop (SUI-scoped Rule 1)               21 passed ·  2821ms
+  ✓ safe-execution-guard-per-chain (per-chain buckets)    3 passed  ·  2812ms
+[5] SUI safety gate (must stay green)
+  ✓ pool-drawdown-defense (bulletproof, 10 defense gates) 10 passed · 17335ms
+[6] Live network checks
+  ✓ Hedera testnet RPC reachable (chainId 296)            HTTP 200  ·   149ms
+  ✓ Hedera testnet block number > 0                       HTTP 200  ·    69ms
+  ✓ local dev server A2A demo endpoint                    HTTP 200  ·   998ms
+
+═══ Summary ═══
+  16/16 pillars green  ·  0 failed  ·  65.7s
+```
+
+## Quickstart (local dev)
 
 ```bash
 git clone https://github.com/ZkVanguard/zkward-ethglobal.git && cd zkward-ethglobal
 bun install --legacy-peer-deps
 
-# Terminal 1 — ZK-STARK prover
-python -m pip install -r zkp/requirements.txt
-python zkp/api/server.py
-
-# Terminal 2 — Next.js
+# Terminal 1 — Next.js dev server (Hedera-first EVM + SUI secondary)
 bun run dev
 
-# Pre-commit
-bun run typecheck && bun run lint && bun jest
+# Terminal 2 — hackathon smoke test
+bun run scripts/hackathon-smoke.ts
+
+# Verify live endpoints locally
+curl -i http://localhost:3000/api/hedera/x402/signal-quality?asset=BTC
+curl -s "http://localhost:3000/api/hedera/a2a/demo?asset=BTC&budget=500" | jq
 ```
 
-Full architecture, env conventions, BlueFin invariants, and reconciliation topology: see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/DEPLOY_RUNBOOK.md`](./docs/DEPLOY_RUNBOOK.md), and [`docs/SUI_DEPLOYMENT.md`](./docs/SUI_DEPLOYMENT.md).
+Contract compile: `bun run compile` (Hardhat, Hedera network pre-configured for chainId 296).
 
-## FAQ
+Production deploy walkthrough: [`DEPLOYMENT_CHECKLIST.md`](./DEPLOYMENT_CHECKLIST.md) — 9-section runbook covering HBAR faucet, `CommunityPool.sol` deploy, HCS topic creation, Vercel env rollout order, Subgraph Studio deployment, per-partner submission checklist.
 
-**How do I deposit and withdraw?**
-Connect a Sui wallet at [zkward.com](https://www.zkward.com), approve USDC, deposit. Withdrawals are always open — the Move contract computes your USDC share of NAV (idle pool + admin wallet + BlueFin margin) and pays out atomically. Strict NAV-oracle mode adds a safety: if the cron oracle attestation is > 2h stale, both deposits and withdrawals revert to prevent bad pricing.
+## Documentation
 
-**What if the AI is wrong?**
-Every trade > $100K needs 2-of-3 agent consensus. The [8-gate autonomy defense](#safety--the-8-gate-autonomy-defense-system) catches most failure modes automatically. Drawdown > 10% from peak NAV auto-halts new hedges. AI regret weighting shrinks position sizes after losing streaks. Beyond that, you can withdraw at any time.
+**Hackathon:**
+- [`HACKATHON_TODO.md`](./HACKATHON_TODO.md) — per-partner build checklist with prize amounts + shipped-vs-remaining status
+- [`DEPLOYMENT_CHECKLIST.md`](./DEPLOYMENT_CHECKLIST.md) — end-to-end operator runbook
+- [`scripts/hackathon-smoke.ts`](./scripts/hackathon-smoke.ts) — 16-pillar smoke test
 
-**What if the operator disappears?**
-Withdrawals are non-custodial — the Move contract holds pool USDC and computes payouts against the on-chain state. Fees route to a MSafe multisig, not a hot wallet. Off-chain BlueFin margin is the one operational dependency; the `sui-hedge-reconcile` cron sweeps it back to the pool address every hour, and `close_hedge` funds-verify (via AgentCap) prevents drain scenarios.
+**Base product:**
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — system design
+- [`docs/DEPLOY_RUNBOOK.md`](./docs/DEPLOY_RUNBOOK.md) — incident response, admin endpoints, BlueFin invariants
+- [`docs/DEPLOY_2026-06-12_v0.2.0.md`](./docs/DEPLOY_2026-06-12_v0.2.0.md) — SUI mainnet deploy record
+- [`docs/SLO_AND_RUNBOOKS.md`](./docs/SLO_AND_RUNBOOKS.md) — 7 operator runbooks
 
-**Why is TVL capped at $10K?**
-Deliberate. The cap is enforced by the Move contract itself (`admin_set_tvl_cap`) and lifts only after external audit closes. Operating publicly at a bounded size is proof — same code, same crons, same defense stack, capital-constrained until reviewers sign off.
+## Built by
 
-**How is this different from Ethena / GMX / Aave GHO?**
-Ethena is delta-neutral USDe backed by ETH shorts. GMX is a perp DEX. Aave GHO is over-collateralized. ZkWard is none of these — it's an AI-directional vault that uses **prediction markets as its alpha source** and perps only to hedge, not to yield-farm. Closest analog is a Yearn v3 strategy vault, but with signal-driven allocation instead of yield harvesting.
+**Ashish Regmi** ([@HarveReg](https://x.com/HarveReg)) — CS, Cryptography + AI majors. Formerly senior engineer at multiple Fortune 500 companies. Multi-chain hackathon winner across EVM, Aptos, ICP. Solo builder — open to core contributors and institutional partners.
 
-**What if BlueFin has an outage?**
-`bluefin-health` cron runs a 3-strike de-risk (close-all reduceOnly on venue degradation). `bluefin-db-reconcile` (every 15 min) and `sui-hedge-reconcile` (hourly) sweep any orphaned positions when the venue recovers. The vault continues to accept deposits/withdrawals against on-chain NAV throughout.
+Contact: `ashishregmi2017@gmail.com` · Telegram [@anstemple](https://t.me/anstemple)
 
-## Documentation & disclosure
-
-- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — system design overview
-- **[docs/DEPLOY_RUNBOOK.md](./docs/DEPLOY_RUNBOOK.md)** — incident response, admin endpoints, env presets, BlueFin invariants
-- **[docs/DEPLOY_2026-06-12_v0.2.0.md](./docs/DEPLOY_2026-06-12_v0.2.0.md)** — v0.2.0 mainnet deploy record
-- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** · **[docs/SUI_DEPLOYMENT.md](./docs/SUI_DEPLOYMENT.md)** · **[docs/MAINNET_READINESS.md](./docs/MAINNET_READINESS.md)**
-
-Responsible disclosure: report security issues privately to `ashishregmi2017@gmail.com`. Do not file public issues for active vulnerabilities.
+Responsible disclosure: report security issues privately. Do not file public issues for active vulnerabilities.
 
 ## Acknowledgments
 
-Built on [Sui](https://sui.io), [BlueFin V2](https://bluefin.io), [Polymarket](https://polymarket.com), [Manifold](https://manifold.markets), [Crypto.com](https://crypto.com), [Aiven](https://aiven.io), [Upstash](https://upstash.com), and [Vercel](https://vercel.com).
+Built on [Sui](https://sui.io), [BlueFin V2](https://bluefin.io), [Hedera](https://hedera.com) (Hashio EVM + HCS), [The Graph](https://thegraph.com), [Privy](https://privy.io), [wagmi](https://wagmi.sh) + [viem](https://viem.sh), [Polymarket](https://polymarket.com), [Manifold](https://manifold.markets), [Crypto.com](https://crypto.com), [Aiven](https://aiven.io), [Upstash](https://upstash.com), and [Vercel](https://vercel.com).
 
 ## License
 
