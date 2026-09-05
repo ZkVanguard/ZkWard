@@ -1,7 +1,11 @@
 import { ImageResponse } from 'next/og';
 
-// Route segment config — next/og runs on the edge by default.
-export const runtime = 'edge';
+// Route segment config. next/og defaults to Edge Runtime, but the 1 MB
+// Edge Function size cap is exceeded (1.08 MB) once Privy + wagmi ship
+// in the client bundle that route tracing tries to pull. Force Node.js
+// runtime — no size cap, and OG images cache aggressively so first-hit
+// latency is amortised.
+export const runtime = 'nodejs';
 export const alt = 'ZkWard — Autonomous SUI vault, ZK-STARK attested';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
