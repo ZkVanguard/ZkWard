@@ -16,7 +16,7 @@
  */
 
 import { createConfig, http } from 'wagmi';
-import { injected, coinbaseWallet } from 'wagmi/connectors';
+import { injected } from 'wagmi/connectors';
 import { defineChain } from 'viem';
 
 // ─── Hedera EVM chain definitions ──────────────────────────────────────────
