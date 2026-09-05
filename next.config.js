@@ -73,6 +73,20 @@ const nextConfig = {
   //   a runtime "Can't resolve X for browser" surfaces.
   turbopack: {},
 
+  // Webpack: stub connectors we don't use whose transitive deps fail to
+  // resolve. `wagmi/connectors` barrel pulls in `baseAccount` →
+  // `@base-org/account` → `@coinbase/cdp-sdk` → `@x402/*` (unshipped
+  // sub-paths). We only use `injected`, so false-alias the whole subtree
+  // and let webpack treat them as empty modules.
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@base-org/account': false,
+      '@coinbase/cdp-sdk': false,
+    };
+    return config;
+  },
+
   // env: {} block removed — all vars listed were NEXT_PUBLIC_*, which
   // Next.js auto-inlines at build time. The block was doubling that work.
   // API keys stay server-only via process.env on server routes; never
