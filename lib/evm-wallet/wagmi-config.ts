@@ -8,11 +8,10 @@
  *
  * Connectors
  *   - injected() — MetaMask, Rabby, Brave, Trust, any browser wallet
- *   - coinbaseWallet() — Coinbase Smart Wallet + Coinbase extension
  *
- * WalletConnect intentionally skipped for now — it requires a Reown
- * project ID (paid Cloud account). Adding is a two-line change once
- * NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is set.
+ * Coinbase + WalletConnect intentionally skipped — Coinbase SDK pulls a
+ * heavy tree and its wagmi v2 connector shape moves between minors;
+ * WalletConnect needs a paid Reown project ID. Add back only when needed.
  */
 
 import { createConfig, http } from 'wagmi';
@@ -95,10 +94,6 @@ function buildConfig() {
     chains: SUPPORTED_CHAINS,
     connectors: [
       injected({ shimDisconnect: true }),
-      coinbaseWallet({
-        appName: 'ZkWard',
-        appLogoUrl: 'https://www.zkward.com/icon.png',
-      }),
     ],
     transports: {
       [hederaTestnet.id]: http(),
