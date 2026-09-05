@@ -22,6 +22,8 @@ import {
 import type { WalletAccount, WalletWithRequiredFeatures } from '@mysten/wallet-standard';
 import { useSuiSafe } from '@/app/sui-providers';
 import { EvmConnectSection } from './EvmConnectSection';
+import { PrivyConnectSection } from './PrivyConnectSection';
+import { isPrivyEnabled } from '@/lib/evm-wallet/privy-config';
 import {
   SUI_MOBILE_WALLETS,
   isMobileBrowser,
@@ -161,6 +163,10 @@ export function ConnectButton() {
   // that subtree, so gate it by pathname.
   const pathname = usePathname() ?? '';
   const canShowEvm = mounted && pathname.includes('/dashboard');
+  // Privy layer (hackathon Priority 3). When configured, show the email/social
+  // "Sign in" CTA as the primary path — that's the whole point of the
+  // Privy Financial Flow track (hide onchain complexity from users).
+  const privyOn = canShowEvm && isPrivyEnabled();
 
   return (
     <div className="relative">
@@ -323,11 +329,14 @@ export function ConnectButton() {
 
       {/* Not connected — Hedera-primary pivot (2026-09-04). On /dashboard
           the EVM section (Hedera default) is the primary CTA; SUI is
-          available as a smaller secondary link. On marketing routes we
+          available as a smaller secondary link. When Privy is configured
+          (Priority 3), the "Sign in with email" flow leads and the wallet
+          connector becomes the advanced option. On marketing routes we
           fall back to the SUI-only connect since WagmiProvider isn't
           mounted there. */}
       {showConnect && canShowEvm && (
         <div className="relative flex items-center gap-2">
+          {privyOn && <PrivyConnectSection />}
           <EvmConnectSection />
           <button
             onClick={handleConnectSui}

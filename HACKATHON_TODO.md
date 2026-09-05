@@ -174,7 +174,7 @@ Nearly every "extra points" checkbox lit. Uses our existing 7-agent system as th
 
 ---
 
-## Priority 3 — Privy ($5K addressable)
+## Priority 3 — Privy ($5K addressable) — SHIPPED 2026-09-05
 
 ### Winning angle
 
@@ -255,9 +255,10 @@ Fills our real product gap (the WDK-removal shim), which reads as authenticity v
 | Hedera | Pool live | ⬜ Not started | `HEDERA_AUTO_HEDGE_DISABLE` helper in place |
 | Hedera | x402 endpoint | ⬜ Not started | Blocky402 facilitator |
 | Hedera | Agent consumer + HCS-14 | ⬜ Not started | Multi-agent A2A budget negotiation |
-| Privy | Shim replaced | ⬜ Not started | `lib/evm-wallet/hooks.ts` swap |
-| Privy | Org wallet admin | ⬜ Not started | AdminCap ops with quorum |
-| Privy | Embedded user wallet | ⬜ Not started | Hedera deposit flow |
+| Privy | Provider wired (feature-gated) | ✅ Shipped | `app/wallet-providers.tsx` conditional on `NEXT_PUBLIC_PRIVY_APP_ID` |
+| Privy | Email/social connect UI | ✅ Shipped | `components/PrivyConnectSection.tsx` |
+| Privy | B2B admin route + policy + quorum | ✅ Shipped | `/api/admin/hedera-pool/quorum-action`, `lib/services/privy/admin-auth.ts`, 7 tests |
+| Privy | Embedded user wallet deposit flow | ⬜ Needs app id | Wallet plumbing done — just needs live Privy app id + demo |
 
 ---
 

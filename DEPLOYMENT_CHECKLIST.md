@@ -191,12 +191,41 @@ curl -X POST "$QSTASH_URL/v2/schedules" \
 - [ ] FEEDBACK.md with judge-facing notes on what became easier
 - [x] Demo video (2-4 min): old Aiven query → new subgraph query → agent MCP call
 
-### Privy ($5K addressable — Priority 3, not yet integrated)
+### Privy ($5K addressable — Priority 3)
 
-- [ ] Privy app ID set in Vercel
-- [ ] `lib/evm-wallet/hooks.ts` swapped from wagmi injected → Privy embedded
-- [ ] Org wallet + policies for admin ops
-- [ ] Demo video: institutional admin op with quorum + user embedded-wallet deposit
+- [x] `@privy-io/react-auth` + `@privy-io/server-auth` + `@privy-io/wagmi` installed
+- [x] Privy layered on top of wagmi (`app/wallet-providers.tsx`) — feature-gated via `NEXT_PUBLIC_PRIVY_APP_ID`
+- [x] `PrivyConnectSection` UI — "Sign in" (email/social) primary, wallet advanced
+- [x] B2B admin route with allowlist + quorum: `POST /api/admin/hedera-pool/quorum-action`
+- [x] `lib/services/privy/admin-auth.ts` — Privy JWT verify + allowlist match + quorum tracking
+- [ ] Privy app ID + secret set in Vercel (see env vars below)
+- [ ] Demo video: institutional admin op with 2-of-2 quorum + user embedded-wallet deposit
+
+**Privy env vars to add (checklist § 4 additions):**
+
+```bash
+# Client-side: exposes app id to browser (safe)
+vercel env add NEXT_PUBLIC_PRIVY_APP_ID production
+# Server-side operator secret — NEVER expose to browser
+vercel env add PRIVY_APP_SECRET production
+# Admin allowlist: comma-separated `did:privy:...` or `email:<addr>`
+vercel env add PRIVY_ADMIN_ALLOWLIST production
+# Approvers needed per action (default 1; ≥2 recommended)
+vercel env add PRIVY_ADMIN_QUORUM production
+```
+
+**B2B demo curl (once app id + allowlist set):**
+
+```bash
+# Assumes you have a Privy JWT for a user on PRIVY_ADMIN_ALLOWLIST.
+# In the browser, retrieve via: const token = await getAccessToken()
+curl -X POST https://<prod>/api/admin/hedera-pool/quorum-action \
+  -H "Authorization: Bearer $PRIVY_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"raise-tvl-cap","actionId":"raise-2026-09-05","params":{"newCapUsdc":50000}}'
+# First approver: 202 → { status: "pending-approvals", approvers: 1, required: 2 }
+# Second approver: 200 → { status: "quorum-reached", downstream: "queue → ..." }
+```
 
 ## 9 · Fallback plan
 

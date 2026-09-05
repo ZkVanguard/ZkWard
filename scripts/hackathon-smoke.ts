@@ -119,6 +119,13 @@ async function main(): Promise<void> {
     parseJestSummary,
   );
 
+  console.log('\n[4a] Privy — B2B admin allowlist + quorum');
+  await run(
+    'privy-admin-auth (fail-closed allowlist + quorum accounting)',
+    'bun', ['jest', 'test/unit/privy-admin-auth.test.ts'],
+    parseJestSummary,
+  );
+
   console.log('\n[4] Cross-chain isolation guardrails');
   await run(
     'alert-response-loop (SUI-scoped Rule 1)',
