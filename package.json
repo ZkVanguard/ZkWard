@@ -119,7 +119,8 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
-    "viem": "^2.55.10"
+    "viem": "^2.55.10",
+    "wagmi": "^3.7.7"
   },
   "optionalDependencies": {
     "openai": "^4.77.3"

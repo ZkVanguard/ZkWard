@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { logger } from '@/lib/utils/logger';
 import {
   Wallet,
@@ -20,6 +21,7 @@ import {
 } from '@mysten/dapp-kit';
 import type { WalletAccount, WalletWithRequiredFeatures } from '@mysten/wallet-standard';
 import { useSuiSafe } from '@/app/sui-providers';
+import { EvmConnectSection } from './EvmConnectSection';
 import {
   SUI_MOBILE_WALLETS,
   isMobileBrowser,
@@ -152,6 +154,13 @@ export function ConnectButton() {
   // Wait for client mount to avoid hydration mismatch
   const showSui = mounted && isSuiConnected;
   const showConnect = !showSui;
+
+  // WagmiProvider only mounts inside /dashboard (per app/wallet-providers.tsx
+  // — marketing routes don't pay the wallet SDK bundle cost). EvmConnectSection
+  // reads wagmi hooks and would throw a WagmiProviderNotFoundError outside
+  // that subtree, so gate it by pathname.
+  const pathname = usePathname() ?? '';
+  const canShowEvm = mounted && pathname.includes('/dashboard');
 
   return (
     <div className="relative">
@@ -312,8 +321,26 @@ export function ConnectButton() {
         </div>
       )}
 
-      {/* Not connected - show connect options */}
-      {showConnect && (
+      {/* Not connected — Hedera-primary pivot (2026-09-04). On /dashboard
+          the EVM section (Hedera default) is the primary CTA; SUI is
+          available as a smaller secondary link. On marketing routes we
+          fall back to the SUI-only connect since WagmiProvider isn't
+          mounted there. */}
+      {showConnect && canShowEvm && (
+        <div className="relative flex items-center gap-2">
+          <EvmConnectSection />
+          <button
+            onClick={handleConnectSui}
+            disabled={isConnectingSui}
+            className="h-11 px-3 border border-black/10 dark:border-white/15 hover:bg-system-bg-secondary dark:hover:bg-[#2c2c2e] rounded-[12px] text-[13px] font-medium text-label-secondary dark:text-[#EBEBF0] active:scale-[0.98] disabled:opacity-70 flex items-center gap-1.5"
+            title="Connect Sui wallet (secondary chain)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4DA2FF]" />
+            {isConnectingSui ? '…' : 'Sui'}
+          </button>
+        </div>
+      )}
+      {showConnect && !canShowEvm && (
         <div className="relative">
           <button
             data-connect-cta="true"

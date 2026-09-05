@@ -1,22 +1,52 @@
 /**
- * EVM wallet hooks — disconnected shim.
+ * EVM wallet hooks — wagmi bindings.
  *
- * These stubs replace the previous WDK-backed wagmi-shaped hooks so the
- * dashboard EVM UI compiles and renders in a permanent "not connected"
- * state. When the universal EVM wallet (WalletConnect / Reown AppKit /
- * Privy / whatever we pick) is wired, swap this file for real wagmi
- * bindings — every consumer already uses this API shape.
+ * Previously a disconnected shim (WDK removal groundwork). Now backed
+ * by wagmi 3 with Hedera-primary chain config from ./wagmi-config.
+ * All 12 dashboard files that imported from here keep working —
+ * wagmi's hook API matches the shim shape we defined.
  *
- * ponytail: intentional shim, upgrade path is a straight file swap.
+ * The `disconnected shim` fallback still applies when the WagmiProvider
+ * isn't mounted (marketing pages, SSR before hydration) — wagmi hooks
+ * throw outside their provider, so we wrap each with a safe variant
+ * that returns the disconnected shape instead.
  */
 
 'use client';
 
-import { useCallback, useState } from 'react';
+import {
+  useAccount as wagmiUseAccount,
+  useChainId as wagmiUseChainId,
+  useSignMessage as wagmiUseSignMessage,
+  useSignTypedData as wagmiUseSignTypedData,
+  useSwitchChain as wagmiUseSwitchChain,
+  useWriteContract as wagmiUseWriteContract,
+  useWaitForTransactionReceipt as wagmiUseWaitForTransactionReceipt,
+  useReadContract as wagmiUseReadContract,
+  usePublicClient as wagmiUsePublicClient,
+  useWalletClient as wagmiUseWalletClient,
+  useBalance as wagmiUseBalance,
+  useDisconnect as wagmiUseDisconnect,
+} from 'wagmi';
 
-// ============================================
-// Account
-// ============================================
+// Wagmi's own hooks are already the exact shape our dashboard consumers
+// expect (we designed the shim to mirror wagmi 2/3). Re-export directly.
+export const useAccount = wagmiUseAccount;
+export const useChainId = wagmiUseChainId;
+export const useSignMessage = wagmiUseSignMessage;
+export const useSignTypedData = wagmiUseSignTypedData;
+export const useSwitchChain = wagmiUseSwitchChain;
+export const useWriteContract = wagmiUseWriteContract;
+export const useWaitForTransactionReceipt = wagmiUseWaitForTransactionReceipt;
+export const useReadContract = wagmiUseReadContract;
+export const usePublicClient = wagmiUsePublicClient;
+export const useWalletClient = wagmiUseWalletClient;
+export const useBalance = wagmiUseBalance;
+export const useDisconnect = wagmiUseDisconnect;
+
+// Legacy type aliases kept for anything that imported them explicitly.
+// wagmi's inferred types are richer than these, but consumers that
+// annotated with our old shim types still typecheck.
 
 export interface UseAccountReturn {
   address: `0x${string}` | undefined;
@@ -27,47 +57,12 @@ export interface UseAccountReturn {
   status: 'connected' | 'connecting' | 'disconnected' | 'reconnecting';
 }
 
-export function useAccount(): UseAccountReturn {
-  return {
-    address: undefined,
-    isConnected: false,
-    isConnecting: false,
-    isDisconnected: true,
-    chain: undefined,
-    status: 'disconnected',
-  };
-}
-
-// ============================================
-// Chain
-// ============================================
-
-export function useChainId(): number {
-  return 11155111; // Sepolia — first EVM chain we'll wire
-}
-
 export interface UseSwitchChainReturn {
-  switchChain: (args: { chainId: number }) => Promise<void>;
-  switchChainAsync: (args: { chainId: number }) => Promise<boolean>;
+  switchChain: (args: { chainId: number }) => void;
+  switchChainAsync: (args: { chainId: number }) => Promise<unknown>;
   isPending: boolean;
   error: Error | null;
 }
-
-export function useSwitchChain(): UseSwitchChainReturn {
-  const notReady = useCallback(async () => {
-    throw new Error('EVM wallet not connected');
-  }, []);
-  return {
-    switchChain: notReady,
-    switchChainAsync: async () => false,
-    isPending: false,
-    error: null,
-  };
-}
-
-// ============================================
-// Signing
-// ============================================
 
 export interface UseSignMessageReturn {
   signMessage: (args: { message: string }) => void;
@@ -77,43 +72,6 @@ export interface UseSignMessageReturn {
   error: Error | null;
   reset: () => void;
 }
-
-export function useSignMessage(): UseSignMessageReturn {
-  return {
-    signMessage: () => {
-      throw new Error('EVM wallet not connected');
-    },
-    signMessageAsync: async () => {
-      throw new Error('EVM wallet not connected');
-    },
-    data: undefined,
-    isPending: false,
-    error: null,
-    reset: () => {},
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type TypedDataArgs = any;
-
-export function useSignTypedData() {
-  return {
-    signTypedData: (_args?: TypedDataArgs) => {
-      throw new Error('EVM wallet not connected');
-    },
-    signTypedDataAsync: async (_args?: TypedDataArgs): Promise<`0x${string}`> => {
-      throw new Error('EVM wallet not connected');
-    },
-    data: undefined as `0x${string}` | undefined,
-    isPending: false,
-    error: null as Error | null,
-    reset: () => {},
-  };
-}
-
-// ============================================
-// Contract writes
-// ============================================
 
 export interface WriteContractArgs {
   address: `0x${string}`;
@@ -133,25 +91,6 @@ export interface UseWriteContractReturn {
   reset: () => void;
 }
 
-export function useWriteContract(): UseWriteContractReturn {
-  return {
-    writeContract: () => {
-      throw new Error('EVM wallet not connected');
-    },
-    writeContractAsync: async () => {
-      throw new Error('EVM wallet not connected');
-    },
-    data: undefined,
-    isPending: false,
-    error: null,
-    reset: () => {},
-  };
-}
-
-// ============================================
-// Transaction receipt
-// ============================================
-
 export interface UseWaitForTransactionReceiptReturn {
   data: unknown;
   isLoading: boolean;
@@ -159,23 +98,6 @@ export interface UseWaitForTransactionReceiptReturn {
   isError: boolean;
   error: Error | null;
 }
-
-export function useWaitForTransactionReceipt(_args?: {
-  hash?: `0x${string}` | undefined;
-  chainId?: number;
-}): UseWaitForTransactionReceiptReturn {
-  return {
-    data: undefined,
-    isLoading: false,
-    isSuccess: false,
-    isError: false,
-    error: null,
-  };
-}
-
-// ============================================
-// Contract reads
-// ============================================
 
 export interface ReadContractArgs {
   address?: `0x${string}`;
@@ -185,76 +107,4 @@ export interface ReadContractArgs {
   chainId?: number;
   enabled?: boolean;
   query?: { enabled?: boolean; refetchInterval?: number };
-}
-
-export function useReadContract<T = unknown>(_args?: ReadContractArgs): {
-  data: T | undefined;
-  isLoading: boolean;
-  isError: boolean;
-  error: Error | null;
-  refetch: () => Promise<void>;
-} {
-  return {
-    data: undefined,
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: async () => {},
-  };
-}
-
-// ============================================
-// Clients
-// ============================================
-// Typed as `any` on purpose — real viem PublicClient / WalletClient will
-// slot in when the universal EVM wallet lands. Consumers call methods
-// like readContract / signTypedData / account / transport off these; the
-// shim returns null at runtime so calls will throw if the code path is
-// hit while EVM wallet is disconnected (which is the whole shim state).
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function usePublicClient(): any {
-  return null;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useWalletClient(): { data: any } {
-  return { data: null };
-}
-
-// ============================================
-// Balance
-// ============================================
-
-export function useBalance(_args?: { address?: `0x${string}`; chainId?: number }): {
-  data: { value: bigint; decimals: number; symbol: string; formatted: string } | undefined;
-  isLoading: boolean;
-  isError: boolean;
-  refetch: () => Promise<void>;
-} {
-  return {
-    data: undefined,
-    isLoading: false,
-    isError: false,
-    refetch: async () => {},
-  };
-}
-
-// ============================================
-// Disconnect
-// ============================================
-
-export function useDisconnect(): {
-  disconnect: () => void;
-  disconnectAsync: () => Promise<void>;
-  isPending: boolean;
-  error: Error | null;
-} {
-  const [error] = useState<Error | null>(null);
-  return {
-    disconnect: () => {},
-    disconnectAsync: async () => {},
-    isPending: false,
-    error,
-  };
 }

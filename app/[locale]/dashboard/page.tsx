@@ -213,7 +213,7 @@ export default function DashboardPage() {
   const displayBalance = suiConnected
     ? `${suiBalance} SUI`
     : balance
-      ? `${parseFloat(balance.formatted).toFixed(4)} ${balance.symbol}`
+      ? `${(Number(balance.value) / 10 ** balance.decimals).toFixed(4)} ${balance.symbol}`
       : '';
 
   const contractAddresses = useContractAddresses();

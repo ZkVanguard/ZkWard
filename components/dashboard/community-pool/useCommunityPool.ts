@@ -161,7 +161,7 @@ export function useCommunityPool(propAddress?: string) {
     ],
     functionName: 'balanceOf',
     args: address ? [address as `0x${string}`] : undefined,
-    enabled: !!address && !!USDT_ADDRESS && selectedChain !== 'sui',
+    query: { enabled: !!address && !!USDT_ADDRESS && selectedChain !== 'sui' },
   });
 
   // Typed data signing hook for EIP-2612 permit
