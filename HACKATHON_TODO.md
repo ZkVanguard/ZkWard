@@ -153,9 +153,9 @@ Nearly every "extra points" checkbox lit. Uses our existing 7-agent system as th
 
 **Extra-points harvest (Day 2-3)**
 - [ ] Wire agent orchestrator boot to call `registerAllAgents(DEFAULT_AGENT_ROSTER)` on cold start
-- [ ] A2A negotiation between analyst-agent (proposes cost budget) and executor-agent (picks provider that fits budget)
+- [x] A2A negotiation between analyst-agent (proposes cost budget) and executor-agent (picks provider that fits budget) — shipped: `lib/services/a2a/{protocol,bus,provider-registry,negotiate}.ts` + demo endpoint `/api/hedera/a2a/demo` + 10 tests. Full round-trip: proposal → acceptance → settlement with HCS audit hook.
 - [x] `polymarket-edge-trader` calls the x402 endpoint per-tick with signed payment — shipped: `lib/services/x402/{client,budget}.ts` + trader integration + 7 parity tests. Gated via `X402_TRADER_ENABLED=1`.
-- [ ] Real HCS submit for x402 fills (currently stubbed via `HCS_AUDIT_ENABLED`)
+- [ ] Real HCS submit for x402 fills + A2A messages (currently stubbed via `HCS_AUDIT_ENABLED`)
 - [ ] Optional: HTS token for internal agent credits
 - [ ] Optional: Scheduled Transactions for recurring signal subscriptions
 
