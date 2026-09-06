@@ -41,12 +41,10 @@ export function buildPrivyClientConfig(): Record<string, unknown> {
         'okx_wallet',
       ],
     },
-    // email + wallet only in the built-in modal. Google is driven through
-    // Custom OAuth (see PrivyConnectSection.tsx → useLoginWithOAuth with
-    // provider 'custom:google') so we use OUR OWN Google Cloud OAuth
-    // client — Privy's built-in Google shares a client that fails on
-    // custom domains with 'redirect_uri_mismatch'.
-    loginMethods: ['email', 'wallet'],
+    // email + Google + wallet all available. Google uses our own Google
+    // Cloud OAuth client (configured under Privy dashboard → Login
+    // methods → Google → Client ID / Secret) — not Privy's shared one.
+    loginMethods: ['email', 'google', 'wallet'],
     embeddedWallets: {
       // 'users-without-wallets' — if the user signs in with MetaMask,
       // don't force an extra embedded wallet on them. Email/social users

@@ -34,10 +34,10 @@ export function PrivyConnectSection() {
   const { login } = useLogin();
   const { logout } = useLogout();
   const { wallets } = useWallets();
-  // Custom OAuth Google flow — bypasses Privy's built-in Google credentials
-  // and uses our own Google OAuth client. Configured in the Privy dashboard
-  // as a Custom Provider with name 'google' (registered against Google's
-  // OAuth endpoints + our Client ID/Secret). Docs: privy.io custom-oauth.
+  // Privy's built-in Google flow — driven by our OWN Google Cloud OAuth
+  // client (Client ID + Secret pasted under Login methods → Google in
+  // the Privy dashboard). Skipping Privy's shared credentials (which
+  // fail on custom domains with redirect_uri_mismatch).
   const { initOAuth, loading: oauthLoading } = useLoginWithOAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -71,11 +71,12 @@ export function PrivyConnectSection() {
     const onGoogle = async () => {
       setOauthError(null);
       try {
-        // 'custom:google' targets the Custom OAuth Provider named 'google'
-        // in the Privy dashboard. Redirects to Google, then back to
+        // 'google' = Privy's built-in Google provider, wired against our
+        // own Google Cloud OAuth client (dashboard → Login methods →
+        // Google). Redirects to Google, then back to
         // https://auth.privy.io/api/v1/oauth/callback which finalises
         // the session on Privy's side, then to our origin.
-        await initOAuth({ provider: 'custom:google' });
+        await initOAuth({ provider: 'google' });
       } catch (e) {
         setOauthError(e instanceof Error ? e.message : String(e));
       }
