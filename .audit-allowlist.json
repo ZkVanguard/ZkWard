@@ -49,6 +49,27 @@
       "reviewedAt": "2026-06-30",
       "expires": "2026-09-28",
       "ticket": null
+    },
+    "@hashgraph/sdk": {
+      "reason": "Hedera SDK — required for x402/HCS audit trail submits (Hedera prize track). CVEs are in transitive protobufjs/grpc-js; upstream fix pending in @hashgraph/sdk v3.x. Server-only usage in route handlers; no user input reaches the SDK's message parsers.",
+      "reviewedBy": "ashishregmi2017@gmail.com",
+      "reviewedAt": "2026-09-06",
+      "expires": "2026-12-05",
+      "ticket": null
+    },
+    "protobufjs": {
+      "reason": "Transitive of @hashgraph/sdk and @grpc/grpc-js. CVE is the prototype-pollution family — server-only; no untrusted proto messages parsed.",
+      "reviewedBy": "ashishregmi2017@gmail.com",
+      "reviewedAt": "2026-09-06",
+      "expires": "2026-12-05",
+      "ticket": null
+    },
+    "@grpc/grpc-js": {
+      "reason": "Transitive of @hashgraph/sdk. gRPC client used only against Hedera consensus nodes; no server exposure.",
+      "reviewedBy": "ashishregmi2017@gmail.com",
+      "reviewedAt": "2026-09-06",
+      "expires": "2026-12-05",
+      "ticket": null
     }
   }
 }
