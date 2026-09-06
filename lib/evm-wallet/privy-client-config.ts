@@ -20,34 +20,29 @@ export function buildPrivyClientConfig(): Record<string, unknown> {
     appearance: {
       accentColor: '#00A79F',
       theme: 'light',
-      // showWalletLoginFirst: true — MetaMask + injected wallets appear
-      // in the FIRST screen of the Privy modal. Was false which hid them
-      // behind an "advanced" tab that judges often missed, reading as
-      // "not detected". Email input still visible below.
-      showWalletLoginFirst: true,
+      // Email-first, no external wallets. Privy's core value here is the
+      // self-custodial embedded wallet created behind the scenes — the
+      // whole point is that judges never see MetaMask or a seed phrase.
+      showWalletLoginFirst: false,
       walletChainType: 'ethereum-only',
       logo: 'https://www.zkward.com/logo-official.svg',
-      // Explicit wallet list. Excluding coinbase_wallet + base_account
-      // sidesteps Privy's Coinbase Smart Wallet init blowing up on
-      // Hedera/Cronos chains (throws "TypeError: e is not a function"
-      // during initialize and cascades to hide MetaMask). `metamask` +
-      // `detected_ethereum_wallets` covers MetaMask, Rabby, Trust,
-      // Brave, and any EIP-6963 injector.
-      walletList: [
-        'detected_ethereum_wallets',
-        'metamask',
-        'wallet_connect',
-        'phantom',
-        'okx_wallet',
-      ],
     },
-    loginMethods: ['email', 'google', 'wallet'],
+    // Only email + Google. Deliberately no 'wallet' — the "hide onchain
+    // complexity" prize criterion is undermined the moment we show a
+    // wallet-connector picker. Users who want to bring an external
+    // wallet can still use the SUI/Slush path in the same navbar.
+    loginMethods: ['email', 'google'],
     embeddedWallets: {
-      createOnLogin: 'users-without-wallets',
+      // 'all-users' guarantees every login gets an embedded wallet, even
+      // if they somehow arrive with one from a prior session. Reads
+      // cleaner on the prize demo — one login = one on-chain address.
+      createOnLogin: 'all-users',
       requireUserPasswordOnCreate: false,
-      // Prompt for signature confirmation on every tx — matches the
-      // B2B track's "explicit user approval" narrative.
-      noPromptOnSignature: false,
+      // No prompt on every signature — cleaner UX for the financial-flow
+      // demo where the whole point is one-click funding + one-click send.
+      // If the B2B track judging cares about explicit approval, the quorum
+      // layer in /api/admin/hedera-pool/quorum-action provides it.
+      noPromptOnSignature: true,
     },
     supportedChains: [hederaTestnet, hederaMainnet, sepolia, cronosMainnet],
     defaultChain: hederaTestnet, // Hedera-primary pivot

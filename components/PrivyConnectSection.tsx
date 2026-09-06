@@ -61,11 +61,12 @@ export function PrivyConnectSection() {
       <button
         onClick={() => login()}
         data-connect-cta="true"
+        title="Sign in with email — Privy creates a self-custodial wallet in the background"
         className="h-11 px-4 rounded-[12px] font-semibold text-[15px] text-white active:scale-[0.98] flex items-center gap-2"
         style={{ background: PRIVY_ACCENT }}
       >
         <Mail className="w-4 h-4" />
-        Sign in
+        Sign in with email
       </button>
     );
   }
