@@ -20,28 +20,38 @@ export function buildPrivyClientConfig(): Record<string, unknown> {
     appearance: {
       accentColor: '#00A79F',
       theme: 'light',
-      // Email-first, no external wallets. Privy's core value here is the
-      // self-custodial embedded wallet created behind the scenes — the
-      // whole point is that judges never see MetaMask or a seed phrase.
+      // Email primary; wallet-connect list appears in the same modal as
+      // a secondary section. Gives judges the "hide onchain complexity"
+      // story AND lets power users on Hedera Testnet bring MetaMask.
       showWalletLoginFirst: false,
       walletChainType: 'ethereum-only',
       logo: 'https://www.zkward.com/logo-official.svg',
+      // Exclude coinbase_wallet + base_account — their smart-wallet init
+      // throws on Hedera/Cronos chain IDs. detected_ethereum_wallets uses
+      // EIP-6963 so any injected wallet (MetaMask, Rabby, Trust, Brave)
+      // appears with its own icon and name.
+      walletList: [
+        'detected_ethereum_wallets',
+        'metamask',
+        'wallet_connect',
+        'phantom',
+        'okx_wallet',
+      ],
     },
-    // Only email + Google. Deliberately no 'wallet' — the "hide onchain
-    // complexity" prize criterion is undermined the moment we show a
-    // wallet-connector picker. Users who want to bring an external
-    // wallet can still use the SUI/Slush path in the same navbar.
-    loginMethods: ['email', 'google'],
+    // email + Google = zero-friction path (embedded wallet).
+    // wallet = MetaMask / injected path for Hedera Testnet power users.
+    loginMethods: ['email', 'google', 'wallet'],
     embeddedWallets: {
-      // 'all-users' guarantees every login gets an embedded wallet, even
-      // if they somehow arrive with one from a prior session. Reads
-      // cleaner on the prize demo — one login = one on-chain address.
-      createOnLogin: 'all-users',
+      // 'users-without-wallets' — if the user signs in with MetaMask,
+      // don't force an extra embedded wallet on them. Email/social users
+      // still get one automatically.
+      createOnLogin: 'users-without-wallets',
       requireUserPasswordOnCreate: false,
-      // No prompt on every signature — cleaner UX for the financial-flow
-      // demo where the whole point is one-click funding + one-click send.
-      // If the B2B track judging cares about explicit approval, the quorum
-      // layer in /api/admin/hedera-pool/quorum-action provides it.
+      // No prompt on every signature for embedded wallets — cleaner UX
+      // for the financial-flow demo (one-click fund + one-click send).
+      // External wallets (MetaMask) always show their own confirmation
+      // popup regardless of this flag. Quorum-gated admin actions have
+      // their own explicit-approval story in the quorum route.
       noPromptOnSignature: true,
     },
     supportedChains: [hederaTestnet, hederaMainnet, sepolia, cronosMainnet],
