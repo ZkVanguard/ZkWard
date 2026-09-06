@@ -23,10 +23,36 @@ import {
   type Connector,
 } from 'wagmi';
 import { ChevronDown, Copy, Check, ExternalLink, LogOut, Wallet } from 'lucide-react';
-import { CHAIN_PICKER_ORDER, isHederaChain } from '@/lib/evm-wallet/wagmi-config';
+import { CHAIN_PICKER_ORDER, isHederaChain, hederaTestnet } from '@/lib/evm-wallet/wagmi-config';
 
 // Hedera brand-ish teal for the primary CTA + badges.
 const HEDERA_ACCENT = '#00A79F';
+
+// Manual add-network fallback. Wagmi's switchChain normally calls
+// wallet_addEthereumChain under the hood, but Coinbase Smart Wallet,
+// Phantom's EVM shim, and some in-app browser wallets swallow that
+// automatic path. Calling the EIP-1193 method directly always works if
+// the wallet supports arbitrary chains at all — MetaMask, Rabby, Trust,
+// Brave, Coinbase Extension.
+async function addHederaTestnetToWallet(): Promise<{ ok: boolean; error?: string }> {
+  const eth = (typeof window !== 'undefined' ? (window as unknown as { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum : undefined);
+  if (!eth?.request) return { ok: false, error: 'No injected EVM wallet detected' };
+  try {
+    await eth.request({
+      method: 'wallet_addEthereumChain',
+      params: [{
+        chainId: `0x${hederaTestnet.id.toString(16)}`,
+        chainName: hederaTestnet.name,
+        nativeCurrency: hederaTestnet.nativeCurrency,
+        rpcUrls: [...hederaTestnet.rpcUrls.default.http],
+        blockExplorerUrls: [hederaTestnet.blockExplorers!.default.url],
+      }],
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 function truncate(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -125,7 +151,12 @@ export function EvmConnectSection() {
                     <button
                       key={c.uid}
                       onClick={() => {
-                        connect({ connector: c });
+                        // chainId hint asks the wallet to open on Hedera
+                        // Testnet instead of whatever chain it was last on.
+                        // MetaMask / Rabby honour this; wallets that don't
+                        // fall back to their current chain — the
+                        // "Add Hedera Testnet" button below handles them.
+                        connect({ connector: c, chainId: hederaTestnet.id });
                         setShowConnectors(false);
                       }}
                       disabled={isConnectPending}
@@ -137,6 +168,28 @@ export function EvmConnectSection() {
                       </span>
                     </button>
                   ))}
+                </div>
+
+                {/* Escape hatch: some wallets (Coinbase Smart, Phantom EVM
+                    shim, some in-app browsers) don't auto-add Hedera when
+                    wagmi asks. This button calls wallet_addEthereumChain
+                    directly. Idempotent — safe to click twice. */}
+                <button
+                  onClick={async () => {
+                    const res = await addHederaTestnetToWallet();
+                    if (!res.ok) {
+                      // eslint-disable-next-line no-alert
+                      alert(`Couldn't add Hedera Testnet: ${res.error ?? 'unknown error'}`);
+                    }
+                  }}
+                  className="mt-2 w-full text-[11px] py-1.5 rounded-lg border border-[#00A79F]/30 text-[#00A79F] hover:bg-[#00A79F]/5 active:scale-[0.98] transition-all"
+                >
+                  Add Hedera Testnet to wallet
+                </button>
+
+                <div className="mt-2 text-[10px] leading-relaxed text-label-tertiary">
+                  Works with MetaMask, Rabby, Trust, Brave, Coinbase Extension.
+                  Phantom&apos;s EVM mode does not support Hedera.
                 </div>
 
                 {connectError && (
@@ -157,7 +210,16 @@ export function EvmConnectSection() {
     return (
       <div className="relative">
         <button
-          onClick={() => switchChain({ chainId: CHAIN_PICKER_ORDER[0].id })}
+          onClick={async () => {
+            try {
+              await switchChain({ chainId: hederaTestnet.id });
+            } catch {
+              // Wallet doesn't have Hedera configured and wagmi's built-in
+              // add-then-switch failed. Add manually via EIP-1193; on
+              // success most wallets auto-switch.
+              await addHederaTestnetToWallet();
+            }
+          }}
           disabled={isSwitching}
           className="h-11 px-3 border border-[#FF9500]/40 bg-[#FF9500]/10 rounded-[12px] flex items-center gap-2 text-[13px] font-medium text-[#B26400] disabled:opacity-70"
         >
