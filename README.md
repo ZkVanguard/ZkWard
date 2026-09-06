@@ -127,19 +127,67 @@ bun run scripts/hackathon-smoke.ts
 - 15 internal audit phases (Jun 4-12, 2026)
 - Bulletproof drawdown test (10/10 green as merge gate)
 
-**Event work (2026-09-03 → 2026-09-05):**
+**Event work (ETHOnline 2026 — 2026-09-03 → 2026-09-06):**
 
-| Commit | Feature | Sponsor |
-|---|---|---|
-| `135ce5a4` | Redis cron-state + Standardized Vault subgraph scaffold | Graph |
-| `dbb9a672` | Subgraph client + first Aiven-read migration | Graph |
-| `021b2179` | Extended queries + Redis cutover + Substreams scaffold | Graph |
-| `a14c6b4c` | Hedera pivot — cron guardrails + x402 endpoint + HCS-14 | Hedera |
-| `7e7c787b` | Wagmi + Hedera-primary EVM wallet | Hedera |
-| `355436b4` | Agent x402 consumer + per-agent budget | Hedera |
-| `d9887590` | A2A negotiation + demo endpoint | Hedera |
-| `4c12c2d0` | Deployment checklist + 16-pillar smoke test | All |
-| `4b154fb5` | Privy — email/social + B2B quorum admin | Privy |
+Split by sponsor track for judge readability.
+
+*Hedera track — AI & Agentic Payments ($6K) + Continuity ($1K) + Harness/Tokenization pending:*
+
+| Commit | Feature |
+|---|---|
+| `a14c6b4c` | Hedera pivot — cron guardrails + x402 endpoint scaffold + HCS-14 |
+| `355436b4` | Agent x402 consumer + per-agent budget accounting |
+| `d9887590` | A2A negotiation + demo endpoint |
+| `7e7c787b` | Wagmi + Hedera-primary EVM wallet |
+| `7cc92b04` | Robust Hedera connect — chainId hint + manual add-chain fallback |
+| `d32291fd` | Hedera Mirror Node reader (bypasses Hashio RPC rate limits) |
+| `656ffab4` | Real HCS audit submits — HCS_AUDIT_TOPIC_ID `0.0.10393879` live |
+| `af14506e` | Waive @hashgraph/sdk transitive audit findings (server-only usage) |
+| `7911f218` | Agent Payments dashboard tab — one-click x402 paid signal → HCS |
+| `a3627a97` | Deploy `SimpleUsdcVault` (`0xe7E6…9A9`) + test USDC (`0x7043…ae1`), 10k pre-minted |
+| `05d8cc5c` | Dashboard: graceful UI when deposit token not deployed |
+| `922285fd` | Fix: uninitialised pool no longer 500s the endpoint |
+| `78cc8e3f` | Pool colours aligned to site primary; graceful zero-init read |
+| `6d7ba7d9` | Dynamic deposit-token symbol per chain (USDC on Hedera) |
+| `c0e1c235` | `getDepositTokenInfo` declares Hedera as USDC |
+| `1d288ec0` | `HederaVaultActions` — approve → deposit / withdraw on Privy wallet; auto-select Hedera on Privy connect |
+| `7b285e33` | `/api/hedera/nav-history` from Mirror Node events + simulated perps panel with live prices |
+
+*Privy track — Best Financial Flow + B2B ($5K addressable):*
+
+| Commit | Feature |
+|---|---|
+| `4b154fb5` | Privy — email/social login + B2B quorum admin |
+| `4c30e05a` | Complete Privy integration — env vars in Vercel, all flows wired |
+| `f8aaba06` | `usePrivyEmbeddedAddress` — Privy wallet flows into pool deposit path |
+| `81aef4bd` | Fix Navbar mount so wagmi context resolves under Privy |
+| `9da0e13a` | CSP allows auth.privy.io iframe; excluded Coinbase Smart to unblock MetaMask |
+| `8412f7af` | Show wallets first in Privy modal, drop redundant wagmi dropdown |
+| `107b6745` | Wallet + email + Google login methods all live |
+| `1e4f87de` | Drop coinbase + walletconnect from wagmi (Privy modal covers) |
+| `81cb2936` → `3d0c97e1` | Google via own OAuth client (Custom OAuth flirt, then reverted to built-in-with-own-creds) |
+
+*Graph track — deferred (Studio CORS blocker, 2026-09-06):*
+
+| Commit | Feature |
+|---|---|
+| `135ce5a4` | Redis cron-state + Standardized Vault subgraph scaffold |
+| `dbb9a672` | Subgraph client + first Aiven-read migration |
+| `021b2179` | Extended queries + Redis cutover + Substreams scaffold |
+
+Scaffolding in place; live deployment blocked on Subgraph Studio CORS support ticket. Resumes once unblocked.
+
+*Cross-cutting:*
+
+| Commit | Feature |
+|---|---|
+| `4c12c2d0` | Deployment checklist + 16-pillar smoke test |
+| `c19eba5a` | Vercel build heap bump (webpack OOM after wagmi v2 dep churn) |
+| `35f1186a` | Webpack alias stubs for unshipped @coinbase/cdp-sdk sub-modules |
+| `982272e8` | Wagmi coinbaseWallet dead-code drop |
+| `c85bfee1` | SUI wallet smart detection + Slush web fallback (`stashedWallet`) |
+| `c2178fd7` | Landing: Hedera pills + trust badge + footer chip (side by side with SUI) |
+| `02e518b6` | Dashboard chain picker unlocked Hedera |
 
 ## Architecture
 
