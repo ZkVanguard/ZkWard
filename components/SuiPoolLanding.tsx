@@ -849,6 +849,75 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
       </section>
 
       {/* ─────────────────────────────────────────────────────────────── */}
+      {/* PRIVY — enterprise onboarding + B2B controls                    */}
+      {/* ─────────────────────────────────────────────────────────────── */}
+      <section className="py-12 sm:py-20 md:py-24 px-4 sm:px-5 lg:px-8 bg-system-bg-primary min-w-0">
+        <Reveal className="max-w-[1100px] mx-auto">
+          <div className="text-center mb-6 sm:mb-10">
+            <div className="inline-flex items-center gap-1.5 mb-3 px-2.5 py-1 rounded-full bg-[#00A79F]/10 text-[#00A79F] text-[11px] sm:text-caption-1 font-semibold uppercase tracking-wide">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00A79F]" />
+              Powered by Privy
+            </div>
+            <h2 className="text-[24px] sm:text-[28px] md:text-[36px] lg:text-[42px] font-display font-semibold tracking-[-0.03em] leading-[1.05] text-label-primary mb-3 break-words">
+              Sign in with email. Approve with the team.
+            </h2>
+            <p className="text-sm sm:text-callout text-label-secondary max-w-[640px] mx-auto leading-relaxed sm:leading-[1.5] px-1">
+              No seed phrase for retail. Multi-approver quorum for treasury. Both
+              live on the dashboard.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 min-w-0">
+            <Link
+              href="/dashboard"
+              className="group block rounded-ios-xl p-5 sm:p-6 bg-system-bg-secondary border border-separator-opaque/30 shadow-ios-1 hover:shadow-ios-2 hover:-translate-y-[1px] transition-all min-w-0"
+              style={{ transition: `all 400ms ${SPRING}` }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-[#00A79F]">
+                  Financial flow
+                </span>
+              </div>
+              <h3 className="text-title-3 sm:text-title-2 font-semibold text-label-primary mb-2 tracking-tight">
+                Zero-friction onboarding
+              </h3>
+              <p className="text-sm sm:text-callout text-label-secondary leading-relaxed mb-3">
+                Email login &rarr; self-custodial wallet &rarr; card on-ramp
+                &rarr; on-chain commit &mdash; all via Privy hooks. No extension.
+              </p>
+              <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#00A79F]">
+                Try the flow
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className="group block rounded-ios-xl p-5 sm:p-6 bg-system-bg-secondary border border-separator-opaque/30 shadow-ios-1 hover:shadow-ios-2 hover:-translate-y-[1px] transition-all min-w-0"
+              style={{ transition: `all 400ms ${SPRING}` }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-[#00A79F]">
+                  B2B controls
+                </span>
+              </div>
+              <h3 className="text-title-3 sm:text-title-2 font-semibold text-label-primary mb-2 tracking-tight">
+                Quorum-gated treasury
+              </h3>
+              <p className="text-sm sm:text-callout text-label-secondary leading-relaxed mb-3">
+                N-of-M admin approvals for destructive actions (raise TVL cap,
+                pause pool). Policy visible, approvers logged, execution gated.
+              </p>
+              <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#00A79F]">
+                Open the panel
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </Link>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────── */}
       {/* PLATFORM SURFACES — discoverability for the BlackRock-shaped views */}
       {/* ─────────────────────────────────────────────────────────────── */}
       <section className="py-14 sm:py-20 md:py-24 px-4 sm:px-5 lg:px-8 bg-system-bg-secondary border-y border-separator-opaque/20 min-w-0">

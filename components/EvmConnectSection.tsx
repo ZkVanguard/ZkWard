@@ -65,7 +65,17 @@ function connectorIcon(connector: Connector): string {
   if (name.includes('rabby')) return '🐰';
   if (name.includes('trust')) return '🛡️';
   if (name.includes('brave')) return '🦁';
+  if (name.includes('walletconnect')) return '🔗';
   return '💼';
+}
+
+function connectorHint(connector: Connector): string | null {
+  const name = connector.name.toLowerCase();
+  const id = connector.id?.toLowerCase() ?? '';
+  if (id === 'walletconnect' || name.includes('walletconnect')) return 'QR · mobile wallets';
+  if (name.includes('coinbase')) return 'No extension needed';
+  if (id === 'injected' && name === 'injected') return 'Detected browser wallet';
+  return null;
 }
 
 export function EvmConnectSection() {
@@ -143,31 +153,47 @@ export function EvmConnectSection() {
 
                 <div className="space-y-1.5">
                   {usableConnectors.length === 0 && (
-                    <div className="text-[12px] text-label-tertiary p-2">
-                      No wallet detected. Install MetaMask, Rabby, or Coinbase Wallet.
+                    <div className="text-[12px] text-label-tertiary p-2 leading-relaxed">
+                      No wallet detected.{' '}
+                      <a
+                        href="https://metamask.io/download/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#00A79F] font-medium hover:underline"
+                      >
+                        Install MetaMask →
+                      </a>
                     </div>
                   )}
-                  {usableConnectors.map((c) => (
-                    <button
-                      key={c.uid}
-                      onClick={() => {
-                        // chainId hint asks the wallet to open on Hedera
-                        // Testnet instead of whatever chain it was last on.
-                        // MetaMask / Rabby honour this; wallets that don't
-                        // fall back to their current chain — the
-                        // "Add Hedera Testnet" button below handles them.
-                        connect({ connector: c, chainId: hederaTestnet.id });
-                        setShowConnectors(false);
-                      }}
-                      disabled={isConnectPending}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] active:scale-[0.98] transition-all disabled:opacity-60"
-                    >
-                      <span className="text-lg">{connectorIcon(c)}</span>
-                      <span className="text-[13px] font-medium text-label-primary dark:text-white flex-1 text-left">
-                        {c.name}
-                      </span>
-                    </button>
-                  ))}
+                  {usableConnectors.map((c) => {
+                    const hint = connectorHint(c);
+                    return (
+                      <button
+                        key={c.uid}
+                        onClick={() => {
+                          // chainId hint asks the wallet to open on Hedera
+                          // Testnet instead of whatever chain it was last on.
+                          // MetaMask / Rabby honour this; wallets that don't
+                          // fall back to their current chain — the
+                          // "Add Hedera Testnet" button below handles them.
+                          connect({ connector: c, chainId: hederaTestnet.id });
+                          setShowConnectors(false);
+                        }}
+                        disabled={isConnectPending}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] active:scale-[0.98] transition-all disabled:opacity-60"
+                      >
+                        <span className="text-lg flex-shrink-0">{connectorIcon(c)}</span>
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="text-[13px] font-medium text-label-primary dark:text-white truncate">
+                            {c.name}
+                          </div>
+                          {hint && (
+                            <div className="text-[10px] text-label-tertiary truncate">{hint}</div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Escape hatch: some wallets (Coinbase Smart, Phantom EVM

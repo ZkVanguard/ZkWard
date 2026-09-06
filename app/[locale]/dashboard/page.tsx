@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Layers,
   MoreHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { MobileTabBar } from '@/components/dashboard/MobileTabBar';
 import { useContractAddresses } from '@/lib/contracts/hooks';
@@ -159,6 +160,23 @@ const CustodyTab = nextDynamic(
   { loading: () => <LoadingSkeleton />, ssr: false },
 );
 
+// B2B admin panel — Privy quorum voting UI. Lazy so the Privy hooks
+// (usePrivy, useLogin, getAccessToken) only ship when the tab is opened,
+// not when landing on the default Pool tab.
+const B2bAdminPanel = nextDynamic(
+  () =>
+    import('@/components/dashboard/B2bAdminPanel').then((mod) => ({ default: mod.B2bAdminPanel })),
+  { loading: () => <LoadingSkeleton />, ssr: false },
+);
+
+// Privy financial flow — email → embedded wallet → fund → send. Same
+// lazy pattern as the admin panel.
+const PrivyFinancialFlow = nextDynamic(
+  () =>
+    import('@/components/dashboard/PrivyFinancialFlow').then((mod) => ({ default: mod.PrivyFinancialFlow })),
+  { loading: () => <LoadingSkeleton />, ssr: false },
+);
+
 // Reusable loading skeleton
 function LoadingSkeleton({ height = 'h-40' }: { height?: string }) {
   return <div className={`animate-pulse bg-system-bg-secondary ${height} rounded-[24px]`} />;
@@ -192,6 +210,8 @@ const platformItems: NavItem[] = [
   { id: 'portfolio', label: 'Portfolio', icon: Layers },
   { id: 'risk', label: 'Risk', icon: Activity },
   { id: 'custody', label: 'Custody', icon: ShieldCheck },
+  { id: 'onboard', label: 'Onboard', icon: Sparkles, badge: 'Privy' },
+  { id: 'admin', label: 'B2B Admin', icon: Settings, badge: 'Privy' },
 ];
 
 type NavId = (typeof navItems)[number]['id'] | (typeof platformItems)[number]['id'];
@@ -960,6 +980,30 @@ export default function DashboardPage() {
       case 'custody':
         return <CustodyTab />;
 
+      case 'onboard':
+        return (
+          <Card>
+            <CardHeader
+              title="Zero-friction onboarding"
+              subtitle="Email → embedded wallet → fund → deposit — all via Privy"
+              badge={<Badge color="teal">PRIVY FLOW</Badge>}
+            />
+            <PrivyFinancialFlow />
+          </Card>
+        );
+
+      case 'admin':
+        return (
+          <Card>
+            <CardHeader
+              title="B2B Admin Controls"
+              subtitle="Privy-authenticated · quorum-gated treasury actions"
+              badge={<Badge color="teal">PRIVY QUORUM</Badge>}
+            />
+            <B2bAdminPanel />
+          </Card>
+        );
+
       default:
         return null;
     }
@@ -1010,10 +1054,12 @@ function CardHeader({
 }
 
 // Badge component
-function Badge({ children, color }: { children: React.ReactNode; color: 'green' | 'blue' }) {
+function Badge({ children, color }: { children: React.ReactNode; color: 'green' | 'blue' | 'teal' }) {
   const colors = {
     green: 'bg-ios-green text-white',
     blue: 'bg-ios-blue text-white',
+    // Hedera / Privy accent
+    teal: 'bg-[#00A79F] text-white',
   };
 
   return (

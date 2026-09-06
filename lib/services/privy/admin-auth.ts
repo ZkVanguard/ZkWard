@@ -145,6 +145,22 @@ export async function recordApprovalAndCheckQuorum(
   return { reached: rec.approvers.length >= required, approvers: rec.approvers, required };
 }
 
+/**
+ * Read-only snapshot for the admin UI. Never records a new approval.
+ * Returns `{ approvers: [], createdAt: 0 }` if none yet, matching the
+ * "not-yet-proposed" state so callers can treat both as zero-approvals.
+ */
+export async function readQuorumState(
+  actionId: string,
+): Promise<{ approvers: string[]; createdAt: number; required: number }> {
+  const rec = await readQuorum(actionId);
+  return {
+    approvers: rec.approvers,
+    createdAt: rec.createdAt,
+    required: getPrivyAdminQuorum(),
+  };
+}
+
 /** Test-only: wipe a quorum bucket (both Redis and memory). */
 export async function _resetQuorumForTest(actionId: string): Promise<void> {
   const key = `${QUORUM_KEY_PREFIX}${actionId}`;
