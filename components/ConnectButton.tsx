@@ -431,12 +431,11 @@ export function ConnectButton() {
           mounted there. */}
       {showConnect && canShowEvm && (
         <div className="relative flex items-center gap-2">
-          {/* When Privy is enabled its modal handles ALL EVM wallets
-              (MetaMask, Rabby, WalletConnect, injected, +email/social).
-              Rendering EvmConnectSection alongside would show a second,
-              redundant, wagmi-only wallet dropdown that Privy's WagmiProvider
-              may not populate — reads to users as "MetaMask not detected". */}
-          {privyOn ? <PrivyConnectSection /> : <EvmConnectSection />}
+          {/* Privy is the ONLY EVM path — no wagmi injected fallback, no
+              MetaMask picker. Every user signs in with email/Google and
+              gets an embedded self-custodial wallet. The old
+              EvmConnectSection is intentionally not rendered anywhere. */}
+          <PrivyConnectSection />
           <button
             onClick={handleConnectSui}
             disabled={isConnectingSui}

@@ -29,10 +29,10 @@ export function buildPrivyClientConfig(): Record<string, unknown> {
       showWalletLoginFirst: false,
       walletChainType: 'ethereum-only',
       logo: 'https://www.zkward.com/logo-official.svg',
-      // Exclude coinbase_wallet + base_account — their smart-wallet init
-      // throws on Hedera/Cronos chain IDs. detected_ethereum_wallets uses
-      // EIP-6963 so any injected wallet (MetaMask, Rabby, Trust, Brave)
-      // appears with its own icon and name.
+      // Wallets Privy's modal will surface. Excluding coinbase_wallet
+      // and base_account so their smart-wallet init doesn't throw on
+      // Hedera/Cronos chain IDs. detected_ethereum_wallets uses EIP-6963
+      // so MetaMask, Rabby, Trust, Brave etc. all appear.
       walletList: [
         'detected_ethereum_wallets',
         'metamask',
@@ -41,13 +41,14 @@ export function buildPrivyClientConfig(): Record<string, unknown> {
         'okx_wallet',
       ],
     },
-    // email + Google + wallet all available. Google uses our own Google
-    // Cloud OAuth client (configured under Privy dashboard → Login
-    // methods → Google → Client ID / Secret) — not Privy's shared one.
+    // Email + Google + wallet. All three inside the Privy modal — no
+    // separate wagmi-injected UI outside. External wallets are proxied
+    // through Privy's WagmiProvider so hooks (useAccount, useSendTx)
+    // see them transparently.
     loginMethods: ['email', 'google', 'wallet'],
     embeddedWallets: {
       // 'users-without-wallets' — if the user signs in with MetaMask,
-      // don't force an extra embedded wallet on them. Email/social users
+      // don't force an extra embedded wallet on them. Email/Google users
       // still get one automatically.
       createOnLogin: 'users-without-wallets',
       requireUserPasswordOnCreate: false,

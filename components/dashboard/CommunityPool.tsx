@@ -20,6 +20,7 @@
 
 import { useState, memo, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { usePrivyEmbeddedAddress } from '@/lib/evm-wallet/usePrivyEmbeddedAddress';
+import { HederaVaultActions } from './HederaVaultActions';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/lib/hooks';
 import {
@@ -100,6 +101,24 @@ export const CommunityPool = memo(function CommunityPool({
   const privyEmbeddedAddress = usePrivyEmbeddedAddress();
 
   const pool = useCommunityPool(propAddress ?? privyEmbeddedAddress ?? undefined);
+
+  // Auto-select Hedera the first time a Privy embedded wallet appears.
+  // Privy wallets live on Hedera Testnet by default (privy-client-config
+  // defaultChain: hederaTestnet) so switching the pool picker keeps the
+  // user's on-chain context aligned with what they can actually deposit
+  // into. Runs exactly once per session — after that the user's manual
+  // chain switch wins.
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (autoSelectedRef.current) return;
+    if (!privyEmbeddedAddress) return;
+    if (pool.selectedChain === 'hedera') { autoSelectedRef.current = true; return; }
+    // Only auto-switch from the SUI default; if the user is already on
+    // an EVM chain manually, respect that choice.
+    if (pool.selectedChain !== 'sui') { autoSelectedRef.current = true; return; }
+    autoSelectedRef.current = true;
+    pool.handleChainSelect('hedera');
+  }, [privyEmbeddedAddress, pool]);
 
   // ============================================================================
   // TRANSACTION CONFIRMATION EFFECTS (tightly coupled to WDK lifecycle)
@@ -377,46 +396,57 @@ export const CommunityPool = memo(function CommunityPool({
         </CollapsibleSection>
       )}
 
-      <DepositWithdrawActions
-        selectedChain={pool.selectedChain}
-        poolData={pool.poolData}
-        userPosition={pool.userPosition}
-        chainConfig={pool.chainConfig}
-        poolDeployed={pool.poolDeployed}
-        communityPoolAddress={pool.COMMUNITY_POOL_ADDRESS}
-        suiPoolStateId={pool.suiPoolStateId}
-        network={pool.network}
-        isFirstDeposit={pool.isFirstDeposit}
-        isChainMismatch={pool.isChainMismatch}
-        userUsdtBalance={pool.userUsdtBalance}
-        showDeposit={pool.showDeposit}
-        showWithdraw={pool.showWithdraw}
-        depositAmount={pool.depositAmount}
-        withdrawShares={pool.withdrawShares}
-        actionLoading={pool.actionLoading}
-        isPending={pool.isPending}
-        isConfirming={pool.isConfirming}
-        txStatus={pool.txStatus}
-        address={pool.address}
-        activeWalletType={pool.activeWalletType}
-        suiIsConnected={pool.suiIsConnected}
-        suiAddress={pool.suiAddress}
-        suiBalance={pool.suiBalance}
-        suiDepositAmount={pool.suiDepositAmount}
-        suiWithdrawShares={pool.suiWithdrawShares}
-        suiNetwork={pool.suiNetwork}
-        suiIsWrongNetwork={pool.suiIsWrongNetwork}
-        onShowDeposit={pool.setShowDeposit}
-        onShowWithdraw={pool.setShowWithdraw}
-        onDepositAmountChange={pool.setDepositAmount}
-        onWithdrawSharesChange={pool.setWithdrawShares}
-        onSuiDepositAmountChange={pool.setSuiDepositAmount}
-        onSuiWithdrawSharesChange={pool.setSuiWithdrawShares}
-        onDeposit={pool.handleDeposit}
-        onWithdraw={pool.handleWithdraw}
-        onSuiDeposit={pool.handleSuiDeposit}
-        onSuiWithdraw={pool.handleSuiWithdraw}
-      />
+      {/* Hedera vault has its own compact deposit/withdraw component wired
+          to SimpleUsdcVault directly. Keeps this dedicated path free of the
+          SUI + Sepolia + Cronos + WDK + permit code that the monolith
+          DepositWithdrawActions carries for backwards compatibility. */}
+      {pool.selectedChain === 'hedera' ? (
+        <HederaVaultActions
+          address={pool.address as `0x${string}` | undefined}
+          onRefresh={() => pool.fetchPoolData(true)}
+        />
+      ) : (
+        <DepositWithdrawActions
+          selectedChain={pool.selectedChain}
+          poolData={pool.poolData}
+          userPosition={pool.userPosition}
+          chainConfig={pool.chainConfig}
+          poolDeployed={pool.poolDeployed}
+          communityPoolAddress={pool.COMMUNITY_POOL_ADDRESS}
+          suiPoolStateId={pool.suiPoolStateId}
+          network={pool.network}
+          isFirstDeposit={pool.isFirstDeposit}
+          isChainMismatch={pool.isChainMismatch}
+          userUsdtBalance={pool.userUsdtBalance}
+          showDeposit={pool.showDeposit}
+          showWithdraw={pool.showWithdraw}
+          depositAmount={pool.depositAmount}
+          withdrawShares={pool.withdrawShares}
+          actionLoading={pool.actionLoading}
+          isPending={pool.isPending}
+          isConfirming={pool.isConfirming}
+          txStatus={pool.txStatus}
+          address={pool.address}
+          activeWalletType={pool.activeWalletType}
+          suiIsConnected={pool.suiIsConnected}
+          suiAddress={pool.suiAddress}
+          suiBalance={pool.suiBalance}
+          suiDepositAmount={pool.suiDepositAmount}
+          suiWithdrawShares={pool.suiWithdrawShares}
+          suiNetwork={pool.suiNetwork}
+          suiIsWrongNetwork={pool.suiIsWrongNetwork}
+          onShowDeposit={pool.setShowDeposit}
+          onShowWithdraw={pool.setShowWithdraw}
+          onDepositAmountChange={pool.setDepositAmount}
+          onWithdrawSharesChange={pool.setWithdrawShares}
+          onSuiDepositAmountChange={pool.setSuiDepositAmount}
+          onSuiWithdrawSharesChange={pool.setSuiWithdrawShares}
+          onDeposit={pool.handleDeposit}
+          onWithdraw={pool.handleWithdraw}
+          onSuiDeposit={pool.handleSuiDeposit}
+          onSuiWithdraw={pool.handleSuiWithdraw}
+        />
+      )}
 
       <StatusMessages
         successMessage={pool.successMessage}
