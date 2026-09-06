@@ -161,7 +161,16 @@ export function useCommunityPool(propAddress?: string) {
     ],
     functionName: 'balanceOf',
     args: address ? [address as `0x${string}`] : undefined,
-    query: { enabled: !!address && !!USDT_ADDRESS && selectedChain !== 'sui' },
+    query: {
+      // Skip when the token contract isn't deployed on this chain
+      // (Hedera testnet USDT is 0x0000... today — a balanceOf call
+      // there is a wasted network round-trip that also spams the
+      // console with revert errors from wagmi's ReadContractError).
+      enabled: !!address
+        && !!USDT_ADDRESS
+        && USDT_ADDRESS !== '0x0000000000000000000000000000000000000000'
+        && selectedChain !== 'sui',
+    },
   });
 
   // Typed data signing hook for EIP-2612 permit

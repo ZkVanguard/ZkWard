@@ -91,16 +91,50 @@ export const DepositWithdrawActions = memo(function DepositWithdrawActions({
 }: DepositWithdrawActionsProps) {
   const isSui = selectedChain === 'sui';
   const minDeposit = isFirstDeposit ? 100 : 10;
-  
+
   // User connects via WDK self-custodial wallet
   const effectiveAddress = address;
   const evmConnected = !!effectiveAddress;
-  
+
   // Get deposit token info based on chain and network (USDT for mainnet, USDC for testnet)
-  const tokenInfo = useMemo(() => 
+  const tokenInfo = useMemo(() =>
     getDepositTokenInfo(selectedChain, network),
     [selectedChain, network]
   );
+
+  // Guard: chains where the deposit token contract isn't deployed yet
+  // (Hedera testnet currently has usdt = 0x0000...). Rendering the full
+  // deposit UI would show a broken 'You have no USDT' warning and let
+  // users click Deposit into a doomed approval flow. Render an inline
+  // "coming soon" card instead so the pool is still viewable.
+  const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
+  const tokenNotDeployed = !isSui && (!communityPoolAddress
+    || communityPoolAddress === ZERO_ADDR
+    || (chainConfig?.contracts?.testnet?.usdt === ZERO_ADDR
+        && chainConfig?.contracts?.mainnet?.usdt === ZERO_ADDR));
+
+  if (!isSui && tokenNotDeployed) {
+    const chainName = chainConfig?.name ?? selectedChain;
+    return (
+      <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-[#00A79F]/10 border border-[#00A79F]/30">
+          <span className="text-2xl flex-shrink-0">🚧</span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-label-primary mb-1">
+              Deposits coming to {chainName}
+            </div>
+            <div className="text-[12px] text-label-secondary leading-relaxed">
+              The {chainName} pool contract is live at{' '}
+              <code className="font-mono text-[11px] break-all">{communityPoolAddress}</code>{' '}
+              — deposit token ({tokenInfo.symbol}) not yet deployed on this network.
+              Switch to <strong>SUI</strong> above to deposit USDC into the live pool now,
+              or watch this space.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
 
   if (isSui) {
