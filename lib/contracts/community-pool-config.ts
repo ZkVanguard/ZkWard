@@ -330,8 +330,9 @@ export function getDepositTokenInfo(
   chainKey: string,
   _network: NetworkType = 'testnet'
 ): { symbol: string; name: string; decimals: number; logo?: string } {
-  // SUI uses USDC
-  if (chainKey === 'sui') {
+  // SUI and Hedera both use USDC (Hedera via SimpleUsdcVault deployed
+  // 2026-09-06 — see contracts/core/SimpleUsdcVault.sol).
+  if (chainKey === 'sui' || chainKey === 'hedera') {
     return {
       symbol: 'USDC',
       name: 'USD Coin',
@@ -340,7 +341,7 @@ export function getDepositTokenInfo(
     };
   }
 
-  // EVM chains use USDT via Tether WDK (both mainnet and testnet)
+  // Other EVM chains (Sepolia, Cronos) use USDT via Tether WDK.
   return {
     symbol: 'USDT',
     name: 'Tether USD',
