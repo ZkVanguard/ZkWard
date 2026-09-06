@@ -14,14 +14,24 @@ const config = {
     project: './tsconfig.hardhat.json'
   },
   solidity: {
-    version: '0.8.22',
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 1,  // Minimum runs = smallest contract size
+    // OZ contracts moved to pragma ^0.8.24 in recent versions — need a
+    // matching compiler. Kept the 0.8.22 slot for legacy contracts.
+    compilers: [
+      {
+        version: '0.8.24',
+        settings: {
+          optimizer: { enabled: true, runs: 1 },
+          viaIR: true,
+        },
       },
-      viaIR: true,
-    },
+      {
+        version: '0.8.22',
+        settings: {
+          optimizer: { enabled: true, runs: 1 },
+          viaIR: true,
+        },
+      },
+    ],
   },
   networks: {
     hardhat: {

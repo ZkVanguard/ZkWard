@@ -173,9 +173,9 @@ export const SEPOLIA_CONTRACT_ADDRESSES = {
 
 export const HEDERA_CONTRACT_ADDRESSES = {
   testnet: {
-    // Hedera Testnet (Chain ID: 296)
-    communityPool: '0xfd6B402b860aD57f1393E2b60E1D676b57e0E63B' as `0x${string}`,
-    usdtToken: '0x0000000000000000000000000000000000000000' as `0x${string}`, // USDT on Hedera testnet - TODO
+    // Hedera Testnet (Chain ID: 296) — SimpleUsdcVault deployed 2026-09-06.
+    communityPool: '0xe7E6fEDce9d72D112137B631E8D51831D30729A9' as `0x${string}`,
+    usdtToken: '0x704365B35AeF0b7F9fc17c18B5162D4A6d600ae1' as `0x${string}`, // Test USDC (6 dec, mintable)
     pythOracle: '0xA2aa501b19aff244D90cc15a4Cf739D2725B5729' as `0x${string}`,
     zkVerifier: '0x0000000000000000000000000000000000000000' as `0x${string}`,
     rwaManager: '0x0000000000000000000000000000000000000000' as `0x${string}`,

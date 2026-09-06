@@ -161,8 +161,13 @@ export const POOL_CHAIN_CONFIGS: Record<string, PoolChainConfig> = {
     },
     contracts: {
       testnet: {
-        communityPool: '0xfd6B402b860aD57f1393E2b60E1D676b57e0E63B',
-        usdt: '0x0000000000000000000000000000000000000000', // USDT on Hedera testnet - TODO: Deploy
+        // SimpleUsdcVault deployed 2026-09-06 with fresh MockERC20 USDC
+        // (contracts/core/SimpleUsdcVault.sol). Replaces the earlier
+        // uninitialised community pool at 0xfd6B402b8... (depositToken=0x0
+        // meant it could never accept a deposit). This one has 10k USDC
+        // pre-minted to the operator wallet for demo funding.
+        communityPool: '0xe7E6fEDce9d72D112137B631E8D51831D30729A9',
+        usdt: '0x704365B35AeF0b7F9fc17c18B5162D4A6d600ae1', // Test USDC (6 decimals, mintable)
         pythOracle: '0xA2aa501b19aff244D90cc15a4Cf739D2725B5729', // Pyth on Hedera testnet
       },
       mainnet: {
@@ -171,9 +176,10 @@ export const POOL_CHAIN_CONFIGS: Record<string, PoolChainConfig> = {
         pythOracle: '0xA2aa501b19aff244D90cc15a4Cf739D2725B5729', // Pyth on Hedera mainnet
       },
     },
-    // Pool accepts USDT deposits only (via Tether WDK)
-    assets: ['BTC', 'ETH', 'USDT'],
-    status: 'testing',
+    // Vault accepts test USDC deposits (SimpleUsdcVault contract) — no
+    // asset allocation on-chain; keeps USDC 1:1.
+    assets: ['USDC'],
+    status: 'live',
   },
 
   // ============================================
