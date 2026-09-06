@@ -552,8 +552,10 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
         />
 
         <div className="max-w-[1100px] mx-auto">
-          {/* Status pill */}
-          <div className="flex items-center justify-center mb-8 sm:mb-10">
+          {/* Status pill + chain badges. Two pills side by side: the pool lives
+              on SUI Mainnet, and the EVM agent stack runs on Hedera. Both
+              chains stated up front — no hidden multichain surprises. */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-8 sm:mb-10">
             <StatusPill
               left={<LiveIndicator label="Live on SUI Mainnet" />}
               right={
@@ -562,6 +564,21 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
                 </span>
               }
             />
+            <span
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border"
+              style={{
+                borderColor: 'rgba(0,167,159,0.25)',
+                backgroundColor: 'rgba(0,167,159,0.08)',
+                color: '#00A79F',
+              }}
+              title="EVM agent settlement + wallet on Hedera Testnet"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ backgroundColor: '#00A79F' }} />
+                <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#00A79F' }} />
+              </span>
+              <span className="text-footnote font-medium">Hedera EVM</span>
+            </span>
           </div>
 
           {/* Headline — tightened to 2 short lines, no gradient text (the
@@ -796,7 +813,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 min-w-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4 min-w-0">
             <TrustBadge
               icon={<Lock className="w-5 h-5" />}
               title="TVL cap"
@@ -820,6 +837,12 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               title="ZK-STARK proofs"
               value="Post-quantum"
               hint="Risk attestations published"
+            />
+            <TrustBadge
+              icon={<Layers className="w-5 h-5" />}
+              title="Multichain"
+              value="SUI + Hedera"
+              hint="Pool on SUI Mainnet, agent settlement on Hedera EVM"
             />
           </div>
         </Reveal>

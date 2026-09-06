@@ -63,6 +63,17 @@ export const Footer = memo(function Footer() {
               <span className="hidden md:inline ml-2">·</span>
               <span className="block md:inline md:ml-2 text-ios-blue">{t('testnet')}</span>
               <div className="mt-1 text-caption-2 text-label-tertiary">{t('migrationNotice')}</div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-caption-2 text-label-tertiary">
+                <span>Deployed on</span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#4DA2FF]/10 text-[#4DA2FF] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#4DA2FF]" />
+                  SUI Mainnet
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#00A79F]/10 text-[#00A79F] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00A79F]" />
+                  Hedera Testnet
+                </span>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-caption-1">
               <span className="px-3 py-1.5 bg-ios-blue text-white rounded-full font-medium">
