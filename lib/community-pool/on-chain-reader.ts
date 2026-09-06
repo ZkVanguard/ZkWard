@@ -76,11 +76,53 @@ export function buildAllocationsForDb(poolData: PoolDataCache) {
 export async function getOnChainPoolData(chainConfig?: ChainConfig): Promise<PoolDataCache | null> {
   const config = chainConfig || getChainConfig();
   const cacheKey = `onchain-pool-${config.chainKey}-${config.network}`;
-  
+
   // Check in-memory cache first
   const cached = getCachedRpc<PoolDataCache>(cacheKey);
   if (cached) return cached;
-  
+
+  // Hedera path: route through Hedera Mirror Node (official indexer).
+  // Faster + higher availability than Hashio public RPC, and doesn't
+  // choke on the CONTRACT_REVERT_EXECUTED that getPoolStats throws on
+  // uninitialised state.
+  if (config.chainKey === 'hedera') {
+    try {
+      const { readHederaPoolSnapshot } = await import('@/lib/services/hedera/mirror-node');
+      const fullChainConfig = POOL_CHAIN_CONFIGS.hedera;
+      const networkKey = config.network as 'testnet' | 'mainnet';
+      const usdtAddr = fullChainConfig?.contracts?.[networkKey]?.usdt ?? null;
+      const network = networkKey === 'mainnet' ? 'mainnet' : 'testnet';
+      const snap = await readHederaPoolSnapshot(network, config.poolAddress, usdtAddr);
+      if ('ok' in snap && snap.ok) {
+        // Uninitialised pool → target allocations are the deployment default.
+        const allocations: Record<string, { percentage: number }> = {
+          BTC: { percentage: 25 },
+          ETH: { percentage: 25 },
+          SUI: { percentage: 25 },
+          CRO: { percentage: 25 },
+        };
+        const result: PoolDataCache = {
+          totalValueUSD: snap.totalNavUsdc,
+          totalShares: snap.totalShares,
+          sharePrice: snap.sharePrice,
+          totalMembers: snap.memberCount,
+          allocations,
+          onChain: true,
+        };
+        setCachedRpc(cacheKey, result, POOL_DATA_TTL);
+        return result;
+      }
+      logger.warn('[CommunityPool] Mirror Node returned no snapshot for hedera, falling through to RPC', {
+        reason: 'reason' in snap ? snap.reason : 'unknown',
+      });
+    } catch (mirrorErr) {
+      logger.warn('[CommunityPool] Mirror Node read threw, falling through to RPC', {
+        error: mirrorErr instanceof Error ? mirrorErr.message : String(mirrorErr),
+      });
+    }
+    // Fall through to the generic RPC path below on Mirror Node failure.
+  }
+
   try {
     // For Cronos testnet, use the unified stats service (has extra caching)
     if (config.chainKey === 'cronos' && config.network === 'testnet') {
