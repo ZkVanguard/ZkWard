@@ -19,6 +19,7 @@ import {
   Layers,
   MoreHorizontal,
   Sparkles,
+  Coins,
 } from 'lucide-react';
 import { MobileTabBar } from '@/components/dashboard/MobileTabBar';
 import { useContractAddresses } from '@/lib/contracts/hooks';
@@ -177,6 +178,13 @@ const PrivyFinancialFlow = nextDynamic(
   { loading: () => <LoadingSkeleton />, ssr: false },
 );
 
+// Hedera x402 agent payments demo — pay-per-call inference with HCS audit trail.
+const HederaAgentPayments = nextDynamic(
+  () =>
+    import('@/components/dashboard/HederaAgentPayments').then((mod) => ({ default: mod.HederaAgentPayments })),
+  { loading: () => <LoadingSkeleton />, ssr: false },
+);
+
 // Reusable loading skeleton
 function LoadingSkeleton({ height = 'h-40' }: { height?: string }) {
   return <div className={`animate-pulse bg-system-bg-secondary ${height} rounded-[24px]`} />;
@@ -212,6 +220,7 @@ const platformItems: NavItem[] = [
   { id: 'custody', label: 'Custody', icon: ShieldCheck },
   { id: 'onboard', label: 'Onboard', icon: Sparkles, badge: 'Privy' },
   { id: 'admin', label: 'B2B Admin', icon: Settings, badge: 'Privy' },
+  { id: 'x402', label: 'Agent Payments', icon: Coins, badge: 'Hedera' },
 ];
 
 type NavId = (typeof navItems)[number]['id'] | (typeof platformItems)[number]['id'];
@@ -1001,6 +1010,18 @@ export default function DashboardPage() {
               badge={<Badge color="teal">PRIVY QUORUM</Badge>}
             />
             <B2bAdminPanel />
+          </Card>
+        );
+
+      case 'x402':
+        return (
+          <Card>
+            <CardHeader
+              title="Hedera Agent Payments"
+              subtitle="x402 pay-per-call inference · HCS audit trail"
+              badge={<Badge color="teal">x402 · HEDERA</Badge>}
+            />
+            <HederaAgentPayments />
           </Card>
         );
 
