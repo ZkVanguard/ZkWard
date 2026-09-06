@@ -61,7 +61,7 @@
     "fund:wallets": "bun run scripts/setup/fund-wallets.ts",
     "translate": "bun run scripts/translate-whitepaper.ts",
     "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
-    "build": "cross-env NODE_OPTIONS=--no-deprecation next build --webpack",
+    "build": "cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=8192\" next build --webpack",
     "build:full": "bun run compile && bun run build",
     "start": "bun run agents:start"
   },
