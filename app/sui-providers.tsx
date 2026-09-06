@@ -515,9 +515,39 @@ export function SuiWalletProviders({
   // The parent <Providers> already supplies the QueryClientProvider that
   // @mysten/dapp-kit needs. Rendering our own here would nest a second
   // client + break useQuery cache sharing across the app.
+  // Slush web flow — auto-registers a wallet-standard-compatible signer
+  // for users who don't have the Slush extension installed. "Stashed" is
+  // Slush's pre-rebrand internal name in @mysten/dapp-kit. When the
+  // extension IS installed, dapp-kit prefers it over the web flow.
+  const stashedWallet = useMemo(
+    () => ({
+      name: 'ZkWard',
+      network: (suiNetwork === 'testnet' ? 'testnet' : 'mainnet') as 'mainnet' | 'testnet',
+    }),
+    [suiNetwork],
+  );
+
   return (
     <SuiClientProvider networks={networkConfig} defaultNetwork={suiNetwork}>
-      <WalletProvider autoConnect>
+      <WalletProvider
+        autoConnect
+        stashedWallet={stashedWallet}
+        // Boost commonly-installed wallets to the top of the modal so
+        // detection order doesn't hide the wallet the user just installed.
+        // Names come from each wallet's `name` field in the wallet-standard
+        // registration — spelling matters exactly.
+        preferredWallets={[
+          'Slush',
+          'Slush — A Sui wallet',
+          'Sui Wallet',
+          'Suiet',
+          'Ethos Wallet',
+          'Nightly',
+          'OKX Wallet',
+          'Phantom',
+          'Backpack',
+        ]}
+      >
         <SuiContextProvider network={network} setNetwork={setNetwork}>
           {children}
         </SuiContextProvider>

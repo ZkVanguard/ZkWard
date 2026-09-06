@@ -30,6 +30,93 @@ import {
   buildMobileWalletLink,
   type MobileWalletOption,
 } from '@/lib/utils/mobile-wallet'; // Safe hook wrapper for Sui wallet functionality
+// ─── Sui wallet picker (desktop dropdown) ───────────────────────────────
+// Renders every wallet dapp-kit's useWallets() returned. If none detected,
+// surfaces the install links for the top three so the user is one click
+// away from having a wallet. The click-outside layer closes on backdrop tap.
+const SUI_INSTALL_LINKS: Array<{ name: string; url: string; icon: string }> = [
+  { name: 'Slush', url: 'https://slush.app/download', icon: '💧' },
+  { name: 'Suiet', url: 'https://suiet.app/', icon: '🟣' },
+  { name: 'Sui Wallet', url: 'https://chromewebstore.google.com/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil', icon: '🔵' },
+];
+
+function SuiWalletPicker({
+  wallets,
+  onPick,
+  onClose,
+}: {
+  wallets: WalletWithRequiredFeatures[];
+  onPick: (w: WalletWithRequiredFeatures) => void;
+  onClose: () => void;
+}) {
+  const hasWallets = wallets.length > 0;
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-[#1c1c1e] border border-[#E5E5EA] dark:border-[#38383a] rounded-xl shadow-lg overflow-hidden z-50">
+        <div className="p-3">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-[#4DA2FF] flex items-center justify-center text-white text-[10px] font-bold">SUI</div>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-label-primary dark:text-white truncate">
+                {hasWallets ? 'Pick a wallet' : 'Install a wallet'}
+              </div>
+              <div className="text-[11px] text-label-tertiary">
+                {hasWallets ? `${wallets.length} detected` : 'No SUI wallet found in this browser'}
+              </div>
+            </div>
+          </div>
+
+          {hasWallets ? (
+            <div className="space-y-1.5">
+              {wallets.map((w) => (
+                <button
+                  key={w.name}
+                  onClick={() => onPick(w)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] active:scale-[0.98] transition-all"
+                >
+                  {w.icon ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={w.icon} alt="" className="w-6 h-6 rounded flex-shrink-0" />
+                  ) : (
+                    <span className="w-6 h-6 rounded bg-[#4DA2FF]/10 flex items-center justify-center text-[12px]">💧</span>
+                  )}
+                  <span className="text-[13px] font-medium text-label-primary dark:text-white flex-1 text-left truncate">
+                    {w.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {SUI_INSTALL_LINKS.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-system-bg-secondary dark:bg-[#2c2c2e] hover:bg-[#E5E5EA] dark:hover:bg-[#3c3c3e] active:scale-[0.98] transition-all"
+                >
+                  <span className="w-6 h-6 rounded bg-[#4DA2FF]/10 flex items-center justify-center text-[12px] flex-shrink-0">
+                    {link.icon}
+                  </span>
+                  <span className="text-[13px] font-medium text-label-primary dark:text-white flex-1 text-left truncate">
+                    Install {link.name}
+                  </span>
+                  <span className="text-[11px] text-label-tertiary flex-shrink-0">↗</span>
+                </a>
+              ))}
+              <div className="mt-2 text-[10px] text-label-tertiary leading-relaxed">
+                On mobile? Open this page inside a wallet app&apos;s browser.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function useSuiWalletSafe() {
   let wallets: WalletWithRequiredFeatures[] = [];
   let suiAccount: WalletAccount | null = null;
@@ -124,26 +211,34 @@ export function ConnectButton() {
 
   const truncate = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
+  // Desktop: if exactly one wallet detected, connect directly; if multiple,
+  // show a picker; if none, offer the install-flow. Mobile: always show the
+  // mobile-wallet sheet so the user picks which app to deeplink into.
   const handleConnectSui = useCallback(() => {
-    if (suiWallets.length > 0) {
-      connectSui({ wallet: suiWallets[0] });
-      setShowSelector(false);
-      return;
-    }
     if (isMobile) {
-      // Mobile: open the wallet-chooser sheet. Redirect happens when the
-      // user picks a specific wallet, so they see which options they have
-      // rather than being silently thrown into Slush. Fixes the "connect
-      // wallet on mobile doesn't redirect or connect" report.
       setShowSelector(false);
       setShowMobileWallets(true);
       return;
     }
-    if (window.confirm('No SUI wallet detected.\n\nWould you like to install Slush wallet?')) {
-      window.open('https://slush.app/', '_blank');
+    if (suiWallets.length === 1) {
+      connectSui({ wallet: suiWallets[0] });
+      setShowSelector(false);
+      return;
     }
+    if (suiWallets.length > 1) {
+      // Toggle the wallet picker so the user chooses which detected wallet.
+      setShowSelector((v) => !v);
+      return;
+    }
+    // No wallets detected. Prefer opening the install page over a
+    // confirm() dialog which many browsers now suppress silently.
+    window.open('https://slush.app/', '_blank', 'noopener,noreferrer');
+  }, [isMobile, suiWallets, connectSui]);
+
+  const pickSuiWallet = useCallback((wallet: WalletWithRequiredFeatures) => {
+    connectSui({ wallet });
     setShowSelector(false);
-  }, [suiWallets, connectSui, isMobile]);
+  }, [connectSui]);
 
   // Called from the anchor's onClick — we don't preventDefault, we
   // just track pending state so the sheet can show "Opening Slush…".
@@ -347,6 +442,13 @@ export function ConnectButton() {
             <span className="w-1.5 h-1.5 rounded-full bg-[#4DA2FF]" />
             {isConnectingSui ? '…' : 'Sui'}
           </button>
+          {showSelector && (
+            <SuiWalletPicker
+              wallets={suiWallets}
+              onPick={pickSuiWallet}
+              onClose={() => setShowSelector(false)}
+            />
+          )}
         </div>
       )}
       {showConnect && !canShowEvm && (
@@ -360,6 +462,13 @@ export function ConnectButton() {
             <Wallet className="w-4 h-4" />
             <span>{isConnectingSui ? 'Connecting…' : 'Connect'}</span>
           </button>
+          {showSelector && (
+            <SuiWalletPicker
+              wallets={suiWallets}
+              onPick={pickSuiWallet}
+              onClose={() => setShowSelector(false)}
+            />
+          )}
         </div>
       )}
 
