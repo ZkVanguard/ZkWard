@@ -95,6 +95,7 @@
     "@crypto.com/ai-agent-client": "^1.0.2",
     "@crypto.com/developer-platform-client": "^1.1.2",
     "@crypto.com/facilitator-client": "^1.0.4",
+    "@hashgraph/sdk": "^2.81.0",
     "@heroicons/react": "^2.2.0",
     "@mysten/dapp-kit": "^0.14.0",
     "@mysten/sui": "^1.0.0",

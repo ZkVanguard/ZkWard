@@ -202,18 +202,71 @@ async function writeHcsAudit(payload: {
   signal: string;
   confidence: number;
   paymentSettled: boolean;
-}): Promise<{ txId?: string; topicId?: string; memo?: string }> {
-  // Real HCS submit requires @hashgraph/sdk client + operator account.
-  // Wired here as a fire-and-forget stub so the demo shows the audit
-  // hook in place; enable via HCS_AUDIT_ENABLED=1 + HEDERA_OPERATOR_*.
+}): Promise<{ txId?: string; topicId?: string; memo?: string; explorerUrl?: string }> {
   if (!envFlag('HCS_AUDIT_ENABLED')) {
     return { memo: `pending: ${payload.asset}:${payload.signal}:${payload.confidence}` };
   }
-  // Placeholder — real impl in Phase 4 alongside HCS-14 agent identity.
-  return {
-    topicId: process.env.HCS_AUDIT_TOPIC_ID,
-    memo: `x402:${payload.asset}:${payload.signal}:${payload.confidence}:${payload.paymentSettled ? 'paid' : 'unpaid'}`,
-  };
+
+  const topicId = (process.env.HCS_AUDIT_TOPIC_ID || '').trim();
+  const operatorId = (process.env.HEDERA_OPERATOR_ID || '').trim();
+  const operatorKey = (process.env.HEDERA_OPERATOR_KEY || '').trim();
+  const network = ((process.env.HEDERA_NETWORK || 'testnet').trim()) as 'mainnet' | 'testnet';
+
+  if (!topicId || !operatorId || !operatorKey) {
+    logger.warn('[x402/hcs] missing HCS env — audit degraded to memo', {
+      hasTopic: !!topicId, hasOperator: !!operatorId, hasKey: !!operatorKey,
+    });
+    return { topicId: topicId || undefined, memo: 'hcs env missing' };
+  }
+
+  try {
+    const { Client, PrivateKey, TopicMessageSubmitTransaction, AccountId, TopicId } =
+      await import('@hashgraph/sdk');
+
+    const client = network === 'mainnet' ? Client.forMainnet() : Client.forTestnet();
+    client.setOperator(
+      AccountId.fromString(operatorId),
+      operatorKey.startsWith('0x')
+        ? PrivateKey.fromStringECDSA(operatorKey)
+        : PrivateKey.fromString(operatorKey),
+    );
+
+    const message = JSON.stringify({
+      v: 1,
+      asset: payload.asset,
+      signal: payload.signal,
+      confidence: payload.confidence,
+      paid: payload.paymentSettled,
+      ts: new Date().toISOString(),
+    });
+
+    const submit = await new TopicMessageSubmitTransaction()
+      .setTopicId(TopicId.fromString(topicId))
+      .setMessage(message)
+      .execute(client);
+    const receipt = await submit.getReceipt(client);
+
+    // Best-effort: close the client — it holds gRPC channels.
+    try { client.close(); } catch { /* ignore */ }
+
+    const txId = submit.transactionId?.toString();
+    return {
+      topicId,
+      txId,
+      memo: `x402:${payload.asset}:${payload.signal}:${payload.confidence}:${payload.paymentSettled ? 'paid' : 'unpaid'}`,
+      explorerUrl: `https://hashscan.io/${network}/topic/${topicId}`,
+      // status is part of receipt; log only, not returned (kept payload lean)
+      ...(receipt.status ? {} : {}),
+    };
+  } catch (e) {
+    logger.warn('[x402/hcs] submit failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return {
+      topicId,
+      memo: `hcs-submit-failed:${payload.asset}:${payload.signal}`,
+    };
+  }
 }
 
 // ─── Handler ───────────────────────────────────────────────────────────────
