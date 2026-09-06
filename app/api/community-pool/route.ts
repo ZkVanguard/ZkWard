@@ -493,9 +493,16 @@ export async function GET(request: NextRequest) {
     try {
       const onChainPool = await getOnChainPoolData(chainConfig);
 
-      if (onChainPool && onChainPool.totalShares > 0) {
-        // Get deduplicated member count (contract memberList has duplicates)
-        const onChainMembers = await getAllOnChainMembers(chainConfig);
+      // Accept ANY valid on-chain response, including an uninitialized
+      // pool with totalShares=0 (e.g. Hedera testnet before first deposit).
+      // Previously we bailed out when totalShares was zero and fell to the
+      // local-DB path which errored for non-cronos chains → "Unable to
+      // retrieve pool data" banner. An empty pool is a legitimate state.
+      if (onChainPool) {
+        // Skip the expensive member-list dedupe when there are no shares.
+        const onChainMembers = onChainPool.totalShares > 0
+          ? await getAllOnChainMembers(chainConfig)
+          : null;
         const uniqueActiveMembers =
           onChainMembers?.filter((m) => m.shares > 0).length ?? onChainPool.totalMembers ?? 0;
 
