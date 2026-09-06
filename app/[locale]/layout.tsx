@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from 'next';
 import { Space_Grotesk } from 'next/font/google';
 import '../../styles/globals.css';
 import { Providers } from '../providers';
-import { Navbar } from '../../components/Navbar';
+import { NavbarSwitch } from '../../components/NavbarSwitch';
 import { Footer } from '../../components/Footer';
 import { CookieConsent } from '../../components/CookieConsent';
 import { PwaProvider } from '../../components/PwaProvider';
@@ -203,7 +203,7 @@ export default async function LocaleLayout(
           <Providers>
             <div className="flex flex-col min-h-screen">
               <LegacyDomainBanner />
-              <Navbar />
+              <NavbarSwitch />
               <main className="flex-1">
                 {children}
               </main>
