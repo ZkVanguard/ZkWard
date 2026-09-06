@@ -83,10 +83,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<NavHistory
 
   const base = 'https://testnet.mirrornode.hedera.com/api/v1';
 
-  // Fetch both event topics in parallel. Mirror Node returns desc by
-  // timestamp; we normalise to asc for the fold below.
-  async function fetchLogs(topic: string) {
-    const url = `${base}/contracts/${pool}/results/logs?topic0=${topic}&order=asc&limit=100`;
+  // Fetch ALL contract logs and filter server-side. Mirror Node's
+  // `topic0=` query filter returns 0 results in practice even when the
+  // topic hash matches what unfiltered results show — a known quirk.
+  // Filtering in-code is O(n) but n is bounded by the pool's lifetime
+  // event count, which is small for the demo.
+  async function fetchAllLogs(): Promise<Array<{
+    data: string; topics: string[]; timestamp: string; transaction_hash: string;
+  }>> {
+    const url = `${base}/contracts/${pool}/results/logs?order=asc&limit=100`;
     try {
       const r = await fetch(url, { next: { revalidate: 30 } });
       if (!r.ok) {
@@ -105,10 +110,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<NavHistory
     }
   }
 
-  const [depositLogs, withdrawLogs] = await Promise.all([
-    fetchLogs(TOPIC_DEPOSITED),
-    fetchLogs(TOPIC_WITHDRAWN),
-  ]);
+  const allLogs = await fetchAllLogs();
+  const depositLogs = allLogs.filter((l) => l.topics?.[0] === TOPIC_DEPOSITED);
+  const withdrawLogs = allLogs.filter((l) => l.topics?.[0] === TOPIC_WITHDRAWN);
 
   interface Event {
     kind: 'deposit' | 'withdraw';
