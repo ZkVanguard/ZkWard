@@ -8,16 +8,15 @@
  *
  * Connectors
  *   - injected() — MetaMask, Rabby, Brave, Trust, any browser wallet
- *   - coinbaseWallet() — Coinbase extension + smart-wallet popup fallback
- *     (uses classic @coinbase/wallet-sdk; the newer @base-org/account is
- *     null-aliased in next.config.js because it drags in unshipped
- *     @x402/* sub-modules — coinbaseWallet does not touch it).
- *   - walletConnect() — QR code for mobile wallets when the env is set.
- *     Skipped silently if NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is empty.
+ *
+ * Coinbase + WalletConnect intentionally NOT added at the wagmi layer —
+ * Privy's login modal already exposes both (plus email/social/embedded
+ * wallets). Keeping wagmi lean means one less place to break when a
+ * connector's peer deps churn.
  */
 
 import { createConfig, http } from 'wagmi';
-import { injected, coinbaseWallet, walletConnect } from 'wagmi/connectors';
+import { injected } from 'wagmi/connectors';
 import { defineChain } from 'viem';
 
 // ─── Hedera EVM chain definitions ──────────────────────────────────────────
@@ -92,34 +91,11 @@ export const SUPPORTED_CHAINS = [hederaTestnet, hederaMainnet, sepolia, cronosMa
 let _config: ReturnType<typeof buildConfig> | null = null;
 
 function buildConfig() {
-  const wcProjectId = (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '').trim();
-  const connectors = [
-    injected({ shimDisconnect: true }),
-    coinbaseWallet({
-      appName: 'ZkWard',
-      appLogoUrl: 'https://www.zkward.com/icon.png',
-      // 'all' = smart wallet popup for users without the extension, +
-      // extension when installed. Keeps sign-in one click for both.
-      preference: 'all',
-    }),
-    // walletConnect throws at init if projectId is empty, so skip when unset.
-    ...(wcProjectId
-      ? [walletConnect({
-          projectId: wcProjectId,
-          metadata: {
-            name: 'ZkWard',
-            description: 'AI-managed on-chain vault — SUI + Hedera',
-            url: 'https://www.zkward.com',
-            icons: ['https://www.zkward.com/icon.png'],
-          },
-          showQrModal: true,
-        })]
-      : []),
-  ];
-
   return createConfig({
     chains: SUPPORTED_CHAINS,
-    connectors,
+    connectors: [
+      injected({ shimDisconnect: true }),
+    ],
     transports: {
       [hederaTestnet.id]: http(),
       [hederaMainnet.id]: http(),
