@@ -31,6 +31,9 @@ import { hederaTestnet } from '@/lib/evm-wallet/wagmi-config';
 
 const HEDERA_TESTNET_ID = 296;
 const USDC_DECIMALS = 6;
+// SimpleUsdcVault stores shares in the same 6-decimal unit as USDC
+// (contract math preserves asset decimals). NOT 18 like most ERC-4626s.
+const SHARES_DECIMALS = 6;
 const HEDERA_ACCENT = '#00A79F';
 const ACCENT = '#0069D9';
 
@@ -235,8 +238,7 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
     const okChain = await ensureHederaChain();
     if (!okChain) return;
 
-    // Shares are 18 decimals in SimpleUsdcVault (matches ERC-20 default).
-    const sharesWei = parseUnits(amount, 18);
+    const sharesWei = parseUnits(amount, SHARES_DECIMALS);
     try {
       setStatus('withdrawing');
       const hash = await writeContractAsync({
@@ -284,13 +286,15 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
   const humanUsdcBalance = usdcBalance
     ? Number(formatUnits(usdcBalance as bigint, USDC_DECIMALS))
     : 0;
-  const humanShares = userShares ? Number(formatUnits(userShares as bigint, 18)) : 0;
+  const humanShares = userShares ? Number(formatUnits(userShares as bigint, SHARES_DECIMALS)) : 0;
   const humanTotalAssets = totalAssets
     ? Number(formatUnits(totalAssets as bigint, USDC_DECIMALS))
     : 0;
-  const humanTotalShares = totalShares ? Number(formatUnits(totalShares as bigint, 18)) : 0;
+  const humanTotalShares = totalShares ? Number(formatUnits(totalShares as bigint, SHARES_DECIMALS)) : 0;
+  // Virtual-offset share price — both terms in the same 6-decimal
+  // human space now that SHARES_DECIMALS === USDC_DECIMALS.
   const sharePrice = humanTotalShares > 0
-    ? (humanTotalAssets + 1e-6) / (humanTotalShares + 1e-18)
+    ? (humanTotalAssets + 1e-6) / (humanTotalShares + 1e-6)
     : 1;
   const userValueUsdc = humanShares * sharePrice;
 

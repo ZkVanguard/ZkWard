@@ -27,16 +27,16 @@ const USDC_DECIMALS = 6;
 
 // Sequence: 5 deposits, 2 yield injections, 2 withdrawals.
 // Each ~10s apart so Mirror Node's ~2-4s indexer catches each cleanly.
+// Second-pass sequence — first pass already landed 5 deposits + 2 yield
+// injections; here we top up + get the withdraws to actually settle with
+// the correct 6-decimal share space.
 const SEQUENCE = [
-  { kind: 'deposit', amount: 100 },
-  { kind: 'yield',   amount: 3.5 },   // ~3.5% instant yield on the first bucket
-  { kind: 'deposit', amount: 250 },
-  { kind: 'deposit', amount: 75 },
-  { kind: 'yield',   amount: 5.0 },
-  { kind: 'withdraw', amount: 40 },   // withdraw = share units, not USDC
-  { kind: 'deposit', amount: 180 },
-  { kind: 'deposit', amount: 60 },
+  { kind: 'deposit', amount: 50 },
+  { kind: 'withdraw', amount: 40 },   // shares in 6-decimal (~USDC units)
+  { kind: 'yield',   amount: 2.0 },
+  { kind: 'deposit', amount: 120 },
   { kind: 'withdraw', amount: 25 },
+  { kind: 'deposit', amount: 90 },
 ];
 
 const ERC20_ABI = [
@@ -110,9 +110,10 @@ async function main() {
         const amountWei = ethers.parseUnits(String(step.amount), USDC_DECIMALS);
         tx = await usdc.mint(VAULT, amountWei, FEE);
       } else if (step.kind === 'withdraw') {
-        // Withdraw amount is in shares (18-decimal). We interpret the
-        // sequence amount as human shares so the numbers feel intuitive.
-        const sharesWei = ethers.parseUnits(String(step.amount), 18);
+        // Withdraw amount is in shares. SimpleUsdcVault stores shares
+        // in the same 6-decimal space as USDC (contract math preserves
+        // asset decimals), not 18. Interpret amount as human-scale shares.
+        const sharesWei = ethers.parseUnits(String(step.amount), 6);
         tx = await vault.withdraw(sharesWei, FEE);
       }
       const receipt = await tx.wait(1);
@@ -131,11 +132,11 @@ async function main() {
     vault.sharesOf(wallet.address),
   ]);
   console.log(`    totalAssets  : ${ethers.formatUnits(ta, USDC_DECIMALS)} USDC`);
-  console.log(`    totalShares  : ${ethers.formatUnits(ts, 18)}`);
-  console.log(`    my shares    : ${ethers.formatUnits(mine, 18)}`);
+  console.log(`    totalShares  : ${ethers.formatUnits(ts, 6)}`);
+  console.log(`    my shares    : ${ethers.formatUnits(mine, 6)}`);
   const sharePrice = ts === 0n ? 1 :
     (Number(ethers.formatUnits(ta, USDC_DECIMALS)) + 1e-6) /
-    (Number(ethers.formatUnits(ts, 18)) + 1e-18);
+    (Number(ethers.formatUnits(ts, 6)) + 1e-6);
   console.log(`    share price  : $${sharePrice.toFixed(6)}`);
 
   console.log(`\n  Mirror-node view (allow 10s for indexer to catch up):`);

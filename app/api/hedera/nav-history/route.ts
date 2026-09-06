@@ -27,9 +27,12 @@ export const maxDuration = 15;
 const TOPIC_DEPOSITED = keccak256(toHex('Deposited(address,uint256,uint256)'));
 const TOPIC_WITHDRAWN = keccak256(toHex('Withdrawn(address,uint256,uint256)'));
 
-// USDC has 6 decimals, shares 18 (see SimpleUsdcVault.sol).
+// USDC has 6 decimals. Shares in SimpleUsdcVault are stored in the SAME
+// unit as USDC (asset-scaled), because the contract's fold is
+// `shares = amount * (totalShares + 1) / (before + 1)` which preserves
+// asset decimals. So SHARES_DECIMALS = 6 too, not 18.
 const USDC_DECIMALS = 6;
-const SHARES_DECIMALS = 18;
+const SHARES_DECIMALS = 6;
 
 interface Point {
   t: string;          // ISO timestamp
