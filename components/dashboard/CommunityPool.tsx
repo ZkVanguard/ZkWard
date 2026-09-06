@@ -350,7 +350,7 @@ export const CommunityPool = memo(function CommunityPool({
           Total Shares tiles that used to sit atop PoolStats were removed
           in favour of showing the story rather than the point-in-time
           number. Current NAV surfaces as the last tooltip on the chart. */}
-      <NavHistoryChart />
+      <NavHistoryChart chain={pool.selectedChain === 'hedera' ? 'hedera' : 'sui'} />
 
       <PoolStats poolData={pool.poolData} selectedChain={pool.selectedChain} />
 

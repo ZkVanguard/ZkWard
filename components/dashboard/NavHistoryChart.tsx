@@ -49,19 +49,29 @@ const WINDOWS: Array<{ label: string; value: '7d' | '30d' | '60d' | 'all'; bucke
   { label: 'All', value: 'all', bucket: 'day' },
 ];
 
-export function NavHistoryChart() {
+interface NavHistoryChartProps {
+  /** Which chain's history to display. Defaults to SUI (Aiven-backed). */
+  chain?: 'sui' | 'hedera';
+}
+
+export function NavHistoryChart({ chain = 'sui' }: NavHistoryChartProps = {}) {
   const [window, setWindow] = useState<typeof WINDOWS[number]>(WINDOWS[1]);
 
-  // Keyed on window so switching back to a previously-seen range is
-  // instant from cache. Backing route carries s-maxage=60 (see
-  // /api/platform/nav-history), so Vercel edge collapses across users.
+  // Per-chain data source:
+  //   sui   → /api/platform/nav-history (Aiven Postgres, DB-backed)
+  //   hedera → /api/hedera/nav-history (Mirror Node, chain-native)
+  // Both endpoints return the same NavHistoryResponse shape.
+  const endpoint = chain === 'hedera'
+    ? `/api/hedera/nav-history?window=${window.value}&bucket=${window.bucket}`
+    : `/api/platform/nav-history?window=${window.value}&bucket=${window.bucket}`;
+
   const { data, isPending: loading, error } = useQuery({
-    queryKey: ['platform-nav-history', window.value, window.bucket],
+    queryKey: ['nav-history', chain, window.value, window.bucket],
     queryFn: async (): Promise<NavHistoryResponse> => {
-      const r = await fetch(`/api/platform/nav-history?window=${window.value}&bucket=${window.bucket}`);
+      const r = await fetch(endpoint);
       return r.json();
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
   if (error) {
     logger.warn('[NavHistoryChart] fetch failed', {

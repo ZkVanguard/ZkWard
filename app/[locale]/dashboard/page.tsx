@@ -185,6 +185,13 @@ const HederaAgentPayments = nextDynamic(
   { loading: () => <LoadingSkeleton />, ssr: false },
 );
 
+// Simulated live perps on Hedera Testnet — real prices, local positions.
+const HederaPerpsPanel = nextDynamic(
+  () =>
+    import('@/components/dashboard/HederaPerpsPanel').then((mod) => ({ default: mod.HederaPerpsPanel })),
+  { loading: () => <LoadingSkeleton />, ssr: false },
+);
+
 // Reusable loading skeleton
 function LoadingSkeleton({ height = 'h-40' }: { height?: string }) {
   return <div className={`animate-pulse bg-system-bg-secondary ${height} rounded-[24px]`} />;
@@ -221,6 +228,7 @@ const platformItems: NavItem[] = [
   { id: 'onboard', label: 'Onboard', icon: Sparkles, badge: 'Privy' },
   { id: 'admin', label: 'B2B Admin', icon: Settings, badge: 'Privy' },
   { id: 'x402', label: 'Agent Payments', icon: Coins, badge: 'Hedera' },
+  { id: 'perps', label: 'Perps (sim)', icon: Activity, badge: 'Hedera' },
 ];
 
 type NavId = (typeof navItems)[number]['id'] | (typeof platformItems)[number]['id'];
@@ -1022,6 +1030,18 @@ export default function DashboardPage() {
               badge={<Badge color="teal">x402 · HEDERA</Badge>}
             />
             <HederaAgentPayments />
+          </Card>
+        );
+
+      case 'perps':
+        return (
+          <Card>
+            <CardHeader
+              title="Simulated perps · Hedera Testnet"
+              subtitle="Real prices, local positions — no on-chain DEX yet"
+              badge={<Badge color="teal">SIMULATED</Badge>}
+            />
+            <HederaPerpsPanel />
           </Card>
         );
 
