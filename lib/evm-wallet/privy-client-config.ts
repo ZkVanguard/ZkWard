@@ -22,7 +22,20 @@ export function buildPrivyClientConfig(): Record<string, unknown> {
       theme: 'light',
       showWalletLoginFirst: false, // email/social first, wallet as advanced
       walletChainType: 'ethereum-only',
-      logo: 'https://www.zkward.com/icon.png',
+      logo: 'https://www.zkward.com/logo-official.svg',
+      // Explicit wallet list. Excluding coinbase_wallet + base_account
+      // sidesteps Privy's Coinbase Smart Wallet init blowing up on
+      // Hedera/Cronos chains (throws "TypeError: e is not a function"
+      // during initialize and cascades to hide MetaMask). `metamask` +
+      // `detected_ethereum_wallets` covers MetaMask, Rabby, Trust,
+      // Brave, and any EIP-6963 injector.
+      walletList: [
+        'detected_ethereum_wallets',
+        'metamask',
+        'wallet_connect',
+        'phantom',
+        'okx_wallet',
+      ],
     },
     loginMethods: ['email', 'google', 'wallet'],
     embeddedWallets: {

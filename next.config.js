@@ -145,11 +145,18 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
+              // Privy's iframe SDK + WalletConnect + MoonPay all inject
+              // scripts from their own CDNs.
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.privy.io https://*.privy.io https://*.walletconnect.com https://*.walletconnect.org https://*.moonpay.com https://buy-sandbox.moonpay.com https://buy.moonpay.com",
+              "style-src 'self' 'unsafe-inline' https://*.privy.io https://*.moonpay.com",
               "img-src 'self' data: blob: https:",
-              "font-src 'self' data:",
-              "connect-src 'self' https://*.cryptocom.com https://*.crypto.com https://api.coingecko.com https://hermes.pyth.network wss: https:",
+              "font-src 'self' data: https://*.privy.io",
+              "connect-src 'self' https: wss:",
+              // frame-src explicit: Privy Auth iframe, MoonPay checkout,
+              // WalletConnect verify. Without this, Privy sign-in blows up
+              // with "Framing violates default-src".
+              "frame-src 'self' https://auth.privy.io https://*.privy.io https://*.walletconnect.com https://*.walletconnect.org https://*.moonpay.com https://buy-sandbox.moonpay.com https://buy.moonpay.com https://verify.walletconnect.com https://verify.walletconnect.org",
+              "worker-src 'self' blob:",
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'",
