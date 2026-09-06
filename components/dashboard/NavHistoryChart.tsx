@@ -58,18 +58,35 @@ export function NavHistoryChart({ chain = 'sui' }: NavHistoryChartProps = {}) {
   const [window, setWindow] = useState<typeof WINDOWS[number]>(WINDOWS[1]);
 
   // Per-chain data source:
-  //   sui   → /api/platform/nav-history (Aiven Postgres, DB-backed)
+  //   sui    → /api/platform/nav-history (Aiven Postgres, DB-backed)
   //   hedera → /api/hedera/nav-history (Mirror Node, chain-native)
   // Both endpoints return the same NavHistoryResponse shape.
-  const endpoint = chain === 'hedera'
+  const primaryEndpoint = chain === 'hedera'
     ? `/api/hedera/nav-history?window=${window.value}&bucket=${window.bucket}`
     : `/api/platform/nav-history?window=${window.value}&bucket=${window.bucket}`;
+  const fallbackEndpoint = `/api/platform/nav-history?window=${window.value}&bucket=${window.bucket}`;
 
   const { data, isPending: loading, error } = useQuery({
     queryKey: ['nav-history', chain, window.value, window.bucket],
-    queryFn: async (): Promise<NavHistoryResponse> => {
-      const r = await fetch(endpoint);
-      return r.json();
+    queryFn: async (): Promise<NavHistoryResponse & { fallbackFrom?: 'sui' }> => {
+      const r = await fetch(primaryEndpoint);
+      const primary = (await r.json()) as NavHistoryResponse;
+      // Hedera pool is fresh — before it accumulates events, borrow the
+      // SUI pool's history as a reference series so the chart still
+      // reads as a live product rather than "insufficient data".
+      // Labelled below so users can't mistake it for their chain's own data.
+      if (chain === 'hedera' && (!primary.points || primary.points.length === 0)) {
+        try {
+          const s = await fetch(fallbackEndpoint);
+          const sui = (await s.json()) as NavHistoryResponse;
+          if (sui.points && sui.points.length > 0) {
+            return { ...sui, fallbackFrom: 'sui' as const };
+          }
+        } catch {
+          /* fall through to primary result */
+        }
+      }
+      return primary;
     },
     staleTime: 30_000,
   });
@@ -78,6 +95,7 @@ export function NavHistoryChart({ chain = 'sui' }: NavHistoryChartProps = {}) {
       error: error instanceof Error ? error.message : String(error),
     });
   }
+  const usedFallback = (data as { fallbackFrom?: 'sui' } | undefined)?.fallbackFrom === 'sui';
 
   const chart = useMemo(() => {
     if (!data || data.points.length === 0) return null;
@@ -135,9 +153,18 @@ export function NavHistoryChart({ chain = 'sui' }: NavHistoryChartProps = {}) {
   return (
     <section className="bg-white border border-black/5 rounded-2xl p-3 sm:p-5 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <TrendingUp className="w-4 h-4 text-[#1d1d1f] flex-shrink-0" />
           <h2 className="text-base sm:text-[17px] font-semibold text-[#1d1d1f]">Share price history</h2>
+          {usedFallback && (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide"
+              style={{ background: '#4DA2FF15', color: '#4DA2FF' }}
+              title="Hedera pool is fresh; showing SUI pool history as a reference series until Hedera accumulates events."
+            >
+              Reference · SUI
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 text-[11px] sm:text-[12px]">
           {data?.peak && (

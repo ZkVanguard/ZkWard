@@ -48,7 +48,10 @@ export const initialPoolState: CommunityPoolState = {
   loading: true,
   error: null,
   successMessage: null,
-  selectedChain: 'sui', // SUI-only mode: USDC pool on SUI mainnet
+  // Hedera-default per 2026-09-06 UX ask. SUI pool is the flagship on
+  // mainnet, but Hedera is the primary EVM demo chain for judges and
+  // Privy users. The chain picker still lets users flip to SUI.
+  selectedChain: 'hedera',
   suiPoolStateId: null,
 };
 
