@@ -18,7 +18,10 @@ import { hederaTestnet, hederaMainnet, sepolia, cronosMainnet } from './wagmi-co
 export function buildPrivyClientConfig(): Record<string, unknown> {
   return {
     appearance: {
-      accentColor: '#00A79F',
+      // ios-blueHover — matches site primary CTA (Deposit USDC, Sign in
+      // buttons). Was Hedera teal which read as a chain-specific feature
+      // rather than the app's native sign-in.
+      accentColor: '#0069D9',
       theme: 'light',
       // Email primary; wallet-connect list appears in the same modal as
       // a secondary section. Gives judges the "hide onchain complexity"

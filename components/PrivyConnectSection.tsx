@@ -17,7 +17,12 @@ import { useCallback, useState } from 'react';
 import { usePrivy, useLogin, useLogout, useWallets } from '@privy-io/react-auth';
 import { Copy, Check, LogOut, Mail } from 'lucide-react';
 
-const PRIVY_ACCENT = '#00A79F';
+// Match the site's primary CTA (Deposit USDC, Enter app, main nav links)
+// so the Sign-in button reads as native chrome, not a Hedera-only feature.
+// Kept as a hex constant instead of a Tailwind class so it can be passed to
+// inline `style` alongside the shared button shape.
+const PRIVY_ACCENT = '#0069D9'; // ios-blueHover — one shade darker for AA contrast on white
+const PRIVY_ACCENT_HOVER = '#0055B3';
 
 function truncate(addr: string | undefined): string {
   if (!addr) return '';

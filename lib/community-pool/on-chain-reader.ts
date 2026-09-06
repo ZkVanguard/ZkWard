@@ -170,44 +170,67 @@ export async function getOnChainPoolData(chainConfig?: ChainConfig): Promise<Poo
       
       try {
         const poolFallback = new ethers.Contract(config.poolAddress, FALLBACK_ABI, provider);
-        
-        // Get total shares
-        const rawShares = await poolFallback.totalShares();
-        totalShares = parseFloat(ethers.formatUnits(rawShares, 18));
-        
-        // Get deposit token (USDT) address and its balance as TVL
+
+        // Get total shares — may still succeed even on an uninitialized
+        // pool because it just reads storage.
+        try {
+          const rawShares = await poolFallback.totalShares();
+          totalShares = parseFloat(ethers.formatUnits(rawShares, 18));
+        } catch {
+          totalShares = 0;
+        }
+
+        // Get deposit token (USDT) balance as TVL. Guard against the
+        // "USDT not yet deployed on this chain" case where addresses.ts
+        // has 0x0000...0000 — a balanceOf call to the zero address
+        // errors out on Hashio and used to bubble up as "Unable to
+        // retrieve pool data" for the whole route.
         const fullChainConfig = POOL_CHAIN_CONFIGS[config.chainKey];
         const networkKey = config.network as 'testnet' | 'mainnet';
         const usdtAddress = fullChainConfig?.contracts?.[networkKey]?.usdt;
-        
-        if (usdtAddress) {
-          const usdt = new ethers.Contract(usdtAddress, ERC20_ABI, provider);
-          const usdtBalance = await usdt.balanceOf(config.poolAddress);
-          totalNAV = parseFloat(ethers.formatUnits(usdtBalance, 6)); // USDT has 6 decimals
+        const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
+
+        if (usdtAddress && usdtAddress !== ZERO_ADDR) {
+          try {
+            const usdt = new ethers.Contract(usdtAddress, ERC20_ABI, provider);
+            const usdtBalance = await usdt.balanceOf(config.poolAddress);
+            totalNAV = parseFloat(ethers.formatUnits(usdtBalance, 6));
+          } catch {
+            totalNAV = 0;
+          }
         }
-        
-        // Calculate share price with virtual offset (matching contract's ERC-4626 formula)
-        // VIRTUAL_ASSETS = 1e6 ($1), VIRTUAL_SHARES = 1e18 (1 share)
-        const VIRTUAL_ASSETS = 1; // 1e6 in 6-decimal = $1
-        const VIRTUAL_SHARES = 1; // 1e18 in 18-decimal = 1 share
+
+        // ERC-4626-style share price with virtual offsets (1 asset + 1 share).
+        const VIRTUAL_ASSETS = 1;
+        const VIRTUAL_SHARES = 1;
         sharePrice = (totalNAV + VIRTUAL_ASSETS) / (totalShares + VIRTUAL_SHARES);
-        
-        // Try to get member count
+
+        // Member count — best effort, default to 0 (not 1 — a truly
+        // uninitialized pool has zero members, not "1 unknown").
         try {
           const mc = await pool.getMemberCount();
           rawMemberCount = Number(mc);
         } catch {
-          rawMemberCount = 1; // Minimum 1 member if we can't read
+          rawMemberCount = 0;
         }
-        
+
         logger.info(`[CommunityPool] Fallback succeeded for ${config.chainKey}`, {
-          totalShares, totalNAV, sharePrice, rawMemberCount
+          totalShares, totalNAV, sharePrice, rawMemberCount,
+          note: usdtAddress === ZERO_ADDR ? 'deposit token not deployed on this chain' : undefined,
         });
       } catch (fallbackError) {
-        logger.error(`[CommunityPool] Fallback also failed for ${config.chainKey}`, { 
-          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+        // Even the fallback couldn't be attempted (RPC dead, address is
+        // an EOA, chain unreachable). Return an empty-but-valid pool so
+        // the UI can render "0 TVL / 0 members" instead of an error
+        // banner — the picker showing Hedera exists to prove the
+        // multichain design; an uninitialized pool is a legitimate state.
+        logger.warn(`[CommunityPool] Fallback failed for ${config.chainKey}, returning empty pool`, {
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
         });
-        return null;
+        totalShares = 0;
+        totalNAV = 0;
+        sharePrice = 1;
+        rawMemberCount = 0;
       }
     }
     

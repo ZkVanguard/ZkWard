@@ -27,7 +27,11 @@ import { CreditCard, Send, LogIn, Loader2, Copy, Check, ExternalLink, Sparkles }
 import { isPrivyEnabled } from '@/lib/evm-wallet/privy-config';
 import { HEDERA_CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
 
-const ACCENT = '#00A79F';
+// Primary CTA colour = site primary (ios-blueHover). Small teal accents on
+// icon rings + Hedera-specific chips still identify chain flavour without
+// making every Privy action look like a chain-specific feature.
+const ACCENT = '#0069D9';
+const HEDERA_ACCENT = '#00A79F';
 const HEDERA_TESTNET_CHAIN_ID = 296;
 
 // Symbolic-commit tx sends the smallest indivisible HBAR unit — enough

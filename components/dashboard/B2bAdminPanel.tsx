@@ -22,7 +22,9 @@ import { usePrivy, useLogin, getAccessToken } from '@privy-io/react-auth';
 import { ShieldCheck, Users, CheckCircle2, XCircle, Loader2, LogIn, Send } from 'lucide-react';
 import { isPrivyEnabled } from '@/lib/evm-wallet/privy-config';
 
-const ACCENT = '#00A79F';
+// Match site primary (ios-blueHover) for CTAs. Chain-specific chips
+// (Hedera-flavoured badges) live in the header via <Badge color="teal">.
+const ACCENT = '#0069D9';
 
 interface QuorumSnapshot {
   actionId: string;
