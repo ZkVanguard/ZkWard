@@ -25,7 +25,7 @@ import {
   useWaitForTransactionReceipt,
   useSwitchChain,
 } from 'wagmi';
-import { Plus, Minus, Loader2, Check, ExternalLink, AlertTriangle, Wallet } from 'lucide-react';
+import { Plus, Minus, Loader2, Check, ExternalLink, AlertTriangle, Wallet, Droplets } from 'lucide-react';
 import { HEDERA_CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
 import { hederaTestnet } from '@/lib/evm-wallet/wagmi-config';
 
@@ -97,6 +97,8 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
   const [status, setStatus] = useState<'idle' | 'switching' | 'approving' | 'depositing' | 'withdrawing' | 'complete' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [pendingHash, setPendingHash] = useState<`0x${string}` | null>(null);
+  const [faucetLoading, setFaucetLoading] = useState(false);
+  const [faucetTx, setFaucetTx] = useState<string | null>(null);
 
   // ─── Reads ─────────────────────────────────────────────────────────────
   const { data: usdcBalance, refetch: refetchBalance } = useReadContract({
@@ -251,6 +253,33 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
     }
   }, [address, amount, ensureHederaChain, vault, writeContractAsync]);
 
+  const onFaucet = useCallback(async () => {
+    if (!address) return;
+    setFaucetLoading(true);
+    setError(null);
+    setFaucetTx(null);
+    try {
+      const r = await fetch('/api/hedera/faucet', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
+      const j = (await r.json()) as { ok?: boolean; txHash?: string; error?: string };
+      if (!r.ok || !j.ok) {
+        setError(j.error ?? `faucet HTTP ${r.status}`);
+      } else if (j.txHash) {
+        setFaucetTx(j.txHash);
+        // Wait a beat for mirror indexer then refresh balance.
+        await new Promise((res) => setTimeout(res, 1500));
+        await refetchBalance();
+      }
+    } catch (e) {
+      setError(shortErr(e));
+    } finally {
+      setFaucetLoading(false);
+    }
+  }, [address, refetchBalance]);
+
   // ─── Derived ────────────────────────────────────────────────────────────
   const humanUsdcBalance = usdcBalance
     ? Number(formatUnits(usdcBalance as bigint, USDC_DECIMALS))
@@ -284,6 +313,32 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full" style={{ background: `${HEDERA_ACCENT}15`, color: HEDERA_ACCENT }}>
               <span className="tabular-nums font-semibold">{humanUsdcBalance.toFixed(2)} USDC</span>
             </span>
+            {humanUsdcBalance < 1 && (
+              <button
+                onClick={onFaucet}
+                disabled={faucetLoading}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#0069D9]/10 text-[#0069D9] font-semibold hover:bg-[#0069D9]/15 active:scale-[0.98] disabled:opacity-60"
+                title="Mint 100 test USDC to your wallet (testnet faucet)"
+              >
+                {faucetLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Droplets className="w-3 h-3" />
+                )}
+                Faucet 100 USDC
+              </button>
+            )}
+            {faucetTx && (
+              <a
+                href={`https://hashscan.io/testnet/transaction/${faucetTx}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#34C759]/10 text-[#34C759] font-semibold hover:bg-[#34C759]/15"
+              >
+                <Check className="w-3 h-3" />
+                Minted <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
             {humanShares > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#34C759]/10 text-[#34C759] font-semibold">
                 <span className="tabular-nums">{humanShares.toFixed(4)} shares</span>
