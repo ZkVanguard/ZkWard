@@ -19,6 +19,7 @@
  */
 
 import { useState, memo, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
+import { usePrivyEmbeddedAddress } from '@/lib/evm-wallet/usePrivyEmbeddedAddress';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/lib/hooks';
 import {
@@ -91,7 +92,14 @@ export const CommunityPool = memo(function CommunityPool({
 }: CommunityPoolProps) {
   const [showAI, setShowAI] = useState(false);
 
-  const pool = useCommunityPool(propAddress);
+  // Privy embedded-wallet fallback. When users sign in with Google/email
+  // via Privy, an EVM self-custodial wallet is created — but Privy's
+  // WagmiProvider doesn't always surface it via useAccount() immediately.
+  // Reading useWallets() directly gives us the address as soon as login
+  // completes so the deposit UI unlocks without a manual reconnect.
+  const privyEmbeddedAddress = usePrivyEmbeddedAddress();
+
+  const pool = useCommunityPool(propAddress ?? privyEmbeddedAddress ?? undefined);
 
   // ============================================================================
   // TRANSACTION CONFIRMATION EFFECTS (tightly coupled to WDK lifecycle)

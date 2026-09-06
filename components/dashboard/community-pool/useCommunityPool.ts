@@ -67,7 +67,11 @@ export function useCommunityPool(propAddress?: string) {
 
   // WDK hooks
   const { address: connectedAddress, isConnected, chain } = useAccount();
-  const address = propAddress || connectedAddress;
+  // propAddress may be an EVM address supplied by the parent (e.g. Privy's
+  // embedded-wallet address when the user signed in with email/Google).
+  // Falling back to the wagmi-connected address keeps external-wallet users
+  // (MetaMask etc.) working unchanged.
+  const address = (propAddress || connectedAddress) as `0x${string}` | undefined;
   const wdkChainId = useChainId();
   const chainId = chain?.id ?? wdkChainId;
   const { signMessageAsync } = useSignMessage();
