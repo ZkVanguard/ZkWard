@@ -54,18 +54,23 @@ export const PoolHeader = memo(function PoolHeader({
 
       {/* Right: action row */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Chain selector — SUI-only, so this is a single passive pill */}
-        <div className="flex items-center gap-1 bg-system-bg-grouped border border-separator-opaque/30 rounded-full px-2.5 py-1">
-          {Object.entries(POOL_CHAIN_CONFIGS)
-            .filter(([key, config]) => key === 'sui' && (config.status === 'live' || config.status === 'testing'))
+        {/* Chain selector — SUI (live USDC pool) + Hedera (EVM testnet pool).
+            Both share the same CommunityPool contract shape; picker just swaps
+            the RPC + address the fetcher hits. */}
+        <div className="flex items-center gap-2 bg-system-bg-grouped border border-separator-opaque/30 rounded-full px-2 py-1">
+          {(['sui', 'hedera'] as const)
+            .map((key) => [key, POOL_CHAIN_CONFIGS[key]] as const)
+            .filter(([, config]) => config && (config.status === 'live' || config.status === 'testing'))
             .map(([key, config]) => (
               <button
                 key={key}
                 onClick={() => onChainSelect(key as ChainKey)}
-                className={`inline-flex items-center gap-1 text-[12px] font-semibold ${
-                  selectedChain === key ? 'text-label-primary' : 'text-label-tertiary hover:text-label-primary'
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-semibold transition-all ${
+                  selectedChain === key
+                    ? 'bg-white text-label-primary shadow-ios-1'
+                    : 'text-label-tertiary hover:text-label-primary'
                 }`}
-                title={config.name}
+                title={`${config.name} · ${config.status === 'testing' ? 'testnet' : 'mainnet'}`}
               >
                 <span>{config.icon}</span>
                 <span>{config.shortName}</span>
