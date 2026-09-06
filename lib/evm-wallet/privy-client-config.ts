@@ -20,7 +20,11 @@ export function buildPrivyClientConfig(): Record<string, unknown> {
     appearance: {
       accentColor: '#00A79F',
       theme: 'light',
-      showWalletLoginFirst: false, // email/social first, wallet as advanced
+      // showWalletLoginFirst: true — MetaMask + injected wallets appear
+      // in the FIRST screen of the Privy modal. Was false which hid them
+      // behind an "advanced" tab that judges often missed, reading as
+      // "not detected". Email input still visible below.
+      showWalletLoginFirst: true,
       walletChainType: 'ethereum-only',
       logo: 'https://www.zkward.com/logo-official.svg',
       // Explicit wallet list. Excluding coinbase_wallet + base_account
