@@ -33,7 +33,7 @@ import {
 import { requireAuth } from '@/lib/security/auth-middleware';
 import { mutationLimiter, readLimiter } from '@/lib/security/rate-limiter';
 import { safeErrorResponse } from '@/lib/security/safe-error';
-import { POOL_CHAIN_CONFIGS } from '@/lib/contracts/community-pool-config';
+import { POOL_CHAIN_CONFIGS, getDepositTokenInfo } from '@/lib/contracts/community-pool-config';
 
 // Extracted modules
 import { getChainConfig } from '@/lib/community-pool/chain-config';
@@ -512,20 +512,24 @@ export async function GET(request: NextRequest) {
           (onChainPool.allocations.BTC?.percentage || 0) > 0 ||
           (onChainPool.allocations.ETH?.percentage || 0) > 0;
 
-        // Determine actual holdings vs target allocations
-        // Pool accepts USDT deposits, may or may not have hedged into assets
+        // Per-chain deposit-token metadata. Hedera pool uses USDC now
+        // (SimpleUsdcVault); Sepolia/Cronos are USDT via WDK.
+        const depositTokenInfo = getDepositTokenInfo(chainConfig.chainKey, chainConfig.network);
+        const depositSymbol = depositTokenInfo.symbol;
+
+        // Determine actual holdings vs target allocations. Uninitialised
+        // pools hold their deposit token 1:1 until AI allocation kicks in.
         const actualHoldings = hasTargetAllocations
-          ? onChainPool.allocations // Show target allocations when hedging is active
-          : { USDT: { percentage: 100 } }; // Show USDT when not hedged
+          ? onChainPool.allocations
+          : { [depositSymbol]: { percentage: 100 } };
 
-        // On-chain contract is the authoritative source - use it directly
-        // Dedupe supported assets (Sepolia config already includes USDT)
-        const supportedAssets = [...new Set([...chainConfig.assets, 'USDT'])];
+        // Supported assets deduplicated + include the deposit symbol.
+        const supportedAssets = [...new Set([...chainConfig.assets, depositSymbol])];
 
-        // Get native USDT token address for this chain from full config
+        // Get deposit-token address for this chain from full config.
         const fullChainConfig = POOL_CHAIN_CONFIGS[chainConfig.chainKey];
         const networkKey = chainConfig.network as 'testnet' | 'mainnet';
-        const usdtAddress =
+        const depositTokenAddress =
           fullChainConfig?.contracts?.[networkKey]?.usdt ||
           fullChainConfig?.contracts?.testnet?.usdt ||
           null;
@@ -539,13 +543,13 @@ export async function GET(request: NextRequest) {
               sharePrice: onChainPool.sharePrice,
               memberCount: uniqueActiveMembers,
               allocations: onChainPool.allocations, // Target allocations from contract
-              actualHoldings, // What the pool is actually holding
-              depositAsset: 'USDT', // Pool accepts USDT via Tether WDK
-              depositTokenAddress: usdtAddress, // Native USDT contract address
+              actualHoldings,
+              depositAsset: depositSymbol,
+              depositTokenAddress,
               lastAIDecision: null,
               performance: { day: null, week: null, month: null },
             },
-            supportedAssets, // Deduplicated chain assets + USDT
+            supportedAssets,
             timestamp: Date.now(),
             source: 'onchain',
           },
@@ -560,10 +564,10 @@ export async function GET(request: NextRequest) {
     try {
       const summary = await getPoolSummary(chainConfig.chainKey);
 
-      // Get native USDT token address for this chain from full config
+      const depositTokenInfo = getDepositTokenInfo(chainConfig.chainKey, chainConfig.network);
       const fullChainConfig = POOL_CHAIN_CONFIGS[chainConfig.chainKey];
       const networkKey = chainConfig.network as 'testnet' | 'mainnet';
-      const usdtAddress =
+      const depositTokenAddress =
         fullChainConfig?.contracts?.[networkKey]?.usdt ||
         fullChainConfig?.contracts?.testnet?.usdt ||
         null;
@@ -572,9 +576,9 @@ export async function GET(request: NextRequest) {
         success: true,
         pool: {
           ...summary,
-          memberCount: summary.totalMembers, // Map to frontend expected field name
-          depositAsset: 'USDT',
-          depositTokenAddress: usdtAddress, // Native USDT contract address
+          memberCount: summary.totalMembers,
+          depositAsset: depositTokenInfo.symbol,
+          depositTokenAddress,
         },
         supportedAssets: chainConfig.assets,
         timestamp: Date.now(),
