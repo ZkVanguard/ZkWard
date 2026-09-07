@@ -1112,7 +1112,7 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
               </span>
             </Link>
             <a
-              href="https://github.com/ZkVanguard/ZkWard"
+              href="https://github.com/ZkVanguard/zkward-ethglobal"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 h-[52px] sm:h-[56px] px-2 text-headline font-medium text-label-secondary hover:text-ios-blue transition-colors"

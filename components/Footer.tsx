@@ -32,7 +32,6 @@ export const Footer = memo(function Footer() {
               <ul className="space-y-3">
                 <li><Link href="/zk" className={LINK_CLASS}>{t('zkVerification')}</Link></li>
                 <li><Link href="/rwa" className={LINK_CLASS}>{t('authenticity')}</Link></li>
-                <li><Link href="/whitepaper" className={LINK_CLASS}>{t('whitepaper')}</Link></li>
               </ul>
             </div>
 
@@ -41,7 +40,7 @@ export const Footer = memo(function Footer() {
               <ul className="space-y-3">
                 <li><a href="https://calendly.com/ashishregmi2017/30min" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>{t('contact')}</a></li>
                 <li><a href="https://t.me/+QoAodv90iWExZmVh" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>{t('community')}</a></li>
-                <li><a href="https://github.com/ZkVanguard/ZkWard" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>{t('github')}</a></li>
+                <li><a href="https://github.com/ZkVanguard/zkward-ethglobal" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>{t('github')}</a></li>
                 <li><a href="https://twitter.com/HarveReg" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>{t('twitter')}</a></li>
               </ul>
             </div>

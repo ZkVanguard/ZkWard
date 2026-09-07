@@ -141,7 +141,7 @@ export default async function LocaleLayout(
         url: baseUrl,
         logo: `${baseUrl}/logo-official.svg`,
         sameAs: [
-          'https://github.com/ZkVanguard/ZkWard',
+          'https://github.com/ZkVanguard/zkward-ethglobal',
           'https://twitter.com/HarveReg',
         ],
       },
