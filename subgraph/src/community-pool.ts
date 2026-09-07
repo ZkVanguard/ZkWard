@@ -131,7 +131,7 @@ export function handleRebalanced(event: Rebalanced): void {
   }
   rebalance.previousBps = prevArr;
   rebalance.newBps = nextArr;
-  rebalance.reasonHash = event.params.reasonHash;
+  rebalance.reasonHash = event.params.reasoning;
   rebalance.blockNumber = event.block.number;
   rebalance.timestamp = event.block.timestamp;
   rebalance.transactionHash = event.transaction.hash;
@@ -185,7 +185,7 @@ export function handlePoolHedgeOpened(event: PoolHedgeOpened): void {
   hedge.leverage = event.params.leverage;
   hedge.isLong = event.params.isLong;
   hedge.status = 'OPEN';
-  hedge.openReasonHash = event.params.reasonHash;
+  hedge.openReasonHash = event.params.reason;
   hedge.openedAtBlock = event.block.number;
   hedge.openedAtTimestamp = event.block.timestamp;
   hedge.openedInTx = event.transaction.hash;
@@ -196,7 +196,7 @@ export function handlePoolHedgeClosed(event: PoolHedgeClosed): void {
   const hedge = Hedge.load(event.params.hedgeId);
   if (hedge === null) return; // Close before open — ignore, indexer will surface via subgraph errors
   hedge.status = 'CLOSED';
-  hedge.closeReasonHash = event.params.reasonHash;
+  hedge.closeReasonHash = event.params.reason;
   hedge.realizedPnl = event.params.pnl;
   hedge.closedAtBlock = event.block.number;
   hedge.closedAtTimestamp = event.block.timestamp;

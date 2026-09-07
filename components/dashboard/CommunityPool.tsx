@@ -23,6 +23,7 @@ import { usePrivyEmbeddedAddress } from '@/lib/evm-wallet/usePrivyEmbeddedAddres
 import { HederaVaultActions } from './HederaVaultActions';
 import { HederaPoolHedgesProjection } from './HederaPoolHedgesProjection';
 import { HederaRecentActivity } from './HederaRecentActivity';
+import { MultiChainVaultsPanel } from './MultiChainVaultsPanel';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/lib/hooks';
 import {
@@ -469,6 +470,16 @@ export const CommunityPool = memo(function CommunityPool({
           Node; refreshes every 15s. Keeps the tab useful without the
           "insufficient data" empty state that SUI panels show on Hedera. */}
       {!compact && pool.selectedChain === 'hedera' && <HederaRecentActivity />}
+
+      {/* One GraphQL query, two indexing backends — proves the AI-vault
+          schema abstracts over indexing infrastructure, not just chains.
+          Studio subgraph indexes Sepolia; adapter projects Hedera Mirror
+          Node into the same shape. Hedera-only surface for now. */}
+      {!compact && pool.selectedChain === 'hedera' && (
+        <div className="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-700">
+          <MultiChainVaultsPanel />
+        </div>
+      )}
 
       {/* Risk Metrics — SUI/Cronos only; needs BlueFin history */}
       {!compact && pool.selectedChain !== 'hedera' && (

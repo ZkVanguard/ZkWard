@@ -95,8 +95,8 @@ type Rebalance @entity(immutable: true) {
   """Old allocation bps per asset (index 0..NUM_ASSETS-1)."""
   previousBps: [BigInt!]!
   newBps: [BigInt!]!
-  """keccak256 of the AI reasoning string. Points at off-chain audit log."""
-  reasonHash: Bytes!
+  """Off-chain audit reference (URL or hex hash) — points at the AI reasoning log."""
+  reasonHash: String!
   """Trades executed as part of this rebalance."""
   trades: [RebalanceTrade!]! @derivedFrom(field: "rebalance")
   blockNumber: BigInt!
@@ -134,8 +134,8 @@ type Hedge @entity(immutable: false) {
   leverage: BigInt!
   isLong: Boolean!
   status: HedgeStatus!
-  openReasonHash: Bytes!
-  closeReasonHash: Bytes
+  openReasonHash: String!
+  closeReasonHash: String
   """Realized PnL at close, signed (negative = loss). Null while OPEN."""
   realizedPnl: BigInt
   openedAtBlock: BigInt!
