@@ -25,7 +25,7 @@ import {
   useWaitForTransactionReceipt,
   useSwitchChain,
 } from 'wagmi';
-import { Plus, Minus, Loader2, Check, ExternalLink, AlertTriangle, Wallet, Droplets } from 'lucide-react';
+import { Plus, Minus, Loader2, Check, ExternalLink, AlertTriangle, Wallet, Droplets, Copy } from 'lucide-react';
 import { HEDERA_CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
 import { hederaTestnet } from '@/lib/evm-wallet/wagmi-config';
 
@@ -102,6 +102,7 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
   const [pendingHash, setPendingHash] = useState<`0x${string}` | null>(null);
   const [faucetLoading, setFaucetLoading] = useState(false);
   const [faucetTx, setFaucetTx] = useState<string | null>(null);
+  const [addressCopied, setAddressCopied] = useState(false);
 
   // ─── Reads ─────────────────────────────────────────────────────────────
   const { data: usdcBalance, refetch: refetchBalance } = useReadContract({
@@ -304,8 +305,64 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
 
   const chainMismatch = address && chainId !== HEDERA_TESTNET_ID && status === 'idle';
 
+  const copyAddress = async () => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setAddressCopied(true);
+      setTimeout(() => setAddressCopied(false), 1500);
+    } catch { /* clipboard may be denied — no-op */ }
+  };
+
   return (
     <div className="p-4 border-b border-gray-100 dark:border-gray-700 space-y-3">
+      {/* Prominent wallet card — 'this is your USDC address on Hedera'. Users
+          who receive USDC from an external source (exchange, another wallet)
+          need to see this address clearly. Sits above the deposit UI so it's
+          the first thing seen when landing on the pool tab. */}
+      {address ? (
+        <div className="rounded-xl border p-3" style={{ borderColor: `${HEDERA_ACCENT}30`, background: `${HEDERA_ACCENT}08` }}>
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: HEDERA_ACCENT }}>
+              Your Hedera wallet · USDC lands here
+            </div>
+            <span className="text-[10px] text-label-tertiary">Hedera Testnet · chainId 296</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 min-w-0 truncate font-mono text-[12px] text-label-primary tabular-nums">{address}</code>
+            <button
+              onClick={copyAddress}
+              className="p-1.5 rounded-lg hover:bg-white/60 active:scale-[0.96] transition-all"
+              title="Copy address"
+              aria-label="Copy wallet address"
+            >
+              {addressCopied ? (
+                <Check className="w-4 h-4 text-[#34C759]" />
+              ) : (
+                <Copy className="w-4 h-4 text-label-secondary" />
+              )}
+            </button>
+            <a
+              href={`https://hashscan.io/testnet/account/${address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-lg hover:bg-white/60 active:scale-[0.96] transition-all"
+              title="View on HashScan"
+            >
+              <ExternalLink className="w-4 h-4 text-label-secondary" />
+            </a>
+          </div>
+          <div className="text-[11px] text-label-tertiary mt-1.5 leading-relaxed">
+            Send USDC to this address to fund deposits, or use the <span className="font-medium">Faucet</span> button below for 100 test USDC.
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-[#FF9500]/30 bg-[#FF9500]/10 p-3 text-[12px] text-[#B26400]">
+          <AlertTriangle className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+          Sign in with email/Google/wallet to create your Hedera-testnet embedded wallet, then deposit here.
+        </div>
+      )}
+
       {/* Balance chips */}
       <div className="flex flex-wrap gap-2 text-[12px]">
         {address ? (
@@ -387,48 +444,66 @@ export function HederaVaultActions({ address: propAddress, onRefresh }: Props) {
       </div>
 
       {/* Amount + action */}
-      <div className="flex gap-2">
-        <input
-          type="number"
-          inputMode="decimal"
-          step="any"
-          min="0"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={mode === 'deposit' ? 'USDC amount' : `Shares (max ${humanShares.toFixed(4)})`}
-          disabled={status !== 'idle' && status !== 'complete' && status !== 'error'}
-          className="flex-1 h-11 px-3 rounded-[10px] border border-black/10 dark:border-white/15 bg-system-bg-secondary tabular-nums focus:outline-none"
-        />
-        {mode === 'withdraw' && humanShares > 0 && (
-          <button
-            onClick={() => setAmount(humanShares.toString())}
-            className="px-3 h-11 rounded-[10px] bg-system-bg-secondary text-[12px] font-medium text-label-secondary hover:bg-[#E5E5EA] active:scale-[0.98]"
-          >
-            Max
-          </button>
-        )}
-        <button
-          onClick={mode === 'deposit' ? onDeposit : onWithdraw}
-          disabled={
-            !address ||
-            !amount ||
-            (status !== 'idle' && status !== 'complete' && status !== 'error') ||
-            isConfirming
-          }
-          className="h-11 px-4 rounded-[10px] text-white font-semibold text-[13px] active:scale-[0.98] disabled:opacity-60 flex items-center gap-1.5"
-          style={{ background: mode === 'deposit' ? ACCENT : '#FF3B30' }}
-        >
-          {(status !== 'idle' && status !== 'complete') && <Loader2 className="w-4 h-4 animate-spin" />}
-          {status === 'complete' && <Check className="w-4 h-4" />}
-          {status === 'idle' && <>{mode === 'deposit' ? 'Deposit' : 'Withdraw'}</>}
-          {status === 'switching' && 'Switching…'}
-          {status === 'approving' && 'Approving…'}
-          {status === 'depositing' && 'Depositing…'}
-          {status === 'withdrawing' && 'Withdrawing…'}
-          {status === 'complete' && 'Done'}
-          {status === 'error' && 'Retry'}
-        </button>
-      </div>
+      {(() => {
+        const parsedAmount = Number(amount);
+        const amountEntered = Number.isFinite(parsedAmount) && parsedAmount > 0;
+        const insufficientBalance = mode === 'deposit' && amountEntered && parsedAmount > humanUsdcBalance;
+        const insufficientShares = mode === 'withdraw' && amountEntered && parsedAmount > humanShares;
+        const busy = (status !== 'idle' && status !== 'complete' && status !== 'error') || isConfirming;
+
+        const disabledReason: string | null =
+          !address ? 'Sign in first' :
+          !amountEntered ? (mode === 'deposit' ? 'Enter USDC amount' : 'Enter share amount') :
+          insufficientBalance ? `Only ${humanUsdcBalance.toFixed(2)} USDC available — use Faucet ↑` :
+          insufficientShares ? `Only ${humanShares.toFixed(4)} shares available` :
+          busy ? 'Working…' :
+          null;
+
+        return (
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={mode === 'deposit' ? 'USDC amount' : `Shares (max ${humanShares.toFixed(4)})`}
+                disabled={busy}
+                className="flex-1 h-11 px-3 rounded-[10px] border border-black/10 dark:border-white/15 bg-system-bg-secondary tabular-nums focus:outline-none"
+              />
+              {mode === 'withdraw' && humanShares > 0 && (
+                <button
+                  onClick={() => setAmount(humanShares.toString())}
+                  className="px-3 h-11 rounded-[10px] bg-system-bg-secondary text-[12px] font-medium text-label-secondary hover:bg-[#E5E5EA] active:scale-[0.98]"
+                >
+                  Max
+                </button>
+              )}
+              <button
+                onClick={mode === 'deposit' ? onDeposit : onWithdraw}
+                disabled={disabledReason !== null}
+                className="h-11 px-5 rounded-[10px] text-white font-semibold text-[14px] active:scale-[0.98] disabled:opacity-60 flex items-center gap-1.5 min-w-[120px] justify-center"
+                style={{ background: mode === 'deposit' ? ACCENT : '#FF3B30' }}
+              >
+                {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+                {status === 'complete' && <Check className="w-4 h-4" />}
+                {status === 'idle' && <>{mode === 'deposit' ? 'Deposit' : 'Withdraw'}</>}
+                {status === 'switching' && 'Switching…'}
+                {status === 'approving' && 'Approving…'}
+                {status === 'depositing' && 'Depositing…'}
+                {status === 'withdrawing' && 'Withdrawing…'}
+                {status === 'complete' && 'Done'}
+                {status === 'error' && 'Retry'}
+              </button>
+            </div>
+            {disabledReason && (
+              <div className="text-[11px] text-label-tertiary">{disabledReason}</div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Status + tx link */}
       <div className="text-[11px] text-label-tertiary flex flex-wrap gap-x-2 gap-y-1">
