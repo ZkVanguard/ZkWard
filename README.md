@@ -20,6 +20,46 @@ Live on Sui mainnet since 2026-06-12 · Hedera-primary pivot shipped 2026-09-04 
 
 ---
 
+## 🏁 Judges — start here
+
+Everything you need to verify each submission in one place.
+
+### Hedera · AI & Agentic Payments ($6K)
+- **Live x402 endpoint (returns 402 with intent)**: https://www.zkward.com/api/hedera/x402/signal-quality?asset=BTC
+- **Live paid call** (any non-empty X-PAYMENT header works for the demo; verification mode `stub`/`blocky402` explicitly returned): `curl -H "X-PAYMENT: dGVzdA==" 'https://www.zkward.com/api/hedera/x402/signal-quality?asset=BTC'`
+- **Real HCS audit topic** (every paid call = new entry): [`0.0.10393879`](https://hashscan.io/testnet/topic/0.0.10393879)
+- **HCS-14 agent registry** (discoverable agent identity): [`0.0.10401316`](https://hashscan.io/testnet/topic/0.0.10401316) · [JSON view](https://www.zkward.com/api/hedera/agent-registry)
+- **A2A negotiation trace**: https://www.zkward.com/api/hedera/a2a/demo?asset=BTC&budget=500
+- **Consumer dashboard** (one-click flow): https://www.zkward.com/dashboard → **Agent Payments** tab
+- **Blocky402 facilitator wired**: yes, `facilitator: "https://facilitator.blocky402.com"` in every `verification` object
+
+### Hedera · Open Source — Harness ($2K)
+- **PR**: https://github.com/hedera-dev/hedera-harness/pull/43
+- Adds Tier 2.5 Mirror Node validator — closes the gap between free UI checks (Tier 2) and HBAR-spending on-chain tx checks (Tier 3.5)
+- 5 node:test cases green against real testnet mirror
+- Full docs: [`docs/mirror-node-validator.md`](https://github.com/mrarejimmyz/hedera-harness/blob/add-mirror-node-validator/docs/mirror-node-validator.md)
+
+### Hedera · Continuity ($1K)
+- Pre-existing: SUI mainnet USDC vault, live since 2026-06-12 (v0.4.0, 46+ days running)
+- New this event (see [full table below](#event-work-ethonline-2026--2026-09-03--2026-09-06)):
+  - `SimpleUsdcVault` deployed to Hedera testnet: [`0xe7E6…9A9`](https://hashscan.io/testnet/contract/0xe7E6fEDce9d72D112137B631E8D51831D30729A9)
+  - Test USDC: [`0x7043…ae1`](https://hashscan.io/testnet/contract/0x704365B35AeF0b7F9fc17c18B5162D4A6d600ae1)
+  - x402 endpoint · HCS audit trail · HCS-14 registry · Mirror-Node pool reader · Privy embedded wallets · Faucet · Projected hedges · Recent activity feed
+
+### Graph · AI Continuity ($5K)
+- **PR**: https://github.com/graphprotocol/subgraphs-skills/pull/1
+- Adds `subgraph-erc4626-vaults` skill (both Claude Code + OpenClaw formats) — canonical schema, share-price folding, Messari standardized-subgraph conventions, matchstick fixtures. 6 files, 847 insertions.
+
+### Recording
+- **Video shot lists (5-min each)**: [`docs/DEMO_VIDEO_SCRIPTS.md`](./docs/DEMO_VIDEO_SCRIPTS.md) — one script per prize, mapped 1:1 to qualification requirements
+
+### Ownership / on-chain evidence
+- Operator EVM: `0xDB89EC1c81dcD362FB0F9CA3da232697b583bC8A` (Hedera testnet `0.0.7132683`)
+- SUI mainnet pool package: [`0x107292…7b726`](https://suiscan.xyz/mainnet/object/0x107292a69eea2f6eaf4a4e4727ee25d747b04c1985441b138933f0ef33f7b726)
+- Public repo: https://github.com/ZkVanguard/zkward-ethglobal
+
+---
+
 ## ETHGlobal Online — three sponsor tracks, ~$19K addressable
 
 Every submission is **Continuity** — the base product is a live SUI mainnet vault (v0.4.0, 46+ days running, real users, real capital). Everything below the "Anything below this line is event work" markers in [`HACKATHON_TODO.md`](./HACKATHON_TODO.md) shipped during the event window (2026-09-03 → 2026-09-05).

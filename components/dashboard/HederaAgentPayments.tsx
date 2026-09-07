@@ -29,6 +29,8 @@ const X402_ENDPOINT = '/api/hedera/x402/signal-quality';
 
 const HCS_TOPIC_ID = '0.0.10393879';
 const HCS_EXPLORER = `https://hashscan.io/testnet/topic/${HCS_TOPIC_ID}`;
+const AGENT_REGISTRY_TOPIC = '0.0.10401316';
+const AGENT_REGISTRY_EXPLORER = `https://hashscan.io/testnet/topic/${AGENT_REGISTRY_TOPIC}`;
 
 interface PaymentIntent {
   scheme: string;
@@ -343,6 +345,18 @@ export function HederaAgentPayments() {
               {HCS_TOPIC_ID}
             </a>{' '}
             — public, verifiable, immutable.
+            <br />
+            HCS-14 agent identity published on topic{' '}
+            <a
+              href={AGENT_REGISTRY_EXPLORER}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono hover:underline"
+              style={{ color: HEDERA_ACCENT }}
+            >
+              {AGENT_REGISTRY_TOPIC}
+            </a>{' '}
+            — discoverable by any agent following the HCS-14 spec.
           </div>
         </div>
       </div>
