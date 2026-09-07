@@ -227,8 +227,8 @@ export async function contractCall(
  */
 export interface HederaPoolSnapshot {
   ok: true;
-  totalShares: number;    // human units (18-decimal)
-  totalNavUsdc: number;   // human units (6-decimal), 0 if USDT not deployed
+  totalShares: number;    // human units (6-decimal — SimpleUsdcVault preserves asset decimals)
+  totalNavUsdc: number;   // human units (6-decimal)
   memberCount: number;
   sharePrice: number;
   contractCreatedAt: Date | null;
@@ -238,9 +238,15 @@ export interface HederaPoolSnapshot {
 // Selectors kept inline so callers only import this module.
 // keccak256(function-signature)[:4].
 const SELECTOR = {
-  totalShares:    '0x18160ddd',
+  // SimpleUsdcVault has `uint256 public totalShares` — auto-getter
+  // selector is 0x3a98ef39, NOT 0x18160ddd (which is ERC-20 totalSupply).
+  totalShares:    '0x3a98ef39',
+  totalAssets:    '0x01e1d114',
+  // Auto-getter for `uint256 public memberCount`. The wrapper
+  // getMemberCount() (0xa87d942c) reverts on Hashio for reasons unclear —
+  // the auto-getter works, so use that.
+  memberCount:    '0x11aee380',
   getPoolStats:   '0x0da65a56',
-  getMemberCount: '0xa87d942c',
 } as const;
 
 function decodeUint256(hex: string): bigint {
@@ -267,8 +273,10 @@ export async function readHederaPoolSnapshot(
   const statsHex = await contractCall(network, poolEvmAddress, SELECTOR.getPoolStats);
   if (statsHex && statsHex.length >= 2 + 64 * 5) {
     // 5 uint256 returns concatenated. Extract each 32-byte word.
+    // SimpleUsdcVault stores shares in the SAME 6-decimal space as USDC
+    // (its fold `shares = amount * (T+1)/(A+1)` preserves asset decimals).
     const w = (i: number) => decodeUint256(`0x${statsHex.slice(2 + i * 64, 2 + (i + 1) * 64)}`);
-    totalShares = Number(w(0)) / 1e18;
+    totalShares = Number(w(0)) / 1e6;
     totalNavUsdc = Number(w(1)) / 1e6;
     memberCount = Number(w(2));
     // w(3) sharePrice, w(4) is the fixed-array head pointer for allocations.
@@ -283,22 +291,16 @@ export async function readHederaPoolSnapshot(
     };
   }
 
-  // Uninitialised path — totalShares alone is enough to render the card.
-  const sharesHex = await contractCall(network, poolEvmAddress, SELECTOR.totalShares);
-  if (sharesHex) totalShares = Number(decodeUint256(sharesHex)) / 1e18;
-
-  const membersHex = await contractCall(network, poolEvmAddress, SELECTOR.getMemberCount);
+  // Fallback path — getPoolStats reverts (Hashio quirk with the wrapper
+  // function). Read state vars directly via their auto-getters.
+  const [sharesHex, assetsHex, membersHex] = await Promise.all([
+    contractCall(network, poolEvmAddress, SELECTOR.totalShares),
+    contractCall(network, poolEvmAddress, SELECTOR.totalAssets),
+    contractCall(network, poolEvmAddress, SELECTOR.memberCount),
+  ]);
+  if (sharesHex) totalShares = Number(decodeUint256(sharesHex)) / 1e6;
+  if (assetsHex) totalNavUsdc = Number(decodeUint256(assetsHex)) / 1e6;
   if (membersHex) memberCount = Number(decodeUint256(membersHex));
-
-  // Pool NAV via token balance — only meaningful once USDT is deployed
-  // (Hedera testnet USDT is 0x0000... as of writing).
-  if (usdtEvmAddress && usdtEvmAddress !== '0x0000000000000000000000000000000000000000') {
-    const balances = await getAccountTokenBalances(network, poolEvmAddress);
-    const usdt = balances.find(
-      (b) => b.token_id && evmAddressToHederaId(usdtEvmAddress).endsWith(b.token_id.split('.').pop() ?? ''),
-    );
-    if (usdt) totalNavUsdc = usdt.balance / 10 ** usdt.decimals;
-  }
 
   return {
     ok: true,
