@@ -72,7 +72,7 @@ The trader agent pays for its own signal-quality inference per tick through a re
 |---|---|
 | Pay-per-call metering (not flat) | [`/api/hedera/x402/signal-quality`](./app/api/hedera/x402/signal-quality/route.ts) with sub-cent per-call price via `X402_PRICE_USDC_MICROS` |
 | Multi-agent A2A negotiation | Analyst ↔ Executor round-trip via [`lib/services/a2a/negotiate.ts`](./lib/services/a2a/negotiate.ts) — proposal → acceptance → settlement, provider discovery cheapest-under-budget |
-| On-chain agent identity (HCS-14) | W3C DID document builder in [`lib/services/hedera/agent-identity.ts`](./lib/services/hedera/agent-identity.ts) — all seven agents in `DEFAULT_AGENT_ROSTER` |
+| On-chain agent identity (HCS-14) | W3C DID document builder in [`lib/services/hedera/agent-identity.ts`](./lib/services/hedera/agent-identity.ts) — all seven agents in `DEFAULT_AGENT_ROSTER`. **Registry topic [`0.0.10401316`](https://hashscan.io/testnet/topic/0.0.10401316) live** — first entry published, discoverable via [`/api/hedera/agent-registry`](./app/api/hedera/agent-registry/route.ts) |
 | Verifiable payment audit trail on HCS | Every A2A message + every x402 fill posts to HCS via [`lib/services/a2a/bus.ts`](./lib/services/a2a/bus.ts) (activate with `HCS_AUDIT_ENABLED=1`) |
 | Per-agent budget accounting | Redis-backed daily caps in [`lib/services/x402/budget.ts`](./lib/services/x402/budget.ts) |
 | Cross-chain isolation | Hedera KILL alerts cannot halt SUI trader — see [`lib/utils/chain-halt.ts`](./lib/utils/chain-halt.ts) + [`lib/services/alerting/alert-response-loop.ts`](./lib/services/alerting/alert-response-loop.ts) |
