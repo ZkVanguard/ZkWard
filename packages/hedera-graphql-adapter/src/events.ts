@@ -11,9 +11,9 @@
  * hashes for their events.
  */
 
-import type { DecodedLog } from './types.js';
-import type { MirrorLog } from './mirror.js';
-import { mirrorTimestampToSec } from './mirror.js';
+import type { DecodedLog } from './types';
+import type { MirrorLog } from './mirror';
+import { mirrorTimestampToSec } from './mirror';
 
 /** Left-pad a topic to an EVM address. */
 export function topicToAddress(topic: string | undefined): string {

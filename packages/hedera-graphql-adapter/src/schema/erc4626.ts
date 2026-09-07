@@ -12,9 +12,9 @@
  *   memberCount() → uint256 (optional; derived from tx stream if missing)
  */
 
-import { MirrorClient } from '../mirror.js';
-import { decodeUint, normalizeLog, topicToAddress } from '../events.js';
-import type { HederaNetwork } from '../types.js';
+import { MirrorClient } from '../mirror';
+import { decodeUint, normalizeLog, topicToAddress } from '../events';
+import type { HederaNetwork } from '../types';
 
 // Precomputed topic0 hashes to avoid a keccak dependency. Verified via
 // keccak256(utf8Bytes("EventName(argTypes)")).

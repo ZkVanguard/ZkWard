@@ -6,7 +6,7 @@
  * we hit the public Mirror endpoints with fetch().
  */
 
-import type { HederaNetwork } from './types.js';
+import type { HederaNetwork } from './types';
 
 const MIRROR_HOSTS: Record<HederaNetwork, string> = {
   testnet: 'https://testnet.mirrornode.hedera.com/api/v1',

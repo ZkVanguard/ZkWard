@@ -22,22 +22,22 @@
  */
 
 import { buildSchema, execute, parse, validate, type GraphQLFieldResolver } from 'graphql';
-import { MirrorClient } from './mirror.js';
-import { SHARED_TYPEDEFS } from './schema/shared.js';
-import { createErc4626Preset } from './schema/erc4626.js';
-import { attestOnHcs } from './attestation.js';
+import { MirrorClient } from './mirror';
+import { SHARED_TYPEDEFS } from './schema/shared';
+import { createErc4626Preset } from './schema/erc4626';
+import { attestOnHcs } from './attestation';
 import type {
   Adapter,
   AdapterConfig,
   ExecuteInput,
   ExecuteResult,
-} from './types.js';
+} from './types';
 
-export * from './types.js';
-export { canonicalHash, stableStringify } from './attestation.js';
-export { MirrorClient } from './mirror.js';
-export { normalizeLog, topicToAddress, decodeUint } from './events.js';
-export { ERC4626_TOPICS, ERC4626_SELECTORS } from './schema/erc4626.js';
+export * from './types';
+export { canonicalHash, stableStringify } from './attestation';
+export { MirrorClient } from './mirror';
+export { normalizeLog, topicToAddress, decodeUint } from './events';
+export { ERC4626_TOPICS, ERC4626_SELECTORS } from './schema/erc4626';
 
 function attachResolvers(
   s: ReturnType<typeof buildSchema>,

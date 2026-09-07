@@ -11,7 +11,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { AttestationConfig, AttestationResult, HederaNetwork } from './types.js';
+import type { AttestationConfig, AttestationResult, HederaNetwork } from './types';
 
 export function stableStringify(v: unknown): string {
   if (v === null || typeof v !== 'object') return JSON.stringify(v);
