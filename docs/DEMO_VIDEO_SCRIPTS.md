@@ -129,52 +129,6 @@ Recording tips:
 
 ---
 
-## Video 4 — Graph × Hedera bridge (Composable + AI Continuity, $10K total)
-
-**Runtime target: 3 min 30 s.** Covers both Graph tracks in one clip.
-
-### 0:00–0:30 — The gap being closed
-
-- Open `https://thegraph.com/explorer` → search "hedera" → 0 results.
-- Voice: "The Graph indexes 129 EVM chains. Hedera isn't one of them. Every Graph-native tool — MCP servers, subgraph SKILLs, standardized queries — leaves Hedera dark. We built the bridge."
-- Cut to `packages/hedera-graphql-adapter/README.md`.
-
-### 0:30–1:15 — The library, on npm
-
-- Terminal: `npm view @zkward/hedera-graphql-adapter version` → 0.1.0
-- Voice: "Published to npm today. Any Hedera dApp can drop it into their stack — one config, standardized subgraph endpoint."
-- Show the four exports: `createHederaGraphQLAdapter`, `MirrorClient`, event helpers, canonical hash.
-- Terminal: `npm install @zkward/hedera-graphql-adapter` — install progress bar visible.
-
-### 1:15–2:15 — Cross-backend parity in one command
-
-- Terminal: `bun run scripts/demo-graph-parity.ts`
-- Voice: "Same GraphQL query against two backends. Studio subgraph on Sepolia. Our Hedera adapter on testnet. Same shape. Same schema. Two different indexers, two different chains."
-- Show:
-  - Studio side: block number, schema green, hasIndexingErrors=false
-  - Hedera side: real pool, TVL $987, 3 members, hedera-testnet
-  - HCS attestation: seq number + txId + explorer link
-  - Verify path: hash byte-match confirmation
-- Voice punch: "That's the standards leverage. And every response can be cryptographically anchored on Hedera Consensus Service so an AI agent has proof of what it queried."
-
-### 2:15–3:00 — MCP tool an AI agent can call
-
-- Open Claude Desktop (or terminal): `cd mcp/zkward-vaults && node test-e2e.mjs`
-- Voice: "Same schema, exposed as an MCP tool. AI agents can ask 'snapshot the vaults' and get merged data from both backends in one call. Live attestation captured during the test run."
-- Show the 5/5 result including the HCS seq number that landed WHILE the test was running.
-
-### 3:00–3:30 — Judges dashboard + close
-
-- Open `https://www.zkward.com/judges` — 10/10 green.
-- Voice: "Every claim we've made is live, on this URL, right now. Same schema, two chains, one tool. Adapter's on npm. That's the composable standard."
-
-**Assets to have ready:**
-- Terminal windows pre-warmed (`bun run` and `node test-e2e.mjs` outputs visible)
-- Claude Desktop config already set up (or use the terminal test as substitute)
-- npm.com/package/@zkward/hedera-graphql-adapter tab open
-
----
-
 ## Submission checklist
 
 Per prize, when submitting:
