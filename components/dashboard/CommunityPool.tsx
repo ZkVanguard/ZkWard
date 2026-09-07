@@ -399,10 +399,13 @@ export const CommunityPool = memo(function CommunityPool({
       {/* Hedera vault has its own compact deposit/withdraw component wired
           to SimpleUsdcVault directly. Keeps this dedicated path free of the
           SUI + Sepolia + Cronos + WDK + permit code that the monolith
-          DepositWithdrawActions carries for backwards compatibility. */}
+          DepositWithdrawActions carries for backwards compatibility.
+          Prefer privyEmbeddedAddress over pool.address so Google/email
+          login users see their embedded wallet immediately even before
+          wagmi's useAccount resolves. */}
       {pool.selectedChain === 'hedera' ? (
         <HederaVaultActions
-          address={pool.address as `0x${string}` | undefined}
+          address={(privyEmbeddedAddress ?? pool.address) as `0x${string}` | undefined}
           onRefresh={() => pool.fetchPoolData(true)}
         />
       ) : (
