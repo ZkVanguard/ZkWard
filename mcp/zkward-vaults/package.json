@@ -1,0 +1,23 @@
+{
+  "name": "zkward-vaults-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing ZkWard's AI-vault subgraph + Hedera Mirror Node adapter to AI agents. One query pattern spans two indexing backends.",
+  "type": "module",
+  "bin": {
+    "zkward-vaults-mcp": "./index.js"
+  },
+  "main": "./index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "keywords": ["mcp", "the-graph", "hedera", "subgraph", "ai-vaults"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZkVanguard/zkward-ethglobal.git",
+    "directory": "mcp/zkward-vaults"
+  }
+}
