@@ -15,7 +15,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { Copy, Check, ExternalLink, Zap, Database, Activity } from 'lucide-react';
+import { Copy, Check, ExternalLink, Zap, Database, Activity, Anchor, Shield } from 'lucide-react';
 import { useState } from 'react';
 
 const STUDIO_URL = 'https://api.studio.thegraph.com/query/1758819/zkward/v0.1.1';
@@ -61,6 +61,20 @@ interface TxRow {
   timestamp: string;
 }
 
+interface AttestationBlock {
+  attested: boolean;
+  reason?: string;
+  responseHash?: string;
+  hashAlgo?: string;
+  txId?: string;
+  topicId?: string;
+  consensusSeq?: string;
+  finalityMs?: number;
+  explorerUrl?: string;
+  network?: string;
+  attestedAt?: string;
+}
+
 interface GraphResponse {
   data?: {
     pools?: PoolRow[];
@@ -72,11 +86,13 @@ interface GraphResponse {
     };
   };
   errors?: Array<{ message: string }>;
+  extensions?: {
+    _attestation?: AttestationBlock;
+  };
 }
 
-async function runQuery(endpoint: string): Promise<GraphResponse> {
-  const isAbsolute = endpoint.startsWith('http');
-  const url = isAbsolute ? endpoint : endpoint;
+async function runQuery(endpoint: string, attest = false): Promise<GraphResponse & { _elapsed: number }> {
+  const url = attest && !endpoint.startsWith('http') ? `${endpoint}?attest=1` : endpoint;
   const t0 = performance.now();
   const r = await fetch(url, {
     method: 'POST',
@@ -85,7 +101,7 @@ async function runQuery(endpoint: string): Promise<GraphResponse> {
   });
   const j = (await r.json()) as GraphResponse;
   const elapsed = Math.round(performance.now() - t0);
-  return { ...j, _elapsed: elapsed } as GraphResponse & { _elapsed: number };
+  return { ...j, _elapsed: elapsed };
 }
 
 function fmtUsdc(microStr: string): string {
@@ -108,6 +124,7 @@ function timeAgo(sec: string): string {
 
 export function MultiChainVaultsPanel() {
   const [copied, setCopied] = useState(false);
+  const [attestOn, setAttestOn] = useState(false);
 
   const studioQ = useQuery({
     queryKey: ['subgraph', 'studio'],
@@ -117,8 +134,8 @@ export function MultiChainVaultsPanel() {
   });
 
   const hederaQ = useQuery({
-    queryKey: ['subgraph', 'hedera-adapter'],
-    queryFn: () => runQuery(HEDERA_URL),
+    queryKey: ['subgraph', 'hedera-adapter', attestOn],
+    queryFn: () => runQuery(HEDERA_URL, attestOn),
     refetchInterval: 30_000,
     staleTime: 20_000,
   });
@@ -140,9 +157,22 @@ export function MultiChainVaultsPanel() {
         <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide bg-[#6F4CFF15] text-[#6F4CFF]">
           One schema · two backends
         </span>
+        <label
+          className="ml-auto inline-flex items-center gap-1.5 text-[10px] cursor-pointer select-none"
+          title="Anchor the Hedera adapter's response bytes to Hedera Consensus Service"
+        >
+          <input
+            type="checkbox"
+            checked={attestOn}
+            onChange={(e) => setAttestOn(e.target.checked)}
+            className="w-3 h-3 accent-[#00A79F] cursor-pointer"
+          />
+          <Shield className="w-3 h-3 text-[#00A79F]" />
+          <span className="font-semibold">HCS-attest response</span>
+        </label>
         <button
           onClick={onCopyQuery}
-          className="ml-auto inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 hover:bg-fill-quaternary transition"
+          className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 hover:bg-fill-quaternary transition"
           title="Copy the GraphQL query — paste into either playground"
         >
           {copied ? <Check className="w-3 h-3 text-[#34C759]" /> : <Copy className="w-3 h-3" />}
@@ -197,6 +227,7 @@ function BackendCard({ label, endpoint, endpointHref, badge, badgeColor, data, i
   const pools = data?.data?.pools ?? [];
   const txs = data?.data?.transactions ?? [];
   const meta = data?.data?._meta;
+  const attestation = data?.extensions?._attestation;
   const hasErrors = isError || (data?.errors && data.errors.length > 0);
   const errorMsg = data?.errors?.[0]?.message;
 
@@ -236,6 +267,56 @@ function BackendCard({ label, endpoint, endpointHref, badge, badgeColor, data, i
 
       {!isLoading && !hasErrors && (
         <>
+          {/* HCS attestation banner — only present when ?attest=1 was requested */}
+          {attestation && (
+            <div
+              className="mb-2 rounded-md p-2 text-[10px] leading-relaxed"
+              style={{
+                background: attestation.attested ? '#00A79F0d' : '#FF950012',
+                border: `1px solid ${attestation.attested ? '#00A79F30' : '#FF950030'}`,
+              }}
+            >
+              <div className="flex items-start gap-1.5">
+                <Anchor
+                  className="w-2.5 h-2.5 flex-shrink-0 mt-0.5"
+                  style={{ color: attestation.attested ? '#00A79F' : '#FF9500' }}
+                />
+                <div className="flex-1 min-w-0">
+                  {attestation.attested ? (
+                    <>
+                      <div className="font-semibold text-label-primary">
+                        Response bytes anchored on HCS
+                      </div>
+                      <div className="text-label-secondary mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
+                        {attestation.finalityMs != null && (
+                          <span>Finality <span className="tabular-nums font-semibold">{(attestation.finalityMs / 1000).toFixed(2)}s</span></span>
+                        )}
+                        {attestation.consensusSeq && (
+                          <span>Seq <span className="tabular-nums font-semibold">#{attestation.consensusSeq}</span></span>
+                        )}
+                        {attestation.explorerUrl && (
+                          <a href={attestation.explorerUrl} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline text-[#00A79F]">
+                            HashScan ↗
+                          </a>
+                        )}
+                      </div>
+                      {attestation.responseHash && (
+                        <div className="mt-0.5 font-mono text-label-tertiary truncate" title={attestation.responseHash}>
+                          {attestation.hashAlgo}(response) = {attestation.responseHash.slice(0, 16)}…{attestation.responseHash.slice(-8)}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-semibold text-label-primary">Attestation skipped</div>
+                      <div className="text-label-secondary">{attestation.reason ?? 'unavailable'}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Pool row */}
           {pools.length === 0 ? (
             <div className="text-[11px] text-label-tertiary py-2">No pools indexed yet.</div>

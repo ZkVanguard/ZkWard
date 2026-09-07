@@ -180,6 +180,33 @@ async function subgraphQuery(endpointName, query, variables) {
   return { endpoint, ...resp };
 }
 
+async function attestedVaultSnapshot() {
+  // Hits the Hedera adapter with ?attest=1 so the server anchors the
+  // response bytes on HCS and returns the receipt in extensions.
+  const url = HEDERA_URL + (HEDERA_URL.includes('?') ? '&' : '?') + 'attest=1';
+  const t0 = Date.now();
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ query: SNAPSHOT_QUERY }),
+  });
+  const j = await r.json();
+  return {
+    fetchedAt: new Date().toISOString(),
+    endpoint: url,
+    elapsedMs: Date.now() - t0,
+    data: j.data,
+    attestation: j.extensions?._attestation ?? null,
+    verificationInstructions: [
+      '1. Grab the attestation.txId from the response.',
+      '2. Fetch the HCS message: https://testnet.mirrornode.hedera.com/api/v1/topics/{topicId}/messages',
+      '3. Decode base64 payload — contains responseHash + hashAlgo + queryPreview.',
+      '4. Recompute sha256(stableStringify(data)) — must match responseHash bit-for-bit.',
+      'Match = the indexer response you got was NOT tampered with in flight.',
+    ],
+  };
+}
+
 // ─── MCP server wiring ─────────────────────────────────────────────────────
 
 const server = new Server(
@@ -224,6 +251,16 @@ const TOOLS = [
     },
   },
   {
+    name: 'attested_vault_snapshot',
+    description:
+      'Same as vault_snapshot but the Hedera adapter response bytes are anchored on Hedera Consensus Service. Returns a verifiable HCS receipt (tx id + sha256 of response) that any client can independently check against Mirror Node. The Graph × Hedera combo: decentralized indexing + tamper-evident query receipts.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'subgraph_query',
     description:
       'Escape hatch — run a raw GraphQL query against either backend. Same schema on both endpoints, so a query written against one runs on the other unchanged.',
@@ -256,6 +293,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         break;
       case 'vault_transactions':
         payload = await vaultTransactions(args.limit);
+        break;
+      case 'attested_vault_snapshot':
+        payload = await attestedVaultSnapshot();
         break;
       case 'subgraph_query':
         payload = await subgraphQuery(args.endpoint, args.query, args.variables);

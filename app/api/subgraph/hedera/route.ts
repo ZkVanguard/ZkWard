@@ -27,6 +27,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
 import {
   buildSchema,
   execute,
@@ -35,6 +36,7 @@ import {
   type GraphQLFieldResolver,
 } from 'graphql';
 import { logger } from '@/lib/utils/logger';
+import { envFlag } from '@/lib/utils/env-flag';
 import { HEDERA_CONTRACT_ADDRESSES } from '@/lib/contracts/addresses';
 import {
   readHederaPoolSnapshot,
@@ -358,6 +360,109 @@ function attachResolvers(s: ReturnType<typeof buildSchema>, r: Record<string, Re
   }
 }
 
+// ─── HCS attestation (creative Graph × Hedera combo) ───────────────────────
+// When ?attest=1 is present, the adapter hashes the response JSON and
+// submits keccak-of-response + query + timestamp to the HCS audit topic.
+// Response includes `extensions._attestation` with the tx id, hash, and
+// HashScan link. Anyone can independently fetch the HCS message, hash the
+// response themselves, and confirm bit-perfect match — turning "trust the
+// indexer" into "verify the exact bytes."
+
+interface AttestationBlock {
+  attested: boolean;
+  reason?: string;
+  responseHash?: string;      // sha256 hex of canonical JSON of the data field
+  hashAlgo?: 'sha256';
+  txId?: string;
+  topicId?: string;
+  consensusSeq?: string;
+  finalityMs?: number;
+  explorerUrl?: string;
+  network?: 'mainnet' | 'testnet';
+  attestedAt?: string;
+}
+
+function canonicalHash(payload: unknown): string {
+  // Stable stringification — objects sorted by key so the same logical
+  // data always produces the same hash regardless of runtime ordering.
+  const json = stableStringify(payload);
+  return createHash('sha256').update(json).digest('hex');
+}
+
+function stableStringify(v: unknown): string {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(v as object).sort();
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + stableStringify((v as Record<string, unknown>)[k])).join(',') + '}';
+}
+
+async function attestResponse(
+  query: string,
+  data: unknown,
+): Promise<AttestationBlock> {
+  const responseHash = canonicalHash(data);
+
+  const topicId = (process.env.HCS_AUDIT_TOPIC_ID || '').trim();
+  const operatorId = (process.env.HEDERA_OPERATOR_ID || '').trim();
+  const operatorKey = (process.env.HEDERA_OPERATOR_KEY || '').trim();
+  const network = ((process.env.HEDERA_NETWORK || 'testnet').trim()) as 'mainnet' | 'testnet';
+
+  if (!envFlag('HCS_AUDIT_ENABLED')) {
+    return { attested: false, reason: 'HCS_AUDIT_ENABLED=0', responseHash, hashAlgo: 'sha256' };
+  }
+  if (!topicId || !operatorId || !operatorKey) {
+    return { attested: false, reason: 'HCS operator env missing', responseHash, hashAlgo: 'sha256' };
+  }
+
+  try {
+    const submittedAt = Date.now();
+    const { Client, PrivateKey, TopicMessageSubmitTransaction, AccountId, TopicId } =
+      await import('@hashgraph/sdk');
+    const client = network === 'mainnet' ? Client.forMainnet() : Client.forTestnet();
+    client.setOperator(
+      AccountId.fromString(operatorId),
+      operatorKey.startsWith('0x') ? PrivateKey.fromStringECDSA(operatorKey) : PrivateKey.fromString(operatorKey),
+    );
+
+    const message = JSON.stringify({
+      v: 1,
+      kind: 'subgraph-query-attestation',
+      queryPreview: query.slice(0, 200),
+      responseHash,
+      hashAlgo: 'sha256',
+      indexer: 'zkward-hedera-mirror-adapter',
+      attestedAt: new Date().toISOString(),
+    });
+    const submit = await new TopicMessageSubmitTransaction()
+      .setTopicId(TopicId.fromString(topicId))
+      .setMessage(message)
+      .execute(client);
+    const receipt = await submit.getReceipt(client);
+    const finalityMs = Date.now() - submittedAt;
+    try { client.close(); } catch { /* ignore */ }
+
+    return {
+      attested: true,
+      responseHash,
+      hashAlgo: 'sha256',
+      txId: submit.transactionId?.toString(),
+      topicId,
+      consensusSeq: receipt.topicSequenceNumber?.toString(),
+      finalityMs,
+      explorerUrl: `https://hashscan.io/${network}/topic/${topicId}`,
+      network,
+      attestedAt: new Date(submittedAt).toISOString(),
+    };
+  } catch (e) {
+    return {
+      attested: false,
+      reason: e instanceof Error ? e.message : 'attest failed',
+      responseHash,
+      hashAlgo: 'sha256',
+    };
+  }
+}
+
 // ─── HTTP handlers ─────────────────────────────────────────────────────────
 
 interface GraphQLBody {
@@ -377,6 +482,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ errors: [{ message: 'query required' }] }, { status: 400 });
   }
 
+  const url = new URL(request.url);
+  const wantAttest = url.searchParams.get('attest') === '1';
+
   try {
     const doc = parse(body.query);
     const errs = validate(schema, doc);
@@ -389,7 +497,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       variableValues: body.variables ?? undefined,
       operationName: body.operationName ?? undefined,
     });
-    return NextResponse.json(result, {
+
+    // Optional Hedera attestation of the exact response bytes.
+    let extensions: Record<string, unknown> | undefined = undefined;
+    if (wantAttest) {
+      const attestation = await attestResponse(body.query, result.data);
+      extensions = { _attestation: attestation };
+    }
+
+    const responsePayload = extensions ? { ...result, extensions } : result;
+    return NextResponse.json(responsePayload, {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch (e) {
@@ -411,6 +528,10 @@ export async function GET(): Promise<NextResponse> {
     method: 'POST',
     exampleBody: {
       query: '{ pools { id network totalShares totalNav sharePrice memberCount } transactions(first: 5) { type actor amount timestamp } _meta { block { number timestamp } deployment hasIndexingErrors } }',
+    },
+    verifiableGraphQL: {
+      description: 'Append ?attest=1 to POST — response `extensions._attestation` will contain a HCS transaction id + sha256 of the response bytes. Fetch the HCS message from Mirror Node, hash the response yourself, confirm bit-perfect match.',
+      example: 'POST /api/subgraph/hedera?attest=1',
     },
   });
 }
