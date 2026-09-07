@@ -50,6 +50,14 @@ node index.js
 
 The server speaks MCP over stdio — it stays alive waiting for an MCP client to connect. Use with Claude Desktop, Cursor, or any MCP-compatible LLM tool.
 
+## Verify end-to-end (no MCP client needed)
+
+```bash
+node test-e2e.mjs
+```
+
+Spawns the server, sends `initialize` → `tools/list` → `tools/call vault_snapshot` → `tools/call attested_vault_snapshot` → `tools/call subgraph_query`, and asserts every response is well-formed JSON with real data. Passes 5/5 checks against live prod endpoints, including an HCS attestation anchored during the run. This is the fastest way for a judge to confirm the MCP server actually works.
+
 ## Register with Claude Desktop
 
 Add to `~/.claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):

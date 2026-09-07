@@ -90,39 +90,53 @@ interface VerifyResult {
   note: string;
 }
 
-async function verifyPayment(header: string, resource: string): Promise<VerifyResult> {
+async function verifyPayment(header: string, intent: X402PaymentIntent): Promise<VerifyResult> {
   const facilitator = getFacilitator();
 
-  // Stub mode — accepts any non-empty header. Lets the click-through demo
-  // work without a real signed EIP-3009 authorisation. Still x402-compliant
-  // (proper 402/intent shape, real facilitator URL in the intent) — only
-  // the verify path is stubbed.
+  // Demo-safe mode. Accepts any non-empty header so judges can hit the
+  // endpoint without provisioning funded testnet USDC. The intent is
+  // real, the facilitator URL is real, and the HCS audit trail is real —
+  // only the signature check is bypassed. Flip X402_FACILITATOR_ENABLED=1
+  // and sign an EIP-3009 authorisation to move verification.mode → 'blocky402'.
   if (!envFlag('X402_FACILITATOR_ENABLED')) {
     return {
       valid: header.length > 0,
       mode: 'stub',
       facilitator,
-      note: 'stub-verify: real signature check requires X402_FACILITATOR_ENABLED=1 + EIP-3009 client signing. Intent shape + facilitator URL are unchanged.',
+      note: 'demo-safe mode: intent + HCS receipt are real; signature check bypassed so judges can call without funded USDC. Toggle X402_FACILITATOR_ENABLED=1 + sign EIP-3009 to flip to blocky402.',
     };
   }
 
-  // Real facilitator path — POST the payment header to Blocky402 /verify.
+  // Real facilitator path — Blocky402 /verify contract expects
+  //   { paymentHeader: base64 EIP-3009 payload, paymentRequirements: intent }
+  // Confirmed by probing api.blocky402.com/verify against the wrong
+  // shape and observing the error messages (see scripts/probe-blocky402.ts).
   try {
     const res = await fetch(`${facilitator}/verify`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ payment: header, resource }),
+      body: JSON.stringify({
+        paymentHeader: header,
+        paymentRequirements: intent,
+      }),
       signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) {
-      return { valid: false, mode: 'blocky402', facilitator, note: `facilitator ${res.status}` };
+      let errBody: unknown = null;
+      try { errBody = await res.json(); } catch { /* ignore */ }
+      const detail = errBody && typeof errBody === 'object' && 'message' in errBody
+        ? String((errBody as { message: unknown }).message)
+        : `HTTP ${res.status}`;
+      return { valid: false, mode: 'blocky402', facilitator, note: `facilitator rejected: ${detail}` };
     }
-    const body = (await res.json()) as { valid?: boolean };
+    const body = (await res.json()) as { valid?: boolean; isValid?: boolean };
+    // Blocky402 has historically used both `valid` and `isValid`; accept either.
+    const ok = body.valid === true || body.isValid === true;
     return {
-      valid: body.valid === true,
+      valid: ok,
       mode: 'blocky402',
       facilitator,
-      note: body.valid === true ? 'blocky402-verified' : 'facilitator rejected header',
+      note: ok ? 'blocky402-verified' : 'facilitator returned valid=false',
     };
   } catch (e) {
     logger.warn('[x402] facilitator verify failed', {
@@ -324,7 +338,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<SignalQual
     );
   }
 
-  const verification = await verifyPayment(paymentHeader, url.toString());
+  const verification = await verifyPayment(paymentHeader, buildIntent(request));
   if (!verification.valid) {
     return NextResponse.json(
       {

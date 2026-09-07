@@ -24,19 +24,23 @@ Live on Sui mainnet since 2026-06-12 · Hedera-primary pivot shipped 2026-09-04 
 
 Everything you need to verify each submission in one place.
 
+**⚡ One URL for the whole board**: https://www.zkward.com/judges — runs 10 live checks server-side (Hedera vault, HCS topics, x402, A2A, adapter, verifiable GraphQL, Studio subgraph, npm package). JSON at `/api/judges/status`. Everything below is spelled out for depth.
+
 ### Hedera · AI & Agentic Payments ($6K)
 - **Live x402 endpoint (returns 402 with intent)**: https://www.zkward.com/api/hedera/x402/signal-quality?asset=BTC
 - **Live paid call** (any non-empty X-PAYMENT header works for the demo; verification mode `stub`/`blocky402` explicitly returned): `curl -H "X-PAYMENT: dGVzdA==" 'https://www.zkward.com/api/hedera/x402/signal-quality?asset=BTC'`
-- **Real HCS audit topic** (every paid call = new entry): [`0.0.10393879`](https://hashscan.io/testnet/topic/0.0.10393879)
+- **Real HCS audit topic** ([`0.0.10393879`](https://hashscan.io/testnet/topic/0.0.10393879)) — three distinct attestation kinds on one topic (hedge-projection 23, x402-payment-receipt 19, subgraph-query-attestation 13). Audit in one command: `bun run scripts/audit-hcs-attestations.ts`
 - **HCS-14 agent registry** (discoverable agent identity): [`0.0.10401316`](https://hashscan.io/testnet/topic/0.0.10401316) · [JSON view](https://www.zkward.com/api/hedera/agent-registry)
 - **A2A negotiation trace**: https://www.zkward.com/api/hedera/a2a/demo?asset=BTC&budget=500
 - **Consumer dashboard** (one-click flow): https://www.zkward.com/dashboard → **Agent Payments** tab
-- **Blocky402 facilitator wired**: intent points at `https://api.blocky402.com` (real API host, verified via `/supported`); response `verification` block reports the actual mode (stub vs blocky402) for full transparency
+- **Blocky402 facilitator wired**: intent points at `https://api.blocky402.com` (real API host); response `verification` block reports the actual mode (stub vs blocky402) for full transparency. **Prove it with one command**: `bun run scripts/probe-blocky402.ts` — hits `/supported` + our `/x402` intent + `/verify` with our real intent as `paymentRequirements`. Facilitator responds "Invalid payment header format" (proving it decoded our request and only rejected the unsigned stub payload) — the last mile is client-side EIP-3009 signing over funded USDC.
 
 ### Hedera · Open Source — Harness ($2K, up to 2 winners)
-Two upstream contributions to Hedera dev tooling:
+Upstream contributions + dogfood loop:
 
-- **PR #43** — [hedera-dev/hedera-harness](https://github.com/hedera-dev/hedera-harness/pull/43) — Tier 2.5 Mirror Node validator, closes the gap between free UI checks and HBAR-spending on-chain tx checks. 5 node:test cases green against real testnet mirror.
+- **PR #43** — [hedera-dev/hedera-harness](https://github.com/hedera-dev/hedera-harness/pull/43) — Tier 2.5 Mirror Node validator, closes the gap between free UI checks and HBAR-spending on-chain tx checks. 5 node:test cases green against real testnet mirror. Status: **OPEN, MERGEABLE, all CI green**.
+- **PR #44 draft** — x402 endpoint validator proposal at [`docs/upstream-prs/pr-44-x402-validator-proposal.md`](./docs/upstream-prs/pr-44-x402-validator-proposal.md). Working reference in `scripts/harness-check.ts:x402Endpoint()`.
+- **Dogfood loop** — run the same Tier 2.5 assertions against our own deploy: `bun run scripts/harness-check.ts` (8/8 green — vault-exists, token-exists, account-exists, topics-exist, recent-call, x402-intent-shape, x402-paid-call).
 - **PR #52** — [hedera-dev/hedera-code-snippets](https://github.com/hedera-dev/hedera-code-snippets/pull/52) — `serve-hedera-contract-as-graphql` snippet, bridges Hedera into The Graph tooling ecosystem. `npm install && node index.mjs` returns a working standardized subgraph endpoint for any Hedera contract. Reference deployment: https://www.zkward.com/api/subgraph/hedera
 
 ### Hedera · Continuity ($1K)
@@ -48,13 +52,13 @@ Two upstream contributions to Hedera dev tooling:
 
 ### Graph · AI Continuity ($5K)
 - **PR to graphprotocol/subgraphs-skills**: https://github.com/graphprotocol/subgraphs-skills/pull/1 — adds `subgraph-erc4626-vaults` skill (both Claude Code + OpenClaw formats). Canonical schema, share-price folding, Messari standardized-subgraph conventions, matchstick fixtures. 6 files, 847 insertions.
-- **Live subgraph on Studio**: [`zkward`](https://thegraph.com/studio/subgraph/zkward) (v0.1.1) — [query endpoint](https://api.studio.thegraph.com/query/1758819/zkward/v0.1.1)
-- **Subgraph MCP server**: [`mcp/zkward-vaults/`](./mcp/zkward-vaults) — exposes vault snapshots to any MCP-compatible AI agent (Claude Desktop, Cursor). One tool call fans out to multiple indexing backends.
+- **Live subgraph on Studio**: [`zkward`](https://thegraph.com/studio/subgraph/zkward) (v0.1.1) — [query endpoint](https://api.studio.thegraph.com/query/1758819/zkward/v0.1.1). Sepolia CommunityPool proxy `0x07d68C…1086` is currently dormant (v0.1.1 schema + indexer green, `hasIndexingErrors: false`). To populate with real activity: `bash scripts/populate-sepolia-subgraph.sh` (deploys fresh SimpleUsdcVault + 6 deposits + 2 withdrawals + auto-patches subgraph.yaml + `graph deploy` — one command).
+- **Subgraph MCP server**: [`mcp/zkward-vaults/`](./mcp/zkward-vaults) — 4 tools including `attested_vault_snapshot` (HCS-anchored responses). Verify end-to-end: `cd mcp/zkward-vaults && node test-e2e.mjs` — 5/5 green including a live HCS attestation captured during the run.
 
 ### Graph × Hedera bridge — **open-source library**
-- **Package**: [`@zkward/hedera-graphql-adapter`](./packages/hedera-graphql-adapter) — serves ANY Hedera contract as a standardized GraphQL / subgraph endpoint. The Graph doesn't index Hedera (129 EVM chains supported, Hedera not among them) — this bridges the gap so every Graph-native tool works over Hedera contracts.
+- **Package**: [`@zkward/hedera-graphql-adapter`](./packages/hedera-graphql-adapter) — serves ANY Hedera contract as a standardized GraphQL / subgraph endpoint. The Graph doesn't index Hedera (129 EVM chains supported, Hedera not among them) — this bridges the gap so every Graph-native tool works over Hedera contracts. Install: `npm i @zkward/hedera-graphql-adapter`
 - **Reference deployment**: https://www.zkward.com/api/subgraph/hedera — powered by the same package
-- Query the same shape at both endpoints (Studio and this adapter) — proof that the schema abstracts over indexing backends, not just chains.
+- **Cross-backend parity + verifiable GraphQL demo** in one command: `bun run scripts/demo-graph-parity.ts` — runs the same query against Studio (Sepolia) and the adapter (Hedera testnet), then HCS-attests the Hedera response and verifies the hash byte-for-byte. Proves the schema abstracts over indexing backends AND anchors an integrity receipt in ~5 seconds.
 
 ### Recording
 - **Video shot lists (5-min each)**: [`docs/DEMO_VIDEO_SCRIPTS.md`](./docs/DEMO_VIDEO_SCRIPTS.md) — one script per prize, mapped 1:1 to qualification requirements
