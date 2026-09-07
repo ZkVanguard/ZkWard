@@ -211,6 +211,90 @@ ${indicators.map((i) => `- ${i.asset}: $${i.price.toLocaleString()} (${i.change2
   return { allocations, reasoning, confidence, indicators, shouldRebalance };
 }
 
+// ─── Hedera path — signal-driven allocation without the Cronos machinery ──
+async function buildHederaRecommendation(request: NextRequest) {
+  // Live prices for the three assets we project hedges across.
+  const origin = request.nextUrl.origin;
+  const [pricesRes, poolRes] = await Promise.all([
+    fetch(`${origin}/api/prices?symbols=BTC,ETH,SUI`, { cache: 'no-store' }).catch(() => null),
+    fetch(`${origin}/api/community-pool?chain=hedera&network=testnet`, { cache: 'no-store' }).catch(() => null),
+  ]);
+  const pricesJson = pricesRes ? await pricesRes.json().catch(() => ({})) : {};
+  const poolJson = poolRes ? await poolRes.json().catch(() => ({})) : {};
+  const prices = (pricesJson?.data ?? []) as Array<{ symbol: string; price: number; change24h: number }>;
+  const nav = Number(poolJson?.pool?.totalValueUSD) || 0;
+
+  // Derive per-asset trend from 24h change; use as a naive signal proxy.
+  const bySymbol = new Map(prices.map((p) => [p.symbol, p]));
+  const assets = ['BTC', 'ETH', 'SUI'] as const;
+  const indicators = assets.map((asset) => {
+    const p = bySymbol.get(asset);
+    const change = Number(p?.change24h ?? 0);
+    const trend: 'bullish' | 'bearish' | 'neutral' =
+      change > 0.01 ? 'bullish' : change < -0.01 ? 'bearish' : 'neutral';
+    return {
+      asset,
+      price: Number(p?.price ?? 0),
+      change24h: change,
+      trend,
+      volatility: Math.abs(change) > 0.03 ? 'high' : Math.abs(change) > 0.01 ? 'medium' : 'low',
+      score: Math.min(100, Math.round(Math.abs(change) * 100 * 20)),
+    };
+  });
+
+  // Simple allocation: equal weight to the three assets IF any signal is
+  // strong, else stay 100% USDC (hedge cash). Uses trend-count as gate.
+  const bullishCount = indicators.filter((i) => i.trend === 'bullish').length;
+  const shouldRebalance = bullishCount >= 2 && nav > 0;
+  const allocationPct = shouldRebalance ? 30 : 0; // 30% per asset if signal
+  const usdcPct = shouldRebalance ? 10 : 100;
+  const allocations: Record<string, number> = shouldRebalance
+    ? { BTC: allocationPct, ETH: allocationPct, SUI: allocationPct, USDC: usdcPct }
+    : { USDC: 100, BTC: 0, ETH: 0, SUI: 0 };
+
+  const currentPct = { USDC: 100, BTC: 0, ETH: 0, SUI: 0 };
+  const changes = Object.keys(allocations).map((asset) => ({
+    asset,
+    currentPercent: currentPct[asset as keyof typeof currentPct] ?? 0,
+    proposedPercent: allocations[asset],
+    change: allocations[asset] - (currentPct[asset as keyof typeof currentPct] ?? 0),
+  }));
+
+  const trendSummary = indicators
+    .map((i) => `${i.asset} ${i.trend} ${i.change24h >= 0 ? '+' : ''}${(i.change24h * 100).toFixed(2)}%`)
+    .join(' · ');
+
+  const reasoning = shouldRebalance
+    ? `${bullishCount}/3 assets bullish — rotate into 30% per bullish asset, hold 10% USDC. Signal: ${trendSummary}. NAV: $${nav.toFixed(2)}.`
+    : `Weak signal (${bullishCount}/3 bullish) — hold 100% USDC. Signal: ${trendSummary}. NAV: $${nav.toFixed(2)}. AI rotates only when at least 2/3 assets show clear trend.`;
+
+  const confidence = Math.round(50 + (bullishCount / 3) * 40); // 50-90%
+
+  return {
+    success: true,
+    recommendation: {
+      allocations,
+      shouldRebalance,
+      reasoning,
+      confidence,
+      indicators,
+      changes,
+    },
+    currentPool: {
+      totalNAV: nav,
+      allocations: {
+        USDC: { percentage: 100 },
+        BTC: { percentage: 0 },
+        ETH: { percentage: 0 },
+        SUI: { percentage: 0 },
+      },
+    },
+    timestamp: Date.now(),
+    source: 'hedera-signal-driven',
+    note: 'Live signal fusion — Hedera pool is USDC-only today, allocation shows what the AI would target.',
+  };
+}
+
 /**
  * GET - Get current AI recommendation without applying
  */
@@ -223,6 +307,14 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const forceRefresh = searchParams.get('refresh') === 'true';
     const chain = searchParams.get('chain') || undefined;
+
+    // Hedera-specific short-circuit — the legacy getPoolSummary path is
+    // Cronos-bound and throws for Hedera. Compose a live signal-driven
+    // recommendation from the aggregator + on-chain NAV instead.
+    if (chain === 'hedera') {
+      const hederaResponse = await buildHederaRecommendation(request);
+      return NextResponse.json(hederaResponse);
+    }
 
     // OPTIMIZATION: Return cached response if fresh (2 minute TTL)
     if (

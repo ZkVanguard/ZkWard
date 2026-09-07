@@ -659,33 +659,28 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
         />
 
         <div className="max-w-[1100px] mx-auto">
-          {/* Status pill + chain badges. Two pills side by side: the pool lives
-              on SUI Mainnet, and the EVM agent stack runs on Hedera. Both
-              chains stated up front — no hidden multichain surprises. */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-8 sm:mb-10">
+          {/* Single multichain status pill — SUI mainnet flagship + Hedera
+              testnet as the primary EVM demo. One line, less visual noise
+              than the previous two-pill row. */}
+          <div className="flex items-center justify-center mb-8 sm:mb-10">
             <StatusPill
-              left={<LiveIndicator label="Live on SUI Mainnet" />}
+              left={
+                <span className="inline-flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ backgroundColor: '#00A79F' }} />
+                    <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#00A79F' }} />
+                  </span>
+                  <span className="text-footnote font-medium text-label-secondary">
+                    Multichain · <span style={{ color: '#00A79F' }} className="font-semibold">Hedera Testnet</span> · SUI Mainnet
+                  </span>
+                </span>
+              }
               right={
                 <span className="text-footnote font-semibold text-label-primary tabular-nums">
                   {formatCount(pool?.memberCount ?? 0, 'member', 'members')}
                 </span>
               }
             />
-            <span
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border"
-              style={{
-                borderColor: 'rgba(0,167,159,0.25)',
-                backgroundColor: 'rgba(0,167,159,0.08)',
-                color: '#00A79F',
-              }}
-              title="EVM agent settlement + wallet on Hedera Testnet"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ backgroundColor: '#00A79F' }} />
-                <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#00A79F' }} />
-              </span>
-              <span className="text-footnote font-medium">Hedera EVM</span>
-            </span>
           </div>
 
           {/* Headline — tightened to 2 short lines, no gradient text (the
@@ -699,8 +694,8 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
 
           {/* Subtitle — 15 words, one line's worth on desktop */}
           <p className="text-center text-base sm:text-[19px] text-label-secondary max-w-[580px] mx-auto leading-relaxed mb-10 sm:mb-14 px-1">
-            A 7-agent AI vault. BTC, ETH, SUI with auto-hedged perps on BlueFin.
-            Verified by ZK-STARK.
+            Multichain AI vault. Live on Hedera Testnet (EVM · x402 · HCS audit)
+            and SUI Mainnet. Auto-hedged perps, ZK-STARK verified.
           </p>
 
           {/* ─── VAULT METER (signature element) ─── */}
