@@ -59,41 +59,66 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'HCS_AUDIT_TOPIC_ID not configured' }, { status: 503 });
   }
 
+  // Extract the consensus timestamp from the txId — Hedera format is
+  //   {shard}.{realm}.{num}@{seconds}.{nanos}
+  // Mirror Node's tx endpoint uses the same secs.nanos as the tx id.
+  const tsPart = txId.split('@')[1];
+  if (!tsPart || !/^\d+\.\d+$/.test(tsPart)) {
+    return NextResponse.json(
+      { error: `invalid txId format — expected shard.realm.num@secs.nanos, got "${txId}"` },
+      { status: 400 },
+    );
+  }
+
   try {
-    // Mirror doesn't index by tx-id directly on the topic-message endpoint;
-    // fetch the last 100 and scan. Good enough for the demo — topic sequence
-    // moves slowly (one msg per attested query).
-    const r = await fetch(`${MIRROR_BASE}/topics/${topicId}/messages?limit=100&order=desc`);
-    if (!r.ok) {
-      return NextResponse.json({ error: `mirror returned ${r.status}` }, { status: 502 });
-    }
-    const j = (await r.json()) as { messages?: MirrorMessage[] };
-    const msgs = j.messages ?? [];
-
-    let match: (MirrorMessage & { decoded: AttestPayload }) | null = null;
-    for (const m of msgs) {
-      let decoded: AttestPayload | null = null;
-      try { decoded = JSON.parse(Buffer.from(m.message, 'base64').toString('utf8')) as AttestPayload; }
-      catch { continue; }
-      if (decoded?.kind !== 'subgraph-query-attestation') continue;
-
-      // Match either by consensus_timestamp (embedded in txId) or by
-      // full txId string.
-      const txSecs = txId.split('@')[1]?.split('.')[0] ?? '';
-      if (m.consensus_timestamp.startsWith(txSecs) || txId.includes(m.consensus_timestamp.slice(0, 10))) {
-        match = { ...m, decoded };
-        break;
+    // Two-stage lookup:
+    //   1. GET /transactions/{txId} → returns the record incl. consensus_timestamp
+    //      (this is what accounts for the ~2s indexer lag; Mirror needs to
+    //      catch up to the network before the message is queryable by ts).
+    //   2. GET /topics/{topicId}/messages/{consensus_timestamp} → the message.
+    // Retry stage 1 briefly for freshly-published txs (typical 1-3s lag).
+    let consensusTimestamp: string | null = null;
+    const txPath = `/transactions/${encodeURIComponent(txId)}`;
+    for (let i = 0; i < 5 && !consensusTimestamp; i++) {
+      const r = await fetch(`${MIRROR_BASE}${txPath}`);
+      if (r.ok) {
+        const j = (await r.json()) as { transactions?: Array<{ consensus_timestamp?: string }> };
+        consensusTimestamp = j.transactions?.[0]?.consensus_timestamp ?? null;
+        if (consensusTimestamp) break;
       }
+      await new Promise((res) => setTimeout(res, 1500));
     }
-
-    if (!match) {
+    if (!consensusTimestamp) {
       return NextResponse.json({
-        error: 'no matching HCS attestation found in last 100 messages',
+        error: 'tx not indexed by Mirror Node yet — retry in a few seconds',
         txId,
         topicId,
-        hint: 'attestation may be older than the fetch window — increase depth or provide consensusTimestamp directly',
-      }, { status: 404 });
+      }, { status: 202 });
     }
+
+    const msgResp = await fetch(`${MIRROR_BASE}/topics/${topicId}/messages/${consensusTimestamp}`);
+    if (!msgResp.ok) {
+      return NextResponse.json({
+        error: `mirror /messages/${consensusTimestamp} returned ${msgResp.status}`,
+        txId,
+        topicId,
+        consensusTimestamp,
+      }, { status: 502 });
+    }
+    const raw = (await msgResp.json()) as MirrorMessage;
+    let decoded: AttestPayload | null = null;
+    try { decoded = JSON.parse(Buffer.from(raw.message, 'base64').toString('utf8')) as AttestPayload; }
+    catch {
+      return NextResponse.json({ error: 'message present but not valid JSON', txId, topicId }, { status: 502 });
+    }
+    if (decoded.kind !== 'subgraph-query-attestation') {
+      return NextResponse.json({
+        error: `expected kind=subgraph-query-attestation, got "${decoded.kind}"`,
+        txId,
+        topicId,
+      }, { status: 409 });
+    }
+    const match = { ...raw, decoded };
 
     return NextResponse.json({
       verified: true,
