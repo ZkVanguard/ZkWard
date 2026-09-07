@@ -94,12 +94,11 @@ export async function getOnChainPoolData(chainConfig?: ChainConfig): Promise<Poo
       const network = networkKey === 'mainnet' ? 'mainnet' : 'testnet';
       const snap = await readHederaPoolSnapshot(network, config.poolAddress, usdtAddr);
       if ('ok' in snap && snap.ok) {
-        // Uninitialised pool → target allocations are the deployment default.
+        // Hedera SimpleUsdcVault holds USDC 1:1 — no AI allocation on this
+        // chain. Reflecting that in the returned allocations so the UI
+        // doesn't show a misleading BTC/ETH/SUI/CRO 25% split.
         const allocations: Record<string, { percentage: number }> = {
-          BTC: { percentage: 25 },
-          ETH: { percentage: 25 },
-          SUI: { percentage: 25 },
-          CRO: { percentage: 25 },
+          USDC: { percentage: 100 },
         };
         const result: PoolDataCache = {
           totalValueUSD: snap.totalNavUsdc,
@@ -376,9 +375,13 @@ export async function getOnChainUserPosition(userAddress: string, chainConfig?: 
         const poolData = await getOnChainPoolData(chainConfig);
         if (!poolData) return null;
         
-        // Get user's member data
+        // Get user's member data. Share decimals vary per chain — Hedera's
+        // SimpleUsdcVault stores shares in USDC's 6-decimal space (its
+        // fold preserves asset decimals). Sepolia/Cronos CommunityPool
+        // uses 18. Bail out to per-chain scaling.
         const memberData = await pool.members(userAddress);
-        const shares = parseFloat(ethers.formatUnits(memberData.shares, 18));
+        const shareDecimals = chainConfig.chainKey === 'hedera' ? 6 : 18;
+        const shares = parseFloat(ethers.formatUnits(memberData.shares, shareDecimals));
         
         if (shares === 0) {
           return {
