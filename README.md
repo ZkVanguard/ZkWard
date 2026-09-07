@@ -33,11 +33,11 @@ Everything you need to verify each submission in one place.
 - **Consumer dashboard** (one-click flow): https://www.zkward.com/dashboard → **Agent Payments** tab
 - **Blocky402 facilitator wired**: intent points at `https://api.blocky402.com` (real API host, verified via `/supported`); response `verification` block reports the actual mode (stub vs blocky402) for full transparency
 
-### Hedera · Open Source — Harness ($2K)
-- **PR**: https://github.com/hedera-dev/hedera-harness/pull/43
-- Adds Tier 2.5 Mirror Node validator — closes the gap between free UI checks (Tier 2) and HBAR-spending on-chain tx checks (Tier 3.5)
-- 5 node:test cases green against real testnet mirror
-- Full docs: [`docs/mirror-node-validator.md`](https://github.com/mrarejimmyz/hedera-harness/blob/add-mirror-node-validator/docs/mirror-node-validator.md)
+### Hedera · Open Source — Harness ($2K, up to 2 winners)
+Two upstream contributions to Hedera dev tooling:
+
+- **PR #43** — [hedera-dev/hedera-harness](https://github.com/hedera-dev/hedera-harness/pull/43) — Tier 2.5 Mirror Node validator, closes the gap between free UI checks and HBAR-spending on-chain tx checks. 5 node:test cases green against real testnet mirror.
+- **PR #52** — [hedera-dev/hedera-code-snippets](https://github.com/hedera-dev/hedera-code-snippets/pull/52) — `serve-hedera-contract-as-graphql` snippet, bridges Hedera into The Graph tooling ecosystem. `npm install && node index.mjs` returns a working standardized subgraph endpoint for any Hedera contract. Reference deployment: https://www.zkward.com/api/subgraph/hedera
 
 ### Hedera · Continuity ($1K)
 - Pre-existing: SUI mainnet USDC vault, live since 2026-06-12 (v0.4.0, 46+ days running)
