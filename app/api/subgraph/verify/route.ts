@@ -101,16 +101,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }, { status: 202 });
     }
 
-    const msgResp = await fetch(`${MIRROR_BASE}/topics/${topicId}/messages/${consensusTimestamp}`);
+    // Mirror's /messages/{X} path param expects a sequence NUMBER, not a
+    // consensus timestamp — use ?timestamp=... query filter for ts lookup.
+    const msgResp = await fetch(
+      `${MIRROR_BASE}/topics/${topicId}/messages?timestamp=${encodeURIComponent(consensusTimestamp)}&limit=1`,
+    );
     if (!msgResp.ok) {
       return NextResponse.json({
-        error: `mirror /messages/${consensusTimestamp} returned ${msgResp.status}`,
+        error: `mirror /messages?timestamp=${consensusTimestamp} returned ${msgResp.status}`,
         txId,
         topicId,
         consensusTimestamp,
       }, { status: 502 });
     }
-    const raw = (await msgResp.json()) as MirrorMessage;
+    const listBody = (await msgResp.json()) as { messages?: MirrorMessage[] };
+    const raw = listBody.messages?.[0];
+    if (!raw) {
+      return NextResponse.json({
+        error: 'no message at that consensus timestamp',
+        txId,
+        topicId,
+        consensusTimestamp,
+      }, { status: 404 });
+    }
     let decoded: AttestPayload | null = null;
     try { decoded = JSON.parse(Buffer.from(raw.message, 'base64').toString('utf8')) as AttestPayload; }
     catch {
