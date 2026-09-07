@@ -68,6 +68,17 @@ export class MirrorClient {
     return r?.logs ?? [];
   }
 
+  /** Latest block — cheap way to source _meta.block. */
+  async getLatestBlock(): Promise<{ number: number; timestampSec: number } | null> {
+    const r = await this.fetch<{ blocks?: Array<{ number?: number; timestamp?: { from?: string } }> }>(
+      '/blocks?limit=1&order=desc',
+    );
+    const b = r?.blocks?.[0];
+    if (!b || b.number == null) return null;
+    const fromSec = b.timestamp?.from ? parseInt(b.timestamp.from.split('.')[0] || '0', 10) : 0;
+    return { number: b.number, timestampSec: fromSec };
+  }
+
   /**
    * eth_call bridge via Mirror. Useful for view function reads.
    * `data` is 0x-prefixed calldata (selector + encoded params).

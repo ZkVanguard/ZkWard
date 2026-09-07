@@ -91,9 +91,30 @@ export interface AttestationResult {
   attestedAt?: string;
 }
 
+export type AdapterErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'PARSE_ERROR'
+  | 'MIRROR_UNAVAILABLE'
+  | 'MIRROR_TIMEOUT'
+  | 'RESOLVER_ERROR'
+  | 'UNKNOWN';
+
+export interface AdapterError {
+  message: string;
+  extensions?: {
+    code: AdapterErrorCode;
+    /** Whether a retry might succeed (transient upstream failure). */
+    retryable?: boolean;
+    /** Location in the query that triggered it, if known. */
+    path?: readonly (string | number)[];
+    /** Underlying cause preview — safe to surface to clients. */
+    cause?: string;
+  };
+}
+
 export interface ExecuteResult<T = unknown> {
   data?: T;
-  errors?: Array<{ message: string }>;
+  errors?: AdapterError[];
   extensions?: {
     _attestation?: AttestationResult;
   };

@@ -77,11 +77,29 @@ export function createHederaGraphQLAdapter(config: AdapterConfig): Adapter {
 
   return {
     async execute<T = unknown>(input: ExecuteInput): Promise<ExecuteResult<T>> {
-      const doc = parse(input.query);
+      // Parse errors — invalid query string.
+      let doc;
+      try {
+        doc = parse(input.query);
+      } catch (e) {
+        return {
+          errors: [{
+            message: e instanceof Error ? e.message : 'parse error',
+            extensions: { code: 'PARSE_ERROR', retryable: false },
+          }],
+        };
+      }
+
       const errs = validate(schema, doc);
       if (errs.length > 0) {
-        return { errors: errs.map((e) => ({ message: e.message })) };
+        return {
+          errors: errs.map((e) => ({
+            message: e.message,
+            extensions: { code: 'VALIDATION_ERROR' as const, retryable: false },
+          })),
+        };
       }
+
       const raw = await execute({
         schema,
         document: doc,
@@ -91,7 +109,22 @@ export function createHederaGraphQLAdapter(config: AdapterConfig): Adapter {
 
       const result: ExecuteResult<T> = {
         data: raw.data as T | undefined,
-        errors: raw.errors?.map((e) => ({ message: e.message })),
+        errors: raw.errors?.map((e) => {
+          const causeMsg = e.originalError?.message ?? '';
+          const isMirror = /mirror|fetch|network|econn|timeout|abort/i.test(causeMsg);
+          const isTimeout = /timeout|abort/i.test(causeMsg);
+          return {
+            message: e.message,
+            extensions: {
+              code: isMirror
+                ? (isTimeout ? 'MIRROR_TIMEOUT' as const : 'MIRROR_UNAVAILABLE' as const)
+                : 'RESOLVER_ERROR' as const,
+              retryable: isMirror,
+              path: e.path ?? undefined,
+              cause: causeMsg ? causeMsg.slice(0, 200) : undefined,
+            },
+          };
+        }),
       };
 
       if (input.attest && config.attestation) {

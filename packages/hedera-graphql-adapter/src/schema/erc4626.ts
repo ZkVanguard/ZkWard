@@ -99,50 +99,77 @@ export interface Erc4626PresetOptions {
   networkLabel?: string;
   /** Assumed asset decimals (default 6 for USDC-style vaults). */
   decimals?: number;
+  /** TTL for pool / logs cache in ms. Default 30000. Set to 0 to disable. */
+  cacheTtlMs?: number;
+}
+
+/**
+ * Time-bounded memoizer. Same key + same window → same promise (which
+ * means concurrent callers within the window share the in-flight request
+ * and multi-field queries only pay the network cost once).
+ */
+function ttlMemo<T>(ttlMs: number): (key: string, fn: () => Promise<T>) => Promise<T> {
+  const cache = new Map<string, { at: number; value: Promise<T> }>();
+  return (key, fn) => {
+    if (ttlMs <= 0) return fn();
+    const now = Date.now();
+    const hit = cache.get(key);
+    if (hit && now - hit.at < ttlMs) return hit.value;
+    const value = fn().catch((e) => { cache.delete(key); throw e; });
+    cache.set(key, { at: now, value });
+    return value;
+  };
 }
 
 export function createErc4626Preset(opts: Erc4626PresetOptions) {
-  const { client, contract, network, networkLabel = `hedera-${network}`, decimals = 6 } = opts;
+  const { client, contract, network, networkLabel = `hedera-${network}`, decimals = 6, cacheTtlMs = 30_000 } = opts;
   const decimalsMultiplier = 10n ** BigInt(decimals);
   const vaultAddress = contract.toLowerCase();
+  const memo = ttlMemo<unknown>(cacheTtlMs);
 
-  async function fetchPool(): Promise<PoolShape | null> {
-    const meta = await client.getContract(vaultAddress);
-    if (!meta) return null;
+  function fetchPool(): Promise<PoolShape | null> {
+    return memo(`pool:${vaultAddress}`, async () => {
+      const meta = await client.getContract(vaultAddress);
+      if (!meta) return null;
 
-    const [totalShares, totalAssets, memberCount] = await Promise.all([
-      readViewUint(client, vaultAddress, ERC4626_SELECTORS.totalShares, ERC4626_SELECTORS.totalSupply),
-      readViewUint(client, vaultAddress, ERC4626_SELECTORS.totalAssets),
-      readViewUint(client, vaultAddress, ERC4626_SELECTORS.memberCount),
-    ]);
+      const [totalShares, totalAssets, memberCount] = await Promise.all([
+        readViewUint(client, vaultAddress, ERC4626_SELECTORS.totalShares, ERC4626_SELECTORS.totalSupply),
+        readViewUint(client, vaultAddress, ERC4626_SELECTORS.totalAssets),
+        readViewUint(client, vaultAddress, ERC4626_SELECTORS.memberCount),
+      ]);
 
-    const sharePriceScaled = totalShares === 0n
-      ? decimalsMultiplier
-      : (totalAssets * decimalsMultiplier) / totalShares;
+      const sharePriceScaled = totalShares === 0n
+        ? decimalsMultiplier
+        : (totalAssets * decimalsMultiplier) / totalShares;
 
-    const createdSec = meta.created_timestamp
-      ? Math.floor(new Date(parseInt(meta.created_timestamp.split('.')[0]!, 10) * 1000).getTime() / 1000)
-      : 0;
+      const createdSec = meta.created_timestamp
+        ? Math.floor(new Date(parseInt(meta.created_timestamp.split('.')[0]!, 10) * 1000).getTime() / 1000)
+        : 0;
 
-    return {
-      id: vaultAddress,
-      network: networkLabel,
-      totalShares: totalShares.toString(),
-      totalNav: totalAssets.toString(),
-      sharePrice: sharePriceScaled.toString(),
-      memberCount: Number(memberCount),
-      totalFeesCollected: '0',
-      createdAtBlock: '0',
-      createdAtTimestamp: String(createdSec),
-      updatedAtBlock: null,
-      updatedAtTimestamp: String(Math.floor(Date.now() / 1000)),
-    };
+      return {
+        id: vaultAddress,
+        network: networkLabel,
+        totalShares: totalShares.toString(),
+        totalNav: totalAssets.toString(),
+        sharePrice: sharePriceScaled.toString(),
+        memberCount: Number(memberCount),
+        totalFeesCollected: '0',
+        createdAtBlock: '0',
+        createdAtTimestamp: String(createdSec),
+        updatedAtBlock: null,
+        updatedAtTimestamp: String(Math.floor(Date.now() / 1000)),
+      };
+    }) as Promise<PoolShape | null>;
+  }
+
+  // Underlying log fetch is cached; per-request filter is cheap and stays
+  // uncached so `where` variants remain accurate without cache-key blowup.
+  function fetchAllLogsCached(): Promise<ReturnType<typeof client.getContractLogs>> {
+    return memo(`logs:${vaultAddress}`, () => client.getContractLogs(vaultAddress, { limit: 100 })) as Promise<ReturnType<typeof client.getContractLogs>>;
   }
 
   async function fetchTransactions(limit: number, filter?: { type?: string; actor?: string }): Promise<TxShape[]> {
-    // Fetch broad; filter client-side. Mirror topic0 filter has quirks
-    // on some deployments, so we grab everything and dispatch.
-    const logs = await client.getContractLogs(vaultAddress, { limit: Math.min(limit * 3, 100) });
+    const logs = await fetchAllLogsCached();
     const rows: TxShape[] = [];
     for (const raw of logs) {
       const log = normalizeLog(raw);
@@ -235,11 +262,14 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
           return await fetchMembers(args.first ?? 25);
         },
         _meta: async () => {
-          const nowSec = Math.floor(Date.now() / 1000);
-          const txs = await fetchTransactions(1).catch(() => []);
-          const lastBlock = txs[0] ? Number(txs[0].blockNumber) : 0;
+          // Fast path — Mirror's /blocks endpoint is one call vs walking
+          // a full log record. Cached for the same TTL as pool state.
+          const block = await memo(`block:latest`, () => client.getLatestBlock()) as Awaited<ReturnType<typeof client.getLatestBlock>>;
           return {
-            block: { number: lastBlock, timestamp: nowSec },
+            block: {
+              number: block?.number ?? 0,
+              timestamp: block?.timestampSec ?? Math.floor(Date.now() / 1000),
+            },
             deployment: `hedera-mirror-adapter:${vaultAddress}`,
             hasIndexingErrors: false,
           };
