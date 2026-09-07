@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Shield, Cpu, Lock, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Shield, Cpu, Lock, CheckCircle2, ExternalLink, X } from 'lucide-react';
 import { Section, SectionHeader, StatusPill, TrustBadge, Reveal } from '@/components/ui/landing';
+import { ZkLiveProofDemo } from '@/components/zk/ZkLiveProofDemo';
 
 // Single focused ZK page. Replaces the three separate /zk-authenticity, /zk-proof,
 // and /zk-verification pages that grew independently and drifted apart. Structure:
@@ -111,42 +112,36 @@ export default function ZkPage() {
         </div>
       </section>
 
-      {/* LIVE PROVER STATUS */}
+      {/* LIVE PROOF DEMO — the marquee. Click, watch a real STARK land. */}
       <Section size="sm">
-        <div className="max-w-[720px] mx-auto">
-          <div className="bg-system-bg-primary rounded-[24px] border border-separator-opaque/40 shadow-ios-2 p-5 sm:p-7 overflow-hidden">
-            <div className="flex items-center justify-between mb-5">
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] sm:text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-1.5">
-                  Prover backend
-                </div>
-                <div className="text-title-2 font-semibold text-label-primary">
-                  {proverStatusLabel}
-                </div>
-              </div>
-              <div className={`w-3 h-3 rounded-full flex-shrink-0 ml-3 ${proverStatusDot}`} />
-            </div>
+        <div className="max-w-[820px] mx-auto">
+          <ZkLiveProofDemo />
+        </div>
+      </Section>
+
+      {/* PROVER STATUS — compact strip so the demo owns the fold */}
+      <Section size="sm">
+        <div className="max-w-[820px] mx-auto">
+          <div className="flex items-center gap-3 sm:gap-4 bg-system-bg-secondary rounded-2xl px-4 py-3 text-[12px] sm:text-[13px]">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${proverStatusDot}`} />
+            <span className="text-label-secondary">
+              Prover backend: <span className="font-semibold text-label-primary">{proverStatusLabel}</span>
+            </span>
             {health && (
-              <div className="grid grid-cols-2 gap-4 pt-5 border-t border-separator-opaque/30">
-                <div className="min-w-0">
-                  <div className="text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-1">CUDA</div>
-                  <div className="text-label-primary font-medium flex items-center gap-2 text-callout">
-                    {health.cuda_enabled ? (
-                      <>
-                        <Cpu className="w-4 h-4 text-ios-green flex-shrink-0" /> Accelerated
-                      </>
-                    ) : health.cuda_available ? (
-                      'Available'
-                    ) : (
-                      'CPU only'
-                    )}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-caption-1 uppercase tracking-wide font-semibold text-label-tertiary mb-1">Endpoint</div>
-                  <div className="text-label-primary font-medium truncate text-callout">{health.backend || '…'}</div>
-                </div>
-              </div>
+              <>
+                <span className="text-label-tertiary hidden sm:inline">·</span>
+                <span className="text-label-secondary hidden sm:inline">
+                  {health.cuda_enabled ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Cpu className="w-3 h-3 text-ios-green" /> CUDA
+                    </span>
+                  ) : health.cuda_available ? 'CUDA available · CPU active' : 'CPU only'}
+                </span>
+                <span className="text-label-tertiary hidden md:inline">·</span>
+                <span className="text-label-tertiary hidden md:inline font-mono text-[11px] truncate">
+                  {health.backend || '…'}
+                </span>
+              </>
             )}
           </div>
         </div>
@@ -220,6 +215,95 @@ export default function ZkPage() {
               hint="CuPy / Numba with CPU fallback"
             />
           </div>
+        </Reveal>
+      </Section>
+
+      {/* WHY STARK — comparison table */}
+      <Section tone="secondary" size="md">
+        <Reveal>
+          <SectionHeader
+            eyebrow="Why STARK"
+            title="Three protocols. One that survives quantum."
+            lede="STARK is transparent (no trusted setup), post-quantum secure, and has proof sizes that don't need a pairing curve. That's why the vault's attestation layer runs on it."
+            align="left"
+          />
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full min-w-[540px] text-left text-[12px] sm:text-[13px] border-separate border-spacing-0">
+              <thead>
+                <tr className="text-label-tertiary">
+                  <th className="font-semibold uppercase tracking-wide text-[10px] pb-2 pl-4 sm:pl-0"></th>
+                  <th className="font-semibold uppercase tracking-wide text-[10px] pb-2 px-2 sm:px-4" style={{ color: '#0069D9' }}>ZK-STARK<br /><span className="text-label-tertiary normal-case font-normal text-[10px]">(this vault)</span></th>
+                  <th className="font-semibold uppercase tracking-wide text-[10px] pb-2 px-2 sm:px-4">Groth16 SNARK</th>
+                  <th className="font-semibold uppercase tracking-wide text-[10px] pb-2 px-2 sm:px-4 pr-4 sm:pr-0">Bulletproofs</th>
+                </tr>
+              </thead>
+              <tbody className="text-label-primary">
+                <ComparisonRow
+                  label="Trusted setup"
+                  values={[
+                    { text: 'None', good: true },
+                    { text: 'Per-circuit ceremony', good: false },
+                    { text: 'None', good: true },
+                  ]}
+                />
+                <ComparisonRow
+                  label="Post-quantum secure"
+                  values={[
+                    { text: 'Yes (hash-based)', good: true },
+                    { text: 'No (elliptic-curve)', good: false },
+                    { text: 'No (discrete-log)', good: false },
+                  ]}
+                />
+                <ComparisonRow
+                  label="Proof size"
+                  values={[
+                    { text: '10–50 KB', good: null },
+                    { text: '~200 B', good: true },
+                    { text: '1–2 KB', good: null },
+                  ]}
+                />
+                <ComparisonRow
+                  label="Verification time"
+                  values={[
+                    { text: '~100 ms', good: null },
+                    { text: '~2 ms', good: true },
+                    { text: '~100 ms', good: null },
+                  ]}
+                />
+                <ComparisonRow
+                  label="Prover time (10⁶ constraints)"
+                  values={[
+                    { text: '~5 s (CUDA)', good: true },
+                    { text: '~30 s', good: null },
+                    { text: '~500 s', good: false },
+                  ]}
+                />
+                <ComparisonRow
+                  label="Soundness"
+                  values={[
+                    { text: '~180 bits', good: true },
+                    { text: '~128 bits', good: null },
+                    { text: '~128 bits', good: null },
+                  ]}
+                />
+                <ComparisonRow
+                  label="Aggregation"
+                  values={[
+                    { text: 'Recursive FRI', good: true },
+                    { text: 'Native pairing', good: true },
+                    { text: 'Log-linear', good: null },
+                  ]}
+                  isLast
+                />
+              </tbody>
+            </table>
+          </div>
+          <p className="text-caption-1 text-label-tertiary mt-4 leading-relaxed max-w-[720px]">
+            SNARKs win on proof size but rely on a trusted ceremony and elliptic-curve assumptions Shor breaks.
+            Bulletproofs are transparent but prover time doesn&apos;t scale to a 24/7 attestation stream. STARK
+            is the only option that hits the three constraints we actually care about: no trusted setup,
+            quantum-safe, fast enough to prove every meaningful decision.
+          </p>
         </Reveal>
       </Section>
 
@@ -330,5 +414,31 @@ curl "https://www.zkward.com/api/zk-proof/lookup?hash=0xa3..2f"
       </Section>
 
     </div>
+  );
+}
+
+function ComparisonRow({
+  label,
+  values,
+  isLast,
+}: {
+  label: string;
+  values: Array<{ text: string; good: boolean | null }>;
+  isLast?: boolean;
+}) {
+  const borderClass = isLast ? '' : 'border-b border-separator-opaque/30';
+  return (
+    <tr>
+      <td className={`py-2.5 pr-3 pl-4 sm:pl-0 font-medium text-label-secondary ${borderClass}`}>{label}</td>
+      {values.map((v, i) => (
+        <td key={i} className={`py-2.5 px-2 sm:px-4 ${borderClass} ${i === values.length - 1 ? 'pr-4 sm:pr-0' : ''}`}>
+          <div className="flex items-center gap-1.5">
+            {v.good === true && <CheckCircle2 className="w-3.5 h-3.5 text-ios-green flex-shrink-0" />}
+            {v.good === false && <X className="w-3.5 h-3.5 text-ios-red flex-shrink-0" />}
+            <span className={v.good === false ? 'text-label-tertiary' : 'text-label-primary'}>{v.text}</span>
+          </div>
+        </td>
+      ))}
+    </tr>
   );
 }
