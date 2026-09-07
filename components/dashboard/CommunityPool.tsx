@@ -21,6 +21,7 @@
 import { useState, memo, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { usePrivyEmbeddedAddress } from '@/lib/evm-wallet/usePrivyEmbeddedAddress';
 import { HederaVaultActions } from './HederaVaultActions';
+import { HederaPoolHedgesProjection } from './HederaPoolHedgesProjection';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/lib/hooks';
 import {
@@ -403,6 +404,9 @@ export const CommunityPool = memo(function CommunityPool({
           Prefer privyEmbeddedAddress over pool.address so Google/email
           login users see their embedded wallet immediately even before
           wagmi's useAccount resolves. */}
+      {pool.selectedChain === 'hedera' && pool.poolData && (
+        <HederaPoolHedgesProjection poolNavUsd={Number(pool.poolData.totalValueUSD) || 0} />
+      )}
       {pool.selectedChain === 'hedera' ? (
         <HederaVaultActions
           address={(privyEmbeddedAddress ?? pool.address) as `0x${string}` | undefined}

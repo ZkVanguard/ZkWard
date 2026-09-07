@@ -99,6 +99,113 @@ function LazyChart() {
 // is intentionally not fetched (it's a marketing rail, not a live gate).
 const TVL_CAP_USD = 10_000;
 
+// ─── HederaVaultCallout ──────────────────────────────────────────────────
+// Small live-stats + sparkline widget for the Hedera testnet vault, shown
+// under the SUI hero to prove the multichain story from the first fold.
+// Everything is real chain data via Mirror Node — same endpoints the
+// dashboard uses.
+function HederaVaultCallout() {
+  const { data } = useQuery({
+    queryKey: ['landing-hedera-pool'],
+    queryFn: async () => {
+      const [poolRes, histRes] = await Promise.all([
+        fetch('/api/community-pool?chain=hedera&network=testnet', { cache: 'no-store' }),
+        fetch('/api/hedera/nav-history?window=all', { cache: 'no-store' }),
+      ]);
+      const pool = await poolRes.json();
+      const hist = await histRes.json();
+      return {
+        tvl: Number(pool?.pool?.totalValueUSD) || 0,
+        sharePrice: Number(pool?.pool?.sharePrice) || 1,
+        memberCount: Number(pool?.pool?.memberCount) || 0,
+        points: (hist?.points as Array<{ t: string; sharePrice: number }> | undefined) ?? [],
+      };
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+
+  if (!data) return null;
+  const { tvl, sharePrice, memberCount, points } = data;
+
+  // Inline sparkline via SVG — no chart.js dep for a 60x24 sketch.
+  const sparkline = (() => {
+    if (points.length < 2) return null;
+    const values = points.map((p) => p.sharePrice);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const step = 100 / (values.length - 1);
+    const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(24 - ((v - min) / range) * 22 - 1).toFixed(1)}`).join(' ');
+    return (
+      <svg viewBox="0 0 100 24" preserveAspectRatio="none" className="w-full h-6" aria-hidden>
+        <polyline
+          fill="none"
+          stroke="#00A79F"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          points={pts}
+        />
+      </svg>
+    );
+  })();
+
+  const change = points.length >= 2
+    ? ((points[points.length - 1].sharePrice - points[0].sharePrice) / points[0].sharePrice) * 100
+    : 0;
+
+  return (
+    <div className="mt-6 sm:mt-8 max-w-[720px] mx-auto">
+      <Link
+        href="/dashboard"
+        className="group block rounded-ios-xl border border-separator-opaque/30 bg-white/70 backdrop-blur p-4 hover:border-[#00A79F]/40 hover:shadow-ios-2 transition-all"
+        style={{ transition: `all 400ms ${SPRING}` }}
+      >
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide"
+              style={{ background: '#00A79F15', color: '#00A79F' }}
+            >
+              Also live · Hedera Testnet
+            </span>
+            <span className="text-[11px] text-label-tertiary">USDC vault · same product, EVM stack</span>
+          </div>
+          <span className="text-[11px] text-label-tertiary group-hover:text-[#00A79F] transition-colors">
+            Open dashboard →
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-3">
+          <div>
+            <div className="text-[10px] text-label-tertiary uppercase tracking-wide">TVL</div>
+            <div className="text-title-3 font-semibold tabular-nums text-label-primary">${tvl.toFixed(2)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] text-label-tertiary uppercase tracking-wide">Share price</div>
+            <div className="text-title-3 font-semibold tabular-nums text-label-primary">${sharePrice.toFixed(4)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] text-label-tertiary uppercase tracking-wide">Members</div>
+            <div className="text-title-3 font-semibold tabular-nums text-label-primary">{memberCount}</div>
+          </div>
+        </div>
+        {sparkline && (
+          <div className="flex items-center gap-3">
+            <div className="flex-1">{sparkline}</div>
+            <div
+              className="text-[11px] font-semibold tabular-nums flex-shrink-0"
+              style={{ color: change >= 0 ? '#34C759' : '#FF3B30' }}
+            >
+              {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+            </div>
+          </div>
+        )}
+      </Link>
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Live SUI Community Pool landing page — Apple-themed, single focus.
 //
@@ -659,6 +766,12 @@ export const SuiPoolLanding = memo(function SuiPoolLanding() {
           <div className="flex justify-center">
             <InstallAppButton className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white/80 backdrop-blur border border-separator-opaque/40 text-label-secondary text-sm font-medium hover:text-ios-blue hover:border-ios-blue/40 active:scale-[0.98] transition-all" />
           </div>
+
+          {/* Hedera-testnet vault callout — proves the multichain story on
+              the same fold. Reads real chain data via /api/community-pool
+              (Mirror Node). Compact so it doesn't compete with the SUI
+              vault meter. */}
+          <HederaVaultCallout />
         </div>
       </section>
 
