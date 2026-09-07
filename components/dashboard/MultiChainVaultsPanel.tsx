@@ -159,7 +159,7 @@ export function MultiChainVaultsPanel() {
         </span>
         <label
           className="ml-auto inline-flex items-center gap-1.5 text-[10px] cursor-pointer select-none"
-          title="Anchor the Hedera adapter's response bytes to Hedera Consensus Service"
+          title="Optional add-on — anchors this specific response on Hedera Consensus Service (~$0.0001, ~2s finality). Useful for AI agents that need a receipt of what they queried; unnecessary for browsing."
         >
           <input
             type="checkbox"
@@ -168,7 +168,7 @@ export function MultiChainVaultsPanel() {
             className="w-3 h-3 accent-[#00A79F] cursor-pointer"
           />
           <Shield className="w-3 h-3 text-[#00A79F]" />
-          <span className="font-semibold">HCS-attest response</span>
+          <span className="font-semibold">HCS receipt (opt-in)</span>
         </label>
         <button
           onClick={onCopyQuery}
@@ -183,8 +183,16 @@ export function MultiChainVaultsPanel() {
       <div className="px-4 py-2.5 text-[11px] text-label-tertiary leading-relaxed border-b border-gray-100 dark:border-gray-700">
         Identical GraphQL query fires against both endpoints. Same
         <span className="font-semibold text-label-secondary"> pools / transactions / _meta </span>
-        shape. Different indexing backends: The Graph Studio (Sepolia) + our
-        Mirror Node adapter (Hedera).
+        shape. Different indexing backends: The Graph Studio (Sepolia) +{' '}
+        <a
+          href="https://github.com/ZkVanguard/zkward-ethglobal/tree/main/packages/hedera-graphql-adapter"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-label-primary"
+        >
+          @zkward/hedera-graphql-adapter
+        </a>
+        {' '}(Hedera Mirror Node bridge — open-source library any Hedera dApp can adopt).
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">

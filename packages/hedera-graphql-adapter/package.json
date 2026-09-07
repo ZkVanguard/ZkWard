@@ -1,0 +1,26 @@
+{
+  "name": "@zkward/hedera-graphql-adapter",
+  "version": "0.1.0",
+  "description": "Serve any Hedera contract as a standardized GraphQL / subgraph endpoint. Bridges Hedera Mirror Node into The Graph tooling ecosystem — one schema, works for any Hedera contract, no graph-node needed.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "keywords": ["hedera", "the-graph", "subgraph", "graphql", "mirror-node", "erc4626", "ai-vaults"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZkVanguard/zkward-ethglobal.git",
+    "directory": "packages/hedera-graphql-adapter"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0"
+  },
+  "optionalDependencies": {
+    "@hashgraph/sdk": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

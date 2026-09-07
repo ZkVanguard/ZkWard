@@ -47,8 +47,14 @@ Everything you need to verify each submission in one place.
   - x402 endpoint · HCS audit trail · HCS-14 registry · Mirror-Node pool reader · Privy embedded wallets · Faucet · Projected hedges · Recent activity feed
 
 ### Graph · AI Continuity ($5K)
-- **PR**: https://github.com/graphprotocol/subgraphs-skills/pull/1
-- Adds `subgraph-erc4626-vaults` skill (both Claude Code + OpenClaw formats) — canonical schema, share-price folding, Messari standardized-subgraph conventions, matchstick fixtures. 6 files, 847 insertions.
+- **PR to graphprotocol/subgraphs-skills**: https://github.com/graphprotocol/subgraphs-skills/pull/1 — adds `subgraph-erc4626-vaults` skill (both Claude Code + OpenClaw formats). Canonical schema, share-price folding, Messari standardized-subgraph conventions, matchstick fixtures. 6 files, 847 insertions.
+- **Live subgraph on Studio**: [`zkward`](https://thegraph.com/studio/subgraph/zkward) (v0.1.1) — [query endpoint](https://api.studio.thegraph.com/query/1758819/zkward/v0.1.1)
+- **Subgraph MCP server**: [`mcp/zkward-vaults/`](./mcp/zkward-vaults) — exposes vault snapshots to any MCP-compatible AI agent (Claude Desktop, Cursor). One tool call fans out to multiple indexing backends.
+
+### Graph × Hedera bridge — **open-source library**
+- **Package**: [`@zkward/hedera-graphql-adapter`](./packages/hedera-graphql-adapter) — serves ANY Hedera contract as a standardized GraphQL / subgraph endpoint. The Graph doesn't index Hedera (129 EVM chains supported, Hedera not among them) — this bridges the gap so every Graph-native tool works over Hedera contracts.
+- **Reference deployment**: https://www.zkward.com/api/subgraph/hedera — powered by the same package
+- Query the same shape at both endpoints (Studio and this adapter) — proof that the schema abstracts over indexing backends, not just chains.
 
 ### Recording
 - **Video shot lists (5-min each)**: [`docs/DEMO_VIDEO_SCRIPTS.md`](./docs/DEMO_VIDEO_SCRIPTS.md) — one script per prize, mapped 1:1 to qualification requirements

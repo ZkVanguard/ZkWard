@@ -36,6 +36,9 @@
       "@/*": [
         "./*"
       ],
+      "@zkward/hedera-graphql-adapter": [
+        "packages/hedera-graphql-adapter/src/index.ts"
+      ],
       "@contracts/*": [
         "contracts/*"
       ],
@@ -80,6 +83,8 @@
     "scripts",
     "archive",
     "subgraph",
+    "packages/hedera-graphql-adapter/examples",
+    "mcp",
     "test-e2e-ai-pipeline.ts",
     "test-ai-intelligence.ts"
   ]

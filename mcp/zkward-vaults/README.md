@@ -9,9 +9,11 @@ Backends this server queries:
 | Endpoint | Backend | Chain |
 |---|---|---|
 | `https://api.studio.thegraph.com/query/1758819/zkward/v0.1.1` | The Graph Studio | Sepolia |
-| `https://www.zkward.com/api/subgraph/hedera` | Hedera Mirror Node adapter | Hedera testnet |
+| `https://www.zkward.com/api/subgraph/hedera` | `@zkward/hedera-graphql-adapter` (Mirror Node bridge — open source, drop into any Hedera dApp) | Hedera testnet |
 
 Both return the SAME GraphQL schema (`pools`, `transactions`, `members`, `_meta`). The MCP server merges responses, so an AI agent can ask *"what's the TVL across all AI vaults"* and get one number.
+
+**Why this matters for MCP:** The Graph doesn't index Hedera. Without our adapter, an MCP over subgraphs would leave Hedera dark. With it, the same tool queries both a Studio-hosted subgraph AND a Hedera contract with zero difference in shape — and any other Hedera dApp using [`@zkward/hedera-graphql-adapter`](../../packages/hedera-graphql-adapter) can be added by pointing the tool at a new URL.
 
 ## Tools
 
