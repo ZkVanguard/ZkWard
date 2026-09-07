@@ -77,8 +77,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     //      catch up to the network before the message is queryable by ts).
     //   2. GET /topics/{topicId}/messages/{consensus_timestamp} → the message.
     // Retry stage 1 briefly for freshly-published txs (typical 1-3s lag).
+    // Mirror URL format is `shard.realm.num-seconds-nanos`, but the SDK
+    // returns `shard.realm.num@seconds.nanos`. Convert.
+    //   in : 0.0.7132683@1788792464.540374475
+    //   out: 0.0.7132683-1788792464-540374475
+    const mirrorTxId = txId.replace('@', '-').replace(/\.(?=\d+$)/, '-');
     let consensusTimestamp: string | null = null;
-    const txPath = `/transactions/${encodeURIComponent(txId)}`;
+    const txPath = `/transactions/${encodeURIComponent(mirrorTxId)}`;
     for (let i = 0; i < 5 && !consensusTimestamp; i++) {
       const r = await fetch(`${MIRROR_BASE}${txPath}`);
       if (r.ok) {
