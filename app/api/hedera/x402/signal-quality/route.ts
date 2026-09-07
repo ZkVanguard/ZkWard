@@ -80,26 +80,57 @@ function getNetwork(): 'hedera-testnet' | 'hedera-mainnet' {
 
 // ─── Payment verification (facilitator) ────────────────────────────────────
 
-async function verifyPayment(header: string, resource: string): Promise<boolean> {
-  // When the facilitator flag is off, we accept any non-empty header —
-  // lets the demo run end-to-end without a live settlement while
-  // proving the contract. Flip X402_FACILITATOR_ENABLED=1 in prod.
-  if (!envFlag('X402_FACILITATOR_ENABLED')) return header.length > 0;
+interface VerifyResult {
+  valid: boolean;
+  mode: 'blocky402' | 'stub';
+  facilitator: string;
+  note: string;
+}
+
+async function verifyPayment(header: string, resource: string): Promise<VerifyResult> {
+  const facilitator = getFacilitator();
+
+  // Stub mode — accepts any non-empty header. Lets the click-through demo
+  // work without a real signed EIP-3009 authorisation. Still x402-compliant
+  // (proper 402/intent shape, real facilitator URL in the intent) — only
+  // the verify path is stubbed.
+  if (!envFlag('X402_FACILITATOR_ENABLED')) {
+    return {
+      valid: header.length > 0,
+      mode: 'stub',
+      facilitator,
+      note: 'stub-verify: real signature check requires X402_FACILITATOR_ENABLED=1 + EIP-3009 client signing. Intent shape + facilitator URL are unchanged.',
+    };
+  }
+
+  // Real facilitator path — POST the payment header to Blocky402 /verify.
   try {
-    const res = await fetch(`${getFacilitator()}/verify`, {
+    const res = await fetch(`${facilitator}/verify`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ payment: header, resource }),
       signal: AbortSignal.timeout(3000),
     });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      return { valid: false, mode: 'blocky402', facilitator, note: `facilitator ${res.status}` };
+    }
     const body = (await res.json()) as { valid?: boolean };
-    return body.valid === true;
+    return {
+      valid: body.valid === true,
+      mode: 'blocky402',
+      facilitator,
+      note: body.valid === true ? 'blocky402-verified' : 'facilitator rejected header',
+    };
   } catch (e) {
     logger.warn('[x402] facilitator verify failed', {
       error: e instanceof Error ? e.message : String(e),
     });
-    return false;
+    return {
+      valid: false,
+      mode: 'blocky402',
+      facilitator,
+      note: e instanceof Error ? e.message : 'facilitator unreachable',
+    };
   }
 }
 
@@ -150,7 +181,9 @@ interface SignalQualityResponse {
     txId?: string;
     topicId?: string;
     memo?: string;
+    explorerUrl?: string;
   };
+  verification?: VerifyResult;
 }
 
 async function inferSignalQuality(asset: string): Promise<SignalQualityResponse> {
@@ -287,10 +320,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<SignalQual
     );
   }
 
-  const paid = await verifyPayment(paymentHeader, url.toString());
-  if (!paid) {
+  const verification = await verifyPayment(paymentHeader, url.toString());
+  if (!verification.valid) {
     return NextResponse.json(
-      { error: 'payment verification failed', intent: buildIntent(request) },
+      {
+        error: 'payment verification failed',
+        intent: buildIntent(request),
+        verification,
+      },
       { status: 402 },
     );
   }
@@ -303,7 +340,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<SignalQual
     paymentSettled: true,
   }).catch(() => ({}));
 
-  return NextResponse.json({ ...result, hcs }, {
+  return NextResponse.json({ ...result, hcs, verification }, {
     headers: { 'Cache-Control': 'no-store' },
   });
 }
