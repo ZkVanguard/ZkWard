@@ -41,6 +41,10 @@ const POOL_PROXY_WALLETS: Record<string, { address: string; name: string }> = {
     address: '0x7F75Ca65D32752607fF481F453E4fbD45E61FdFd',
     name: 'Pool Contract',
   },
+  hedera: {
+    address: '0xe7E6fEDce9d72D112137B631E8D51831D30729A9',
+    name: 'SimpleUsdcVault (Hedera Testnet)',
+  },
 };
 
 const EXPLORER_URLS: Record<number, string> = {

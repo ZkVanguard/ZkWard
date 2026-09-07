@@ -521,8 +521,11 @@ export function useCommunityPool(propAddress?: string) {
     fetchPoolData(true);
   }, [fetchPoolData]);
 
-  // Polling (60s)
-  usePolling(fetchPoolData, 60000);
+  // Polling — 15s so deposit stats + share price feel alive on the demo.
+  // Every hit is a same-origin cached API call; Vercel edge cache absorbs
+  // the extra load. If it turns out to be too aggressive at scale, bump
+  // to 30-45s.
+  usePolling(fetchPoolData, 15000);
 
   // ============================================================================
   // TRANSACTION HANDLERS

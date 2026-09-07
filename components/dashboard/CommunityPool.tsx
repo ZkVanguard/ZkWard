@@ -22,6 +22,7 @@ import { useState, memo, useEffect, useCallback, useRef, Suspense, lazy } from '
 import { usePrivyEmbeddedAddress } from '@/lib/evm-wallet/usePrivyEmbeddedAddress';
 import { HederaVaultActions } from './HederaVaultActions';
 import { HederaPoolHedgesProjection } from './HederaPoolHedgesProjection';
+import { HederaRecentActivity } from './HederaRecentActivity';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/lib/hooks';
 import {
@@ -463,8 +464,14 @@ export const CommunityPool = memo(function CommunityPool({
         network={pool.network}
       />
 
-      {/* Risk Metrics — panel has its own collapse header; defaults closed on mobile */}
-      {!compact && (
+      {/* Hedera swaps SUI's RiskMetrics + AutoHedge (both BlueFin-shaped)
+          for a chain-native Recent Activity feed. Real events from Mirror
+          Node; refreshes every 15s. Keeps the tab useful without the
+          "insufficient data" empty state that SUI panels show on Hedera. */}
+      {!compact && pool.selectedChain === 'hedera' && <HederaRecentActivity />}
+
+      {/* Risk Metrics — SUI/Cronos only; needs BlueFin history */}
+      {!compact && pool.selectedChain !== 'hedera' && (
         <div
           ref={riskMetricsRef}
           className="p-3 sm:p-4 md:p-5 border-b border-gray-100 dark:border-gray-700 min-h-[200px]"
@@ -479,8 +486,8 @@ export const CommunityPool = memo(function CommunityPool({
         </div>
       )}
 
-      {/* Auto Hedge Panel — panel has its own collapse header; defaults closed on mobile */}
-      {!compact && (
+      {/* Auto Hedge Panel — SUI-only feature (BlueFin auto-hedging) */}
+      {!compact && pool.selectedChain !== 'hedera' && (
         <div
           ref={autoHedgeRef}
           className="p-3 sm:p-4 md:p-5 border-b border-gray-100 dark:border-gray-700 min-h-[200px]"
