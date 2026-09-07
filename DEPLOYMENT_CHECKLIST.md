@@ -76,7 +76,7 @@ vercel env add NEXT_PUBLIC_HEDERA_COMMUNITY_POOL_ADDRESS production
 vercel env add HEDERA_COMMUNITY_POOL_ADDRESS production
 
 # ─── x402 payment settings ──────────────────────────────────────────
-vercel env add X402_FACILITATOR_URL production             # value: https://facilitator.blocky402.com
+vercel env add X402_FACILITATOR_URL production             # value: https://api.blocky402.com
 vercel env add X402_PAYMENT_ADDRESS production             # value: <your EVM receiver on Hedera>
 vercel env add X402_PRICE_USDC_MICROS production           # value: 100 ($0.0001 per call)
 vercel env add X402_DAILY_BUDGET_MICROS production         # value: 1000000 ($1.00 per agent/day)

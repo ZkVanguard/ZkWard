@@ -28,7 +28,8 @@ Recording tips:
   - `scheme: "exact"`, `network: "hedera-testnet"`
   - `maxAmountRequired: "100"` → **"sub-cent metering, $0.0001 per call"**
   - `payTo: 0xDB89…3bC8A` → the operator wallet on Hedera testnet
-  - `facilitator: "https://facilitator.blocky402.com"` → **"Blocky402 configured"**
+  - `facilitator: "https://api.blocky402.com"` → **"Blocky402 configured, real API host"**
+  - `x402Version: 2`, `network: "hedera:testnet"` → **"spec-compliant intent matching Blocky402's `/supported` shape"**
 
 ### 1:30–3:00 — Live paid call from the dashboard
 

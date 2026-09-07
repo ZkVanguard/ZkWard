@@ -40,14 +40,17 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 15;
 
 // ─── Payment intent shape ──────────────────────────────────────────────────
+// Matches Blocky402's `/supported` shape (x402 spec v2):
+//   { x402Version: 2, scheme: 'exact', network: 'hedera:mainnet'|'hedera:testnet', ... }
 
 interface X402PaymentIntent {
+  x402Version: 2;
   scheme: 'exact';
-  network: 'hedera-testnet' | 'hedera-mainnet';
+  network: 'hedera:testnet' | 'hedera:mainnet';
   maxAmountRequired: string;   // stringified 6-decimal micros for USDC
   currency: 'USDC' | 'HBAR';
   payTo: string;               // EVM address on Hedera
-  facilitator: string;         // Blocky402 URL
+  facilitator: string;         // Blocky402 URL — https://api.blocky402.com
   resource: string;            // this endpoint URL
   description: string;
   mimeType: 'application/json';
@@ -63,7 +66,7 @@ interface X402PaymentIntent {
 // ─── Config ────────────────────────────────────────────────────────────────
 
 function getFacilitator(): string {
-  return (process.env.X402_FACILITATOR_URL || 'https://facilitator.blocky402.com').trim();
+  return (process.env.X402_FACILITATOR_URL || 'https://api.blocky402.com').trim();
 }
 function getPayTo(): string {
   return (process.env.X402_PAYMENT_ADDRESS || '0x0000000000000000000000000000000000000000').trim();
@@ -72,10 +75,10 @@ function getPriceMicros(): string {
   const raw = (process.env.X402_PRICE_USDC_MICROS || '100').trim();
   return raw;
 }
-function getNetwork(): 'hedera-testnet' | 'hedera-mainnet' {
+function getNetwork(): 'hedera:testnet' | 'hedera:mainnet' {
   return (process.env.HEDERA_NETWORK as 'mainnet' | 'testnet') === 'mainnet'
-    ? 'hedera-mainnet'
-    : 'hedera-testnet';
+    ? 'hedera:mainnet'
+    : 'hedera:testnet';
 }
 
 // ─── Payment verification (facilitator) ────────────────────────────────────
@@ -139,6 +142,7 @@ async function verifyPayment(header: string, resource: string): Promise<VerifyRe
 function buildIntent(request: NextRequest): X402PaymentIntent {
   const url = new URL(request.url);
   return {
+    x402Version: 2,
     scheme: 'exact',
     network: getNetwork(),
     maxAmountRequired: getPriceMicros(),

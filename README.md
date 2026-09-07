@@ -31,7 +31,7 @@ Everything you need to verify each submission in one place.
 - **HCS-14 agent registry** (discoverable agent identity): [`0.0.10401316`](https://hashscan.io/testnet/topic/0.0.10401316) · [JSON view](https://www.zkward.com/api/hedera/agent-registry)
 - **A2A negotiation trace**: https://www.zkward.com/api/hedera/a2a/demo?asset=BTC&budget=500
 - **Consumer dashboard** (one-click flow): https://www.zkward.com/dashboard → **Agent Payments** tab
-- **Blocky402 facilitator wired**: yes, `facilitator: "https://facilitator.blocky402.com"` in every `verification` object
+- **Blocky402 facilitator wired**: intent points at `https://api.blocky402.com` (real API host, verified via `/supported`); response `verification` block reports the actual mode (stub vs blocky402) for full transparency
 
 ### Hedera · Open Source — Harness ($2K)
 - **PR**: https://github.com/hedera-dev/hedera-harness/pull/43
