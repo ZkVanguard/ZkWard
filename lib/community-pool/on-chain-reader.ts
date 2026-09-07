@@ -364,24 +364,41 @@ export async function getOnChainUserPosition(userAddress: string, chainConfig?: 
     
     // For other chains, query the contract directly
     const cacheKey = `user-pos-${chainConfig.chainKey}-${chainConfig.network}-${userAddress.toLowerCase()}`;
-    
+
     return dedupedFetch<UserPositionCache | null>(
       cacheKey,
       async () => {
         const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
-        const pool = new ethers.Contract(chainConfig.poolAddress, POOL_ABI, provider);
-        
+
         // Get pool stats for share price calculation
         const poolData = await getOnChainPoolData(chainConfig);
         if (!poolData) return null;
-        
+
         // Get user's member data. Share decimals vary per chain — Hedera's
         // SimpleUsdcVault stores shares in USDC's 6-decimal space (its
         // fold preserves asset decimals). Sepolia/Cronos CommunityPool
         // uses 18. Bail out to per-chain scaling.
-        const memberData = await pool.members(userAddress);
+        //
+        // Hedera Hashio quirk: wrapper functions like `members(address)`
+        // revert with CONTRACT_REVERT_EXECUTED. The auto-generated public
+        // mapping getter `sharesOf(address)` works cleanly. Route Hedera
+        // through it directly, other chains keep the `members()` wrapper
+        // that returns 4 fields.
         const shareDecimals = chainConfig.chainKey === 'hedera' ? 6 : 18;
-        const shares = parseFloat(ethers.formatUnits(memberData.shares, shareDecimals));
+        let sharesRaw: bigint;
+        if (chainConfig.chainKey === 'hedera') {
+          const vault = new ethers.Contract(
+            chainConfig.poolAddress,
+            ['function sharesOf(address) view returns (uint256)'],
+            provider,
+          );
+          sharesRaw = await vault.sharesOf(userAddress) as bigint;
+        } else {
+          const pool = new ethers.Contract(chainConfig.poolAddress, POOL_ABI, provider);
+          const memberData = await pool.members(userAddress);
+          sharesRaw = memberData.shares as bigint;
+        }
+        const shares = parseFloat(ethers.formatUnits(sharesRaw, shareDecimals));
         
         if (shares === 0) {
           return {
