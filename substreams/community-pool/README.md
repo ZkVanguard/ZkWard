@@ -1,67 +1,84 @@
-# Composable Substreams Module — CommunityPool Vault Events
+# Composable Substreams module — CommunityPool Vault Events
 
-Reusable Substreams module for `CommunityPool.sol` — the AI-managed vault contract deployed to Sepolia, Cronos, and (planned) Hedera. Emits a normalized stream of vault events that any downstream sink can consume: subgraphs, custom indexers, dashboard SSE, alert pipelines.
+Reusable Substreams module for AI-managed ERC-4626-shaped vaults. Emits a normalized `VaultEvents` stream any downstream sink (subgraph, dashboard SSE, alert pipeline, ML feature store) can consume.
 
 Directly targets the Graph prize wording:
 
 > **"Contributing a new composable Substreams module for an emerging standard, such as ERC-4626 tokenized-vault flows, also counts."**
 
-## Why
+## What it is
 
-Polling the pool contract via QStash cron (`pool-nav-monitor` every 15min) has three costs:
+- **Input:** `sf.ethereum.type.v2.Block` (any Ethereum-compatible chain the Graph Substreams provider indexes — 45+ chains and counting)
+- **Output:** `zkward.vault.v1.VaultEvents` — a proto union of `Deposit`, `Withdraw`, `FeesCollected`, `Rebalance`, `HedgeOpened`, `HedgeClosed`, `NavSnapshot` (defined in [`proto/vault.proto`](./proto/vault.proto))
+- **Params:** one string — the contract address to filter on. Swap it and any AI vault emitting the same event surface plugs in with zero code change.
 
-1. Eats a QStash schedule slot (10/10 cap on our plan).
-2. Fires one Aiven Postgres write per tick even when nothing changed.
-3. Adds 15-min lag between the on-chain state change and dashboard update.
+## What ships in v0.1 (this module)
 
-Substreams replaces polling with push: the module produces `NavSnapshot`, `Rebalance`, `PoolHedgeOpened`, `PoolHedgeClosed`, `Deposit`, `Withdraw` events at block cadence. Consumers subscribe once, get every event in order, no polling.
+Rust handler `map_vault_events` decodes and emits:
 
-## Module inputs / outputs
+| Event | Signature | Emitted as |
+|---|---|---|
+| `Deposited` | `Deposited(address indexed member, uint256 amount, uint256 shares)` | `Deposit { member, amountUsd, sharesMinted }` |
+| `Withdrawn` | `Withdrawn(address indexed member, uint256 shares, uint256 amount)` | `Withdraw { member, sharesBurned, amountUsd }` |
+| `FeesCollected` | `FeesCollected(uint256, uint256, uint256)` | `FeesCollected { managementFee, performanceFee }` |
+| `MemberJoined` | `MemberJoined(address indexed member, uint256)` | `Deposit { member, 0, 0 }` (proto union extension in v0.2) |
 
-- **Input:** `sf.ethereum.type.v2.Block` (raw Ethereum blocks from the Substreams provider)
-- **Output:** `zkward.vault.v1.VaultEvents` (proto-defined event union — see `proto/vault.proto`)
-- **Chains supported:** Sepolia (chainId 11155111), Cronos mainnet (25), Cronos testnet (338), Hedera testnet/mainnet (296/295)
-- **Cardinality:** one `VaultEvents` message per block containing 0..N events
+**Deferred to v0.2** — `Rebalanced` and `PoolHedgeOpened/Closed` have dynamic-length calldata (arrays + strings); need ABI-Encode-aware decoding helpers. The module's proto union already declares them so downstream sinks can consume them ahead of time.
 
-## Files (to build)
+## Files
 
 ```
 substreams/community-pool/
-├── README.md              # this file
-├── Cargo.toml             # Rust module manifest
-├── substreams.yaml        # module manifest (inputs, outputs, network)
+├── Cargo.toml         # Rust manifest — substreams + substreams-ethereum + prost
+├── build.rs           # prost-build → src/pb/vault.rs at compile time
 ├── proto/
-│   └── vault.proto        # VaultEvents union definition
+│   └── vault.proto    # VaultEvents union definition
 ├── src/
-│   └── lib.rs             # map_vault_events handler
-└── abi/
-    └── CommunityPool.json # ABI copy for eth_call sig-decoding
+│   ├── lib.rs         # map_vault_events handler + decoders + host-side tests
+│   └── pb/
+│       └── mod.rs     # includes the generated proto Rust code
+├── substreams.yaml    # module manifest (inputs, outputs, network params)
+└── README.md          # this file
 ```
 
-## Deployment steps (once implemented)
+## Build
 
 ```bash
-# 1. Install Substreams CLI
-brew install streamingfast/tap/substreams
+# One-time: add the wasm target if you don't have it.
+rustup target add wasm32-unknown-unknown
 
-# 2. Build
-substreams pack
+# Compile → target/wasm32-unknown-unknown/release/substreams.wasm
+cargo build --target wasm32-unknown-unknown --release
 
-# 3. Deploy to the Substreams registry (matches "reusable module" prize criterion)
-substreams registry publish
+# Pack for the Substreams registry / consumers
+substreams pack     # requires the substreams CLI: brew install streamingfast/tap/substreams
+```
 
-# 4. Consumers subscribe via streaming-fast SDK or as a subgraph data source
+The Cargo release profile is tuned for tiny wasm output (`lto = true`, `opt-level = "s"`, strip debug info).
+
+## Test
+
+Host-side unit tests cover the decoding primitives — hex → decimal, address-from-topic, param validation, ABI word extraction. No wasm/substreams runtime needed for these:
+
+```bash
+cargo test
+```
+
+Full end-to-end test (fetches a real Sepolia block, runs the wasm handler, prints the output) needs the substreams CLI:
+
+```bash
+substreams gui substreams.yaml map_vault_events --start-block 5700000 --stop-block +100
 ```
 
 ## Consumer pattern — subgraph replacement for pool-nav-monitor
 
-Instead of the current QStash-triggered polling cron writing to Aiven's `community_pool_nav_history` table, the subgraph in `subgraph/` will ingest this Substreams module as its data source. Result: one contract → one module → one subgraph → every downstream reader gets sub-block latency.
+Instead of the QStash-triggered polling cron in the ZkWard repo (`pool-nav-monitor` every 15 min) writing to Aiven Postgres, a subgraph in [`../../subgraph/`](../../subgraph/) can ingest this Substreams module as its data source. Result: one contract → one module → one subgraph → every downstream reader gets sub-block latency.
 
 ## Standards leverage
 
-The `VaultEvents` proto union is intentionally generic:
+The `VaultEvents` proto union is intentionally protocol-agnostic:
 
-- `NavSnapshot { totalNav, totalShares, sharePrice, timestamp }`
+- `NavSnapshot { totalNav, totalShares, sharePrice }`
 - `Rebalance { previousBps[], newBps[], reasonHash, executor }`
 - `HedgeOpened { hedgeId, pairIndex, collateralAmount, leverage, isLong, reasonHash }`
 - `HedgeClosed { hedgeId, realizedPnl, reasonHash }`
@@ -69,8 +86,14 @@ The `VaultEvents` proto union is intentionally generic:
 - `Withdraw { member, sharesBurned, amountUsd, sharePrice }`
 - `FeesCollected { managementFee, performanceFee }`
 
-Any AI-managed vault protocol that emits the equivalent events on-chain can plug into this module by swapping the contract address in `substreams.yaml` — no protobuf changes. That's the "one pipeline reused across chains" criterion the Graph judges' rubric explicitly rewards.
+Any AI-managed vault protocol that emits the equivalent events on-chain can plug into this module by swapping the contract address in `substreams.yaml.networks.*.params` — no protobuf change. That's the "one pipeline reused across chains, one query pattern across protocols" test the Graph rubric points at.
 
-## Status
+## Roadmap
 
-**Scaffolded (this PR).** Full Rust implementation lands in Phase 4 alongside the module publish. The scaffold defines the interface contract; the implementation reads the ABI and decodes logs into the proto union.
+- **v0.1** (this release) — `Deposit` / `Withdraw` / `FeesCollected` decoders + host-side unit tests + build wiring. Rust handler ships alongside the proto schema.
+- **v0.2** — `Rebalanced` + `PoolHedgeOpened/Closed` decoders (ABI-encoded arrays + string reason hashes). First-class `MemberJoined` and `NavSnapshot` proto entries.
+- **v0.3** — Multi-chain params (index the same schema across Sepolia + Cronos + Hedera-EVM once Substreams indexes the latter).
+
+## License
+
+Apache-2.0.

@@ -1,0 +1,26 @@
+[package]
+name = "zkward-community-pool-substream"
+version = "0.1.0"
+edition = "2021"
+description = "Composable Substreams module for AI-managed ERC-4626-shaped vaults. Emits a normalized VaultEvents stream any downstream sink can consume."
+license = "Apache-2.0"
+
+[lib]
+name = "substreams"
+crate-type = ["cdylib"]
+
+[dependencies]
+substreams          = "0.7"
+substreams-ethereum = "0.11"
+prost               = "0.13"
+hex                 = "0.4"
+
+[build-dependencies]
+anyhow      = "1"
+prost-build = "0.13"
+
+[profile.release]
+lto           = true
+opt-level     = "s"
+strip         = "debuginfo"
+codegen-units = 1

@@ -30,6 +30,7 @@ modules:
     kind: map
     initialBlock: 5700000     # Sepolia CommunityPool proxy deploy block
     inputs:
+      - params: string        # contract address per network (see `networks:` below)
       - source: sf.ethereum.type.v2.Block
     output:
       type: proto:zkward.vault.v1.VaultEvents
