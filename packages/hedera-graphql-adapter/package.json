@@ -1,6 +1,6 @@
 {
   "name": "@zkward/hedera-graphql-adapter",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Serve any Hedera contract as a standardized GraphQL / subgraph endpoint. Bridges Hedera Mirror Node into The Graph tooling ecosystem — one schema, works for any Hedera contract, no graph-node needed.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,6 +13,7 @@
   },
   "files": [
     "dist",
+    "examples",
     "README.md",
     "DESIGN.md",
     "LICENSE"
@@ -44,10 +45,14 @@
   "peerDependencies": {
     "graphql": "^16.0.0"
   },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
   "optionalDependencies": {
     "@hashgraph/sdk": "^2.0.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "graphql": "^16.0.0",
     "typescript": "^5.0.0"

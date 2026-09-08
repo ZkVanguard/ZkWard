@@ -38,6 +38,8 @@ export { canonicalHash, stableStringify } from './attestation';
 export { MirrorClient } from './mirror';
 export { normalizeLog, topicToAddress, decodeUint } from './events';
 export { ERC4626_TOPICS, ERC4626_SELECTORS } from './schema/erc4626';
+export { fromSubgraphYaml, parseSubgraphManifest } from './subgraph-yaml';
+export type { FromSubgraphYamlOptions } from './subgraph-yaml';
 
 function attachResolvers(
   s: ReturnType<typeof buildSchema>,

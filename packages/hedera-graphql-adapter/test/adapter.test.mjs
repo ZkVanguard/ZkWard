@@ -10,7 +10,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { createHederaGraphQLAdapter } from '../dist/index.js';
+import { createHederaGraphQLAdapter, fromSubgraphYaml, parseSubgraphManifest } from '../dist/index.js';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const VAULT = '0xe7e6fedce9d72d112137b631e8d51831d30729a9';
 
@@ -653,4 +656,151 @@ test('getConfig returns a frozen copy of the config', async () => {
     assert.equal(cfg.network, 'testnet');
     assert.throws(() => { cfg.contract = 'mutated'; });
   });
+});
+
+// ── fromSubgraphYaml — real manifest loading (v0.6) ────────────────────────
+
+function writeManifest(dir, yamlContent) {
+  const path = join(dir, 'subgraph.yaml');
+  writeFileSync(path, yamlContent);
+  return path;
+}
+
+function makeTempDir() {
+  return mkdtempSync(join(tmpdir(), 'hedera-adapter-test-'));
+}
+
+test('fromSubgraphYaml loads a real manifest and returns a working adapter', async () => {
+  const dir = makeTempDir();
+  const yaml = `
+specVersion: 1.0.0
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: SimpleUsdcVault
+    network: hedera-testnet
+    source:
+      address: "${VAULT}"
+      abi: SimpleUsdcVault
+      startBlock: 40229981
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./mapping.ts
+      entities:
+        - Pool
+      abis:
+        - name: SimpleUsdcVault
+          file: ./abis/SimpleUsdcVault.json
+      eventHandlers:
+        - event: Deposited(indexed address,uint256,uint256)
+          handler: handleDeposited
+        - event: Withdrawn(indexed address,uint256,uint256)
+          handler: handleWithdrawn
+`;
+  const manifestPath = writeManifest(dir, yaml);
+  try {
+    const adapter = fromSubgraphYaml(manifestPath);
+    const cfg = adapter.getConfig();
+    assert.equal(cfg.contract.toLowerCase(), VAULT.toLowerCase());
+    assert.equal(cfg.network, 'testnet');
+    assert.equal(cfg.preset, 'erc4626');
+    // SDL should be the standard shared one — quick sanity
+    assert.ok(adapter.getSchemaSDL().includes('type Pool'));
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('fromSubgraphYaml rejects manifest without Deposited/Withdrawn events', async () => {
+  const dir = makeTempDir();
+  const yaml = `
+specVersion: 1.0.0
+dataSources:
+  - kind: ethereum/contract
+    name: SomeOther
+    network: hedera-testnet
+    source:
+      address: "${VAULT}"
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./mapping.ts
+      entities: []
+      abis: []
+      eventHandlers:
+        - event: SomeCustomEvent(indexed address,uint256)
+          handler: handleSomething
+`;
+  const manifestPath = writeManifest(dir, yaml);
+  try {
+    assert.throws(
+      () => fromSubgraphYaml(manifestPath),
+      /erc4626 event pair|Full custom event support/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('fromSubgraphYaml rejects unsupported network', async () => {
+  const dir = makeTempDir();
+  const yaml = `
+specVersion: 1.0.0
+dataSources:
+  - kind: ethereum/contract
+    name: X
+    network: sepolia
+    source: { address: "${VAULT}" }
+    mapping:
+      eventHandlers:
+        - event: Deposited(indexed address,uint256,uint256)
+          handler: h
+        - event: Withdrawn(indexed address,uint256,uint256)
+          handler: h
+`;
+  const manifestPath = writeManifest(dir, yaml);
+  try {
+    assert.throws(() => fromSubgraphYaml(manifestPath), /could not map network|Hedera doesn/);
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('parseSubgraphManifest returns normalized metadata', async () => {
+  const dir = makeTempDir();
+  const yaml = `
+specVersion: 1.0.0
+dataSources:
+  - kind: ethereum/contract
+    name: V
+    network: hedera-testnet
+    source: { address: "${VAULT}" }
+    mapping:
+      eventHandlers:
+        - event: Deposited(indexed address,uint256,uint256)
+          handler: h
+        - event: Withdrawn(indexed address,uint256,uint256)
+          handler: h
+`;
+  const manifestPath = writeManifest(dir, yaml);
+  try {
+    const parsed = parseSubgraphManifest(manifestPath);
+    assert.equal(parsed.contract.toLowerCase(), VAULT.toLowerCase());
+    assert.equal(parsed.network, 'testnet');
+    assert.equal(parsed.eventSignatures.length, 2);
+    assert.ok(parsed.eventSignatures[0].startsWith('Deposited'));
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('fromSubgraphYaml throws clear error on missing file', () => {
+  assert.throws(
+    () => fromSubgraphYaml('/nonexistent/subgraph.yaml'),
+    /cannot read/,
+  );
 });
