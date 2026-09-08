@@ -111,6 +111,29 @@ async function main() {
       }
     }
 
+    // Call vault_signals
+    const sigs = await send('tools/call', {
+      name: 'vault_signals',
+      arguments: { asset: 'BTC', limit: 5 },
+    });
+    const sigsText = sigs.result?.content?.[0]?.text;
+    if (!sigsText) {
+      failed.push('vault_signals: no text content');
+    } else {
+      const parsed = JSON.parse(sigsText);
+      console.log(`\nvault_signals(asset=BTC, limit=5) →`);
+      console.log(`  count:      ${parsed.count}`);
+      console.log(`  provenance: ${parsed.provenance?.backend}`);
+      if (parsed.signals?.length > 0) {
+        for (const s of parsed.signals.slice(0, 3)) {
+          console.log(`    ${s.asset.padEnd(4)} ${s.direction.padEnd(8)} ${s.confidence}%  ${s.source}  hcsSeq=${s.hcsSeq}`);
+        }
+        passed.push(`vault_signals returned ${parsed.count} BTC signals`);
+      } else {
+        failed.push('vault_signals returned 0 rows — audit topic empty or auditTopicId not configured on server');
+      }
+    }
+
     // Call subgraph_query escape hatch
     const raw = await send('tools/call', {
       name: 'subgraph_query',

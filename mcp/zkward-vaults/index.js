@@ -180,6 +180,44 @@ async function subgraphQuery(endpointName, query, variables) {
   return { endpoint, ...resp };
 }
 
+const SIGNALS_QUERY = `query($first: Int, $asset: String) {
+  signals(first: $first, where: { asset: $asset }) {
+    id
+    asset
+    direction
+    confidence
+    source
+    timestamp
+    hcsSeq
+  }
+}`;
+
+async function vaultSignals({ asset, limit } = {}) {
+  const first = Math.max(1, Math.min(100, Number(limit) || 25));
+  const variables = { first };
+  if (typeof asset === 'string' && asset.length > 0) variables.asset = asset.toUpperCase();
+  const resp = await runQuery(HEDERA_URL, SIGNALS_QUERY, variables);
+  const rows = resp?.data?.signals ?? [];
+  return {
+    fetchedAt: new Date().toISOString(),
+    endpoint: HEDERA_URL,
+    elapsedMs: resp?.elapsedMs ?? null,
+    count: rows.length,
+    filter: variables,
+    signals: rows.map((s) => ({
+      ...s,
+      hashscan: s.hcsSeq
+        ? `https://hashscan.io/testnet/topic/0.0.10393879/message/${s.hcsSeq}`
+        : null,
+    })),
+    provenance: {
+      description: 'Each signal is reconstructed from a real HCS message (x402-payment-receipt or hedge-projection). hcsSeq is verifiable independently on HashScan.',
+      topic: '0.0.10393879',
+      backend: 'hedera-mirror-adapter via @zkward/hedera-graphql-adapter v0.3',
+    },
+  };
+}
+
 async function attestedVaultSnapshot() {
   // Hits the Hedera adapter with ?attest=1 so the server anchors the
   // response bytes on HCS and returns the receipt in extensions.
@@ -251,6 +289,28 @@ const TOOLS = [
     },
   },
   {
+    name: 'vault_signals',
+    description:
+      'AI decision audit as GraphQL. Returns recent signals reconstructed from the HCS audit topic (x402 payment receipts + hedge projections) — every row is anchored on-chain with an hcsSeq that HashScan can independently verify. Use for questions like "recent BEARISH signals for BTC" or "what has the AI been doing lately?".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        asset: {
+          type: 'string',
+          description: 'Optional asset filter (BTC / ETH / SUI / CRO). Case-insensitive.',
+        },
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 100,
+          default: 25,
+          description: 'Max rows to return (default 25).',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'attested_vault_snapshot',
     description:
       'Same as vault_snapshot but the Hedera adapter response bytes are anchored on Hedera Consensus Service. Returns a verifiable HCS receipt (tx id + sha256 of response) that any client can independently check against Mirror Node. The Graph × Hedera combo: decentralized indexing + tamper-evident query receipts.',
@@ -293,6 +353,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         break;
       case 'vault_transactions':
         payload = await vaultTransactions(args.limit);
+        break;
+      case 'vault_signals':
+        payload = await vaultSignals(args);
         break;
       case 'attested_vault_snapshot':
         payload = await attestedVaultSnapshot();
