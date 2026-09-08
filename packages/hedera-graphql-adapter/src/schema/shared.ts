@@ -65,6 +65,21 @@ export const SHARED_TYPEDEFS = /* GraphQL */ `
   }
 
   """
+  Time-series pool NAV snapshot reconstructed from the HCS audit trail.
+  Every trader tick (~5min) anchors { poolNavUsd, positions } on HCS via
+  hedge-projection messages; this query surfaces that as a chart-ready
+  series. Consumers get share-price / NAV over time without needing to
+  replay every event or trust an off-chain aggregator.
+  Requires the adapter to be constructed with auditTopicId set.
+  """
+  type NavSnapshot {
+    id: ID!
+    timestamp: BigInt!
+    totalNavUsd: BigInt!
+    hcsSeq: Int
+  }
+
+  """
   AI-agent decision signal reconstructed from the HCS audit trail.
   Every x402 paid-inference call and every hedge-projection message
   writes { asset, signal, confidence } to Hedera Consensus Service —
@@ -106,6 +121,7 @@ export const SHARED_TYPEDEFS = /* GraphQL */ `
     member(id: Bytes!): Member
     members(first: Int = 25): [Member!]!
     signals(first: Int = 25, where: Signal_filter): [Signal!]!
+    navHistory(first: Int = 100): [NavSnapshot!]!
     _meta: _Meta_
   }
 `;

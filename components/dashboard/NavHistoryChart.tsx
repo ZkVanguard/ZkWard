@@ -54,13 +54,63 @@ interface NavHistoryChartProps {
   chain?: 'sui' | 'hedera';
 }
 
+/** Query the @zkward/hedera-graphql-adapter navHistory resolver.
+ *  Each row is an HCS-anchored NavSnapshot — every data point has an
+ *  hcsSeq that HashScan can verify independently. */
+async function fetchHederaHistoryViaAdapter(): Promise<NavHistoryResponse | null> {
+  const r = await fetch('/api/subgraph/hedera', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      query: `{ navHistory(first: 100) { id timestamp totalNavUsd hcsSeq } pools { totalShares } }`,
+    }),
+  });
+  if (!r.ok) return null;
+  const j = (await r.json()) as {
+    data?: {
+      navHistory?: Array<{ id: string; timestamp: string; totalNavUsd: string; hcsSeq: number | null }>;
+      pools?: Array<{ totalShares: string }>;
+    };
+    errors?: Array<{ message: string }>;
+  };
+  if (j.errors?.length || !j.data?.navHistory?.length) return null;
+  // Present-time shares as denominator for sharePrice — trader mostly runs
+  // a stable share count between deposits, so this is a fair approximation
+  // for the chart. Every underlying navUsd point is exact + HCS-anchored.
+  const totalSharesMicros = BigInt(j.data.pools?.[0]?.totalShares ?? '1000000');
+  const shares = Number(totalSharesMicros) / 1e6 || 1;
+  const points = j.data.navHistory
+    .slice()
+    .sort((a, b) => Number(a.timestamp) - Number(b.timestamp))
+    .map((s) => {
+      const navUsd = Number(s.totalNavUsd) / 1e6;
+      return {
+        t: new Date(Number(s.timestamp) * 1000).toISOString(),
+        navUsd,
+        sharePrice: navUsd / shares,
+      };
+    });
+  const first = points[0];
+  const last = points[points.length - 1];
+  return {
+    asOf: new Date().toISOString(),
+    window: 'adapter',
+    count: points.length,
+    points,
+    first,
+    last,
+    peak: points.reduce((a, b) => (b.sharePrice > a.sharePrice ? b : a), first),
+  };
+}
+
 export function NavHistoryChart({ chain = 'sui' }: NavHistoryChartProps = {}) {
   const [window, setWindow] = useState<typeof WINDOWS[number]>(WINDOWS[1]);
 
   // Per-chain data source:
   //   sui    → /api/platform/nav-history (Aiven Postgres, DB-backed)
-  //   hedera → /api/hedera/nav-history (Mirror Node, chain-native)
-  // Both endpoints return the same NavHistoryResponse shape.
+  //   hedera → @zkward/hedera-graphql-adapter navHistory (HCS-anchored),
+  //            with /api/hedera/nav-history as a fallback for windows before
+  //            HCS started recording, and SUI as a final fallback for empty state
   const primaryEndpoint = chain === 'hedera'
     ? `/api/hedera/nav-history?window=${window.value}&bucket=${window.bucket}`
     : `/api/platform/nav-history?window=${window.value}&bucket=${window.bucket}`;
@@ -68,13 +118,23 @@ export function NavHistoryChart({ chain = 'sui' }: NavHistoryChartProps = {}) {
 
   const { data, isPending: loading, error } = useQuery({
     queryKey: ['nav-history', chain, window.value, window.bucket],
-    queryFn: async (): Promise<NavHistoryResponse & { fallbackFrom?: 'sui' }> => {
+    queryFn: async (): Promise<NavHistoryResponse & { fallbackFrom?: 'sui'; sourcedFrom?: 'adapter' }> => {
+      // Hedera chain: try the adapter's navHistory GraphQL first — that's
+      // the HCS-anchored time-series where every point has an hcsSeq. Fall
+      // back to /api/hedera/nav-history (Mirror Node event replay) if the
+      // adapter has no data, then finally to SUI history for empty-state UX.
+      if (chain === 'hedera') {
+        try {
+          const viaAdapter = await fetchHederaHistoryViaAdapter();
+          if (viaAdapter && viaAdapter.points.length > 0) {
+            return { ...viaAdapter, sourcedFrom: 'adapter' as const };
+          }
+        } catch {
+          /* fall through to REST endpoint */
+        }
+      }
       const r = await fetch(primaryEndpoint);
       const primary = (await r.json()) as NavHistoryResponse;
-      // Hedera pool is fresh — before it accumulates events, borrow the
-      // SUI pool's history as a reference series so the chart still
-      // reads as a live product rather than "insufficient data".
-      // Labelled below so users can't mistake it for their chain's own data.
       if (chain === 'hedera' && (!primary.points || primary.points.length === 0)) {
         try {
           const s = await fetch(fallbackEndpoint);

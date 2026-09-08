@@ -380,6 +380,58 @@ test('transactions orderBy=timestamp asc reverses default order', async () => {
   });
 });
 
+// ── navHistory from hedge-projection messages ─────────────────────────────
+
+test('navHistory returns time-series from hedge-projection HCS messages', async () => {
+  const AUDIT_TOPIC = '0.0.10393879';
+  const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64');
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/topics/${AUDIT_TOPIC}/messages`]: () => ({
+      body: {
+        messages: [
+          {
+            sequence_number: 63, consensus_timestamp: '1788870000.0',
+            message: b64({ v: 1, kind: 'hedge-projection', poolNavUsd: 987.36, positions: [] }),
+          },
+          {
+            sequence_number: 62, consensus_timestamp: '1788866400.0',
+            message: b64({ v: 1, kind: 'hedge-projection', poolNavUsd: 992.10, positions: [] }),
+          },
+          {
+            sequence_number: 61, consensus_timestamp: '1788862800.0',
+            message: b64({ v: 1, kind: 'hedge-projection', poolNavUsd: 1000.00, positions: [] }),
+          },
+          {
+            // Non-nav message — should be filtered out
+            sequence_number: 55, consensus_timestamp: '1788858000.0',
+            message: b64({ v: 1, asset: 'BTC', signal: 'BEARISH', confidence: 63, paid: true }),
+          },
+        ],
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0, auditTopicId: AUDIT_TOPIC }, async (adapter) => {
+    const result = await adapter.execute({
+      query: '{ navHistory(first: 10) { id timestamp totalNavUsd hcsSeq } }',
+    });
+    assert.equal(result.errors, undefined);
+    const snapshots = result.data?.navHistory ?? [];
+    assert.equal(snapshots.length, 3, `expected 3 NAV snapshots (non-nav msgs filtered), got ${snapshots.length}`);
+    assert.equal(snapshots[0].totalNavUsd, '987360000');
+    assert.equal(snapshots[0].hcsSeq, 63);
+    assert.equal(snapshots[2].totalNavUsd, '1000000000');
+  });
+});
+
+test('navHistory returns empty when auditTopicId absent', async () => {
+  await withAdapter(HAPPY_ROUTES, { cacheTtlMs: 0 }, async (adapter) => {
+    const r = await adapter.execute({ query: '{ navHistory { id } }' });
+    assert.equal(r.errors, undefined);
+    assert.deepEqual(r.data?.navHistory, []);
+  });
+});
+
 // ── Signals from HCS audit topic ───────────────────────────────────────────
 
 test('signals resolver decodes x402-payment-receipt + hedge-projection', async () => {

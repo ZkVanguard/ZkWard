@@ -106,6 +106,40 @@ export interface Erc4626PresetOptions {
   auditTopicId?: string;
 }
 
+interface NavSnapshotShape {
+  id: string;
+  timestamp: string;
+  totalNavUsd: string;
+  hcsSeq: number | null;
+}
+
+/** Reconstruct a NavSnapshot from a hedge-projection HCS message. */
+function decodeNavSnapshot(msg: {
+  sequence_number: number;
+  consensus_timestamp: string;
+  message: string;
+}): NavSnapshotShape | null {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(Buffer.from(msg.message, 'base64').toString('utf8'));
+  } catch {
+    return null;
+  }
+  if (!payload || typeof payload !== 'object') return null;
+  const p = payload as Record<string, unknown>;
+  if (p.kind !== 'hedge-projection' || typeof p.poolNavUsd !== 'number') return null;
+  const seq = msg.sequence_number;
+  const ts = String(parseInt(msg.consensus_timestamp.split('.')[0] || '0', 10));
+  // Store in 6-decimal micros to match the rest of the schema.
+  const navMicros = BigInt(Math.round(p.poolNavUsd * 1_000_000));
+  return {
+    id: `hcs-nav-${seq}`,
+    timestamp: ts,
+    totalNavUsd: navMicros.toString(),
+    hcsSeq: seq,
+  };
+}
+
 interface SignalShape {
   id: string;
   asset: string;
@@ -196,6 +230,20 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
   const decimalsMultiplier = 10n ** BigInt(decimals);
   const vaultAddress = contract.toLowerCase();
   const memo = ttlMemo<unknown>(cacheTtlMs);
+
+  async function fetchNavHistory(limit: number): Promise<NavSnapshotShape[]> {
+    if (!auditTopicId) return [];
+    const raw = await memo(
+      `nav-history:${auditTopicId}`,
+      () => client.getTopicMessages(auditTopicId, { limit: Math.min(100, Math.max(50, limit * 2)), order: 'desc' }),
+    ) as Awaited<ReturnType<typeof client.getTopicMessages>>;
+    const decoded: NavSnapshotShape[] = [];
+    for (const msg of raw) {
+      const snap = decodeNavSnapshot(msg);
+      if (snap) decoded.push(snap);
+    }
+    return decoded.slice(0, limit);
+  }
 
   async function fetchSignals(limit: number, filter?: { asset?: string; source?: string }): Promise<SignalShape[]> {
     if (!auditTopicId) return [];
@@ -389,6 +437,9 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
         },
         signals: async (_r: unknown, args: { first?: number; where?: { asset?: string; source?: string } }) => {
           return await fetchSignals(args.first ?? 25, args.where);
+        },
+        navHistory: async (_r: unknown, args: { first?: number }) => {
+          return await fetchNavHistory(args.first ?? 100);
         },
         _meta: async () => {
           // Fast path — Mirror's /blocks endpoint is one call vs walking
