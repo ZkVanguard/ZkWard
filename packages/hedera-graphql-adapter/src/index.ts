@@ -54,9 +54,21 @@ function attachResolvers(
 }
 
 export function createHederaGraphQLAdapter(config: AdapterConfig): Adapter {
+  if (!config || !config.contract) {
+    throw new Error('createHederaGraphQLAdapter: config.contract is required');
+  }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(config.contract)) {
+    throw new Error(`createHederaGraphQLAdapter: config.contract must be a 0x-prefixed 20-byte EVM address, got ${config.contract}`);
+  }
+  if (config.network !== 'testnet' && config.network !== 'mainnet') {
+    throw new Error(`createHederaGraphQLAdapter: config.network must be 'testnet' or 'mainnet', got ${String(config.network)}`);
+  }
+
   const client = new MirrorClient({
     network: config.network,
     base: config.mirrorNodeBase,
+    timeoutMs: config.mirrorTimeoutMs,
+    fetch: config.mirrorFetch,
   });
 
   const preset = config.preset ?? 'auto';
@@ -70,6 +82,7 @@ export function createHederaGraphQLAdapter(config: AdapterConfig): Adapter {
     client,
     contract: config.contract,
     network: config.network,
+    cacheTtlMs: config.cacheTtlMs,
   });
 
   const schema = buildSchema(SHARED_TYPEDEFS);

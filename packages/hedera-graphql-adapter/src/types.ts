@@ -67,6 +67,26 @@ export interface AdapterConfig {
   attestation?: AttestationConfig;
   /** Override Mirror Node base URL — mostly for testing. */
   mirrorNodeBase?: string;
+  /**
+   * Per-request Mirror Node timeout in ms. Default 10 000. Set 0 to disable
+   * (not recommended in production — a hung Mirror will hang the adapter).
+   */
+  mirrorTimeoutMs?: number;
+  /**
+   * Custom `fetch` implementation for Mirror Node calls. Anything that
+   * satisfies WHATWG `fetch` works — inject to add retries, logging,
+   * an HTTPS proxy, or to route through a service mesh.
+   *
+   * Default: `globalThis.fetch` (Node 18+ built-in).
+   */
+  mirrorFetch?: typeof globalThis.fetch;
+  /**
+   * TTL for the internal pool + logs cache in ms. Default 30 000. Set to
+   * 0 to disable caching (every GraphQL request hits Mirror). Higher values
+   * reduce Mirror load; lower values reduce staleness for frequently-changing
+   * pools.
+   */
+  cacheTtlMs?: number;
 }
 
 export interface ExecuteInput {

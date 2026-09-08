@@ -271,7 +271,11 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
               timestamp: block?.timestampSec ?? Math.floor(Date.now() / 1000),
             },
             deployment: `hedera-mirror-adapter:${vaultAddress}`,
-            hasIndexingErrors: false,
+            // Reflects whether ANY Mirror Node request has failed since the
+            // client booted (or since clearIndexingErrors() was called).
+            // Downstream consumers can gate on this like they would with a
+            // Graph subgraph reporting indexer lag.
+            hasIndexingErrors: client.hasIndexingErrors,
           };
         },
       },

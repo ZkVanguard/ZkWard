@@ -166,8 +166,8 @@ See [`../../mcp/zkward-vaults/`](../../mcp/zkward-vaults/) for our reference MCP
 ```ts
 interface AdapterConfig {
   network: 'testnet' | 'mainnet';
-  contract: string;                  // EVM address
-  preset?: 'erc4626' | 'auto';       // 'custom' lands in v0.2
+  contract: string;                  // 0x-prefixed EVM address (validated at construct time)
+  preset?: 'erc4626' | 'auto';       // 'custom' lands in v0.3
   attestation?: {                    // optional
     enabled: boolean;
     topicId: string;
@@ -175,7 +175,10 @@ interface AdapterConfig {
     operatorKey: string;
     network?: 'testnet' | 'mainnet';
   };
-  mirrorNodeBase?: string;           // override for testing
+  mirrorNodeBase?: string;           // override — default is the public Mirror
+  mirrorTimeoutMs?: number;          // per-request abort, default 10 000
+  mirrorFetch?: typeof fetch;        // inject custom fetch (retries, proxy, logging)
+  cacheTtlMs?: number;               // dedupe window, default 30 000; 0 disables
 }
 ```
 
@@ -189,12 +192,25 @@ interface Adapter {
 }
 ```
 
+Failure surfacing: if any Mirror Node call fails or times out during the lifetime of the adapter, `_meta.hasIndexingErrors` flips to `true` (mirrors Graph subgraph semantics). Consumers can use it to gate stale reads.
+
+## Tests
+
+```bash
+npm install
+npm run build
+npm test           # 15 tests, ~500ms, no network — runs against an in-process mock Mirror
+```
+
+The suite covers constructor validation, happy-path pool/transactions/members/_meta queries, error surfacing on Mirror 5xx and hung requests, cache dedupe, custom `mirrorFetch` injection, and GraphQL parse/validation errors.
+
 ## Roadmap (see DESIGN.md)
 
-- **v0.1** (this release) — `erc4626` preset, HCS attestation, Next.js/Express recipes
-- **v0.2** — `custom` preset (bring your own events/entities), multi-contract data sources
-- **v0.3** — Historical replay from arbitrary start block, subgraph.yaml compatibility
+- **v0.1** — first release: `erc4626` preset, HCS attestation, Next.js/Express recipes.
+- **v0.2** (this release) — timeout + custom `fetch` injection + real `hasIndexingErrors` propagation + 15-test suite.
+- **v0.3** — `custom` preset (bring your own events/entities), multi-contract data sources.
+- **v0.4** — Historical replay from arbitrary start block, subgraph.yaml compatibility.
 
 ## License
 
-MIT. Contributions welcome — this is a small, focused library and it should stay that way.
+Apache-2.0. Contributions welcome — this is a small, focused library and it should stay that way.

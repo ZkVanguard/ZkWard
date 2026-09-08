@@ -37,24 +37,75 @@ export interface MirrorContractCallResult {
 
 export interface MirrorClientOptions {
   network: HederaNetwork;
+  /** Override the default Mirror Node base URL. Useful for local mock servers. */
   base?: string;
+  /** Per-request timeout in ms. Default 10 000. Set to 0 to disable. */
+  timeoutMs?: number;
+  /**
+   * Custom `fetch` implementation. Defaults to global `fetch`. Inject to add
+   * retries, request logging, an HTTPS proxy, or to route through a service
+   * mesh. Signature is the standard WHATWG `fetch` — anything that satisfies
+   * `typeof fetch` works (undici, node-fetch v3, cross-fetch, etc.).
+   */
+  fetch?: typeof globalThis.fetch;
 }
 
 export class MirrorClient {
   private readonly base: string;
+  private readonly timeoutMs: number;
+  private readonly _fetch: typeof globalThis.fetch;
+  /** Sticky flag — flips to true on any Mirror Node request failure or non-2xx.
+   *  Read by the preset to populate `_meta.hasIndexingErrors`. Reset with
+   *  `clearIndexingErrors()` when the caller has acknowledged them. */
+  hasIndexingErrors = false;
+  /** Last error message seen, for debugging. */
+  lastError: string | null = null;
 
   constructor(opts: MirrorClientOptions) {
     this.base = opts.base ?? MIRROR_HOSTS[opts.network];
+    this.timeoutMs = opts.timeoutMs ?? 10_000;
+    this._fetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
-  private async fetch<T>(path: string): Promise<T | null> {
-    const r = await fetch(this.base + path);
-    if (!r.ok) return null;
-    return (await r.json()) as T;
+  clearIndexingErrors(): void {
+    this.hasIndexingErrors = false;
+    this.lastError = null;
+  }
+
+  private async request(input: string, init?: RequestInit): Promise<Response | null> {
+    const ctrl = this.timeoutMs > 0 ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), this.timeoutMs) : null;
+    try {
+      const r = await this._fetch(input, { ...init, signal: ctrl?.signal });
+      if (!r.ok) {
+        this.hasIndexingErrors = true;
+        this.lastError = `${input} → HTTP ${r.status}`;
+        return null;
+      }
+      return r;
+    } catch (e) {
+      this.hasIndexingErrors = true;
+      this.lastError = `${input} → ${e instanceof Error ? e.message : String(e)}`;
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  private async fetchJson<T>(path: string): Promise<T | null> {
+    const r = await this.request(this.base + path);
+    if (!r) return null;
+    try {
+      return (await r.json()) as T;
+    } catch (e) {
+      this.hasIndexingErrors = true;
+      this.lastError = `${path} → invalid json: ${e instanceof Error ? e.message : String(e)}`;
+      return null;
+    }
   }
 
   getContract(evmAddress: string): Promise<MirrorContract | null> {
-    return this.fetch<MirrorContract>(`/contracts/${evmAddress}`);
+    return this.fetchJson<MirrorContract>(`/contracts/${evmAddress}`);
   }
 
   async getContractLogs(evmAddress: string, opts: { topic0?: string; limit?: number } = {}): Promise<MirrorLog[]> {
@@ -62,7 +113,7 @@ export class MirrorClient {
     params.set('order', 'desc');
     params.set('limit', String(opts.limit ?? 25));
     if (opts.topic0) params.set('topic0', opts.topic0);
-    const r = await this.fetch<{ logs: MirrorLog[] }>(
+    const r = await this.fetchJson<{ logs: MirrorLog[] }>(
       `/contracts/${evmAddress}/results/logs?${params.toString()}`,
     );
     return r?.logs ?? [];
@@ -70,7 +121,7 @@ export class MirrorClient {
 
   /** Latest block — cheap way to source _meta.block. */
   async getLatestBlock(): Promise<{ number: number; timestampSec: number } | null> {
-    const r = await this.fetch<{ blocks?: Array<{ number?: number; timestamp?: { from?: string } }> }>(
+    const r = await this.fetchJson<{ blocks?: Array<{ number?: number; timestamp?: { from?: string } }> }>(
       '/blocks?limit=1&order=desc',
     );
     const b = r?.blocks?.[0];
@@ -84,14 +135,19 @@ export class MirrorClient {
    * `data` is 0x-prefixed calldata (selector + encoded params).
    */
   async contractCall(evmAddress: string, data: string): Promise<string | null> {
-    const r = await fetch(`${this.base}/contracts/call`, {
+    const r = await this.request(`${this.base}/contracts/call`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ to: evmAddress, data, estimate: false }),
     });
-    if (!r.ok) return null;
-    const j = (await r.json()) as MirrorContractCallResult;
-    return j.result ?? null;
+    if (!r) return null;
+    try {
+      const j = (await r.json()) as MirrorContractCallResult;
+      return j.result ?? null;
+    } catch {
+      this.hasIndexingErrors = true;
+      return null;
+    }
   }
 
   static base(network: HederaNetwork): string {
