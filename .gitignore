@@ -37,6 +37,7 @@ next-env.d.ts
 # Build Outputs
 # -------------------------------------------
 dist/
+!substreams/community-pool/dist/
 build/
 *.tsbuildinfo
 build-output-local.txt

@@ -1,23 +1,48 @@
 {
-  "name": "zkward-vaults-mcp",
+  "name": "@zkward/subgraph-mcp",
   "version": "0.1.0",
-  "description": "MCP server exposing ZkWard's AI-vault subgraph + Hedera Mirror Node adapter to AI agents. One query pattern spans two indexing backends.",
+  "description": "MCP server exposing a standardized AI-vault subgraph across every indexing backend it supports — Graph Studio subgraphs and Hedera Mirror Node via @zkward/hedera-graphql-adapter — as one unified tool surface. One query pattern spans two indexing backends. Ships attested_vault_snapshot for HCS-anchored verifiable responses.",
   "type": "module",
   "bin": {
-    "zkward-vaults-mcp": "./index.js"
+    "zkward-subgraph-mcp": "./index.js"
   },
   "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
-  "keywords": ["mcp", "the-graph", "hedera", "subgraph", "ai-vaults"],
-  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "the-graph",
+    "hedera",
+    "subgraph",
+    "ai-vaults",
+    "erc4626",
+    "claude",
+    "cursor",
+    "ai-agents"
+  ],
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ZkVanguard/zkward-ethglobal.git",
+    "url": "git+https://github.com/ZkVanguard/zkward-ethglobal.git",
     "directory": "mcp/zkward-vaults"
+  },
+  "homepage": "https://github.com/ZkVanguard/zkward-ethglobal/tree/main/mcp/zkward-vaults#readme",
+  "bugs": {
+    "url": "https://github.com/ZkVanguard/zkward-ethglobal/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

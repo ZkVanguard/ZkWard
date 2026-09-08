@@ -11,9 +11,6 @@ package:
     can consume. Proposed reusable module for the AI-managed vault
     category.
 
-imports:
-  eth: https://github.com/streamingfast/sf-ethereum/releases/download/v0.1.0/ethereum-v0.1.0.spkg
-
 protobuf:
   files:
     - vault.proto

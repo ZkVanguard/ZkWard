@@ -195,15 +195,38 @@ interface Adapter {
 
 Failure surfacing: if any Mirror Node call fails or times out during the lifetime of the adapter, `_meta.hasIndexingErrors` flips to `true` (mirrors Graph subgraph semantics). Consumers can use it to gate stale reads.
 
+## AI decision audit via GraphQL (v0.3)
+
+Pass an `auditTopicId` and the adapter exposes a `signals(first, where)` query that reads the HCS topic and reconstructs the AI agent's on-chain decision receipts as first-class entities. Two message kinds are decoded automatically:
+
+- `x402-payment-receipt` — every paid inference call writes `{ asset, signal, confidence }` to HCS.
+- `hedge-projection` — every trader tick anchors the current position basket with per-leg `signalConfidence`.
+
+```graphql
+{
+  signals(first: 25, where: { asset: "BTC" }) {
+    id
+    asset
+    direction     # BULLISH / BEARISH / NEUTRAL
+    confidence    # 0-100
+    source        # 'x402-payment-receipt' | 'hedge-projection'
+    timestamp
+    hcsSeq        # HCS sequence number — verifiable on HashScan
+  }
+}
+```
+
+This is **not** a prediction-market indexer. It's the AI's own decision trail exposed as GraphQL — the same substrate the trader wrote to, read back by any downstream consumer through the standardized schema. Every row is anchored on-chain and independently verifiable at `https://hashscan.io/testnet/topic/<auditTopicId>`.
+
 ## Tests
 
 ```bash
 npm install
 npm run build
-npm test           # 15 tests, ~500ms, no network — runs against an in-process mock Mirror
+npm test           # 18 tests, ~500ms, no network — runs against an in-process mock Mirror
 ```
 
-The suite covers constructor validation, happy-path pool/transactions/members/_meta queries, error surfacing on Mirror 5xx and hung requests, cache dedupe, custom `mirrorFetch` injection, and GraphQL parse/validation errors.
+The suite covers constructor validation, happy-path pool/transactions/members/_meta queries, error surfacing on Mirror 5xx and hung requests, cache dedupe, custom `mirrorFetch` injection, GraphQL parse/validation errors, and the `signals` decoder for both x402 receipts and hedge projections.
 
 ## Roadmap (see DESIGN.md)
 

@@ -51,10 +51,27 @@ rustup target add wasm32-unknown-unknown
 cargo build --target wasm32-unknown-unknown --release
 
 # Pack for the Substreams registry / consumers
-substreams pack     # requires the substreams CLI: brew install streamingfast/tap/substreams
+substreams pack     # requires the substreams CLI (macOS: `brew install streamingfast/tap/substreams`;
+                    #  Windows: `go install github.com/streamingfast/substreams/cmd/substreams@latest` after cloning)
 ```
 
 The Cargo release profile is tuned for tiny wasm output (`lto = true`, `opt-level = "s"`, strip debug info).
+
+## Prebuilt package
+
+A packed `.spkg` is committed at [`dist/zkward-community-pool-v0.1.0.spkg`](./dist/) (372 KB). Consumers can use it directly without the Rust toolchain:
+
+```bash
+# Inspect the package
+substreams info dist/zkward-community-pool-v0.1.0.spkg
+
+# Stream module outputs against a Substreams endpoint (requires a subscription
+# via https://substreams.dev — free for hackathon-scale use)
+substreams gui dist/zkward-community-pool-v0.1.0.spkg map_vault_events \
+  --start-block 5700000 --stop-block +100
+```
+
+`substreams info` on the packed file reports the module accepts `params: string` (contract address) and outputs `zkward.vault.v1.VaultEvents`, matching the yaml.
 
 ## Test
 
