@@ -22,6 +22,7 @@ const config = {
         settings: {
           optimizer: { enabled: true, runs: 1 },
           viaIR: true,
+          evmVersion: 'cancun',
         },
       },
       {
@@ -29,6 +30,7 @@ const config = {
         settings: {
           optimizer: { enabled: true, runs: 1 },
           viaIR: true,
+          evmVersion: 'cancun',
         },
       },
     ],

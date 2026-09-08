@@ -63,9 +63,9 @@ dataSources:
     source:
       # Placeholder — replaced with the real Sepolia deploy address after
       # `scripts/deploy/deploy-sepolia-usdc-full.cjs` completes.
-      address: "0x0000000000000000000000000000000000000000"
+      address: "0x68eee8378935a90343347f5e4438eaad4b53111b"
       abi: SimpleUsdcVault
-      startBlock: 11642204
+      startBlock: 11660806
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
