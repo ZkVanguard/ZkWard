@@ -76,6 +76,65 @@ interface MemberShape {
   lastActionAtTimestamp: string | null;
 }
 
+/**
+ * Standard-subgraph filter operators. Applies a `where` map with any mix of
+ *   { field, field_not, field_in, field_not_in, field_gt, field_gte, field_lt,
+ *     field_lte, field_contains } to an array of rows. Matches the ops Graph
+ * tooling auto-generates. Numeric ops use BigInt to survive uint256 values.
+ * Missing/undefined fields are silently ignored — matches Graph semantics.
+ */
+function applyWhereFilter<T>(rows: T[], where?: Record<string, unknown>): T[] {
+  if (!where || Object.keys(where).length === 0) return rows;
+  return rows.filter((row) => {
+    for (const [key, expected] of Object.entries(where)) {
+      if (expected === null || expected === undefined) continue;
+
+      const m = key.match(/^(.+?)_(gt|gte|lt|lte|in|not_in|not|contains|starts_with|ends_with)$/);
+      const field = m ? m[1] : key;
+      const op = m ? m[2] : 'eq';
+      const raw = (row as Record<string, unknown>)[field];
+      if (raw === undefined) return false;
+
+      // Bytes comparisons are case-insensitive to match Graph subgraph behavior.
+      const asString = String(raw);
+      const asLower = asString.toLowerCase();
+
+      if (op === 'eq') {
+        if (asLower !== String(expected).toLowerCase()) return false;
+      } else if (op === 'not') {
+        if (asLower === String(expected).toLowerCase()) return false;
+      } else if (op === 'in') {
+        const list = Array.isArray(expected) ? expected.map((v) => String(v).toLowerCase()) : [];
+        if (!list.includes(asLower)) return false;
+      } else if (op === 'not_in') {
+        const list = Array.isArray(expected) ? expected.map((v) => String(v).toLowerCase()) : [];
+        if (list.includes(asLower)) return false;
+      } else if (op === 'contains') {
+        if (!asLower.includes(String(expected).toLowerCase())) return false;
+      } else if (op === 'starts_with') {
+        if (!asLower.startsWith(String(expected).toLowerCase())) return false;
+      } else if (op === 'ends_with') {
+        if (!asLower.endsWith(String(expected).toLowerCase())) return false;
+      } else if (op === 'gt' || op === 'gte' || op === 'lt' || op === 'lte') {
+        // Prefer BigInt for numeric strings (uint256-safe). Fall back to Number.
+        let av: bigint | number, bv: bigint | number;
+        try {
+          av = BigInt(asString);
+          bv = BigInt(String(expected));
+        } catch {
+          av = Number(asString);
+          bv = Number(expected);
+        }
+        if (op === 'gt' && !(av > bv)) return false;
+        if (op === 'gte' && !(av >= bv)) return false;
+        if (op === 'lt' && !(av < bv)) return false;
+        if (op === 'lte' && !(av <= bv)) return false;
+      }
+    }
+    return true;
+  });
+}
+
 function decodeUint256Response(hex: string | null): bigint {
   if (!hex || hex === '0x') return 0n;
   return BigInt(hex.length > 66 ? '0x' + hex.slice(2, 66) : hex);
@@ -233,9 +292,13 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
 
   async function fetchNavHistory(limit: number): Promise<NavSnapshotShape[]> {
     if (!auditTopicId) return [];
+    // Always fetch the max Mirror allows — hedge-projection messages are
+    // interleaved with x402 + attestation messages, so a small `first`
+    // must still scan a wide window to surface any nav snapshots.
+    // v0.6 will add real pagination via Mirror's `?next` link.
     const raw = await memo(
       `nav-history:${auditTopicId}`,
-      () => client.getTopicMessages(auditTopicId, { limit: Math.min(100, Math.max(50, limit * 2)), order: 'desc' }),
+      () => client.getTopicMessages(auditTopicId, { limit: 100, order: 'desc' }),
     ) as Awaited<ReturnType<typeof client.getTopicMessages>>;
     const decoded: NavSnapshotShape[] = [];
     for (const msg of raw) {
@@ -245,24 +308,19 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
     return decoded.slice(0, limit);
   }
 
-  async function fetchSignals(limit: number, filter?: { asset?: string; source?: string }): Promise<SignalShape[]> {
+  async function fetchSignals(limit: number, skip: number, filter?: Record<string, unknown>): Promise<SignalShape[]> {
     if (!auditTopicId) return [];
-    // Pull enough messages that filtering can still return `limit` rows.
-    // Multiplier keeps this responsive without paginating.
     const raw = await memo(
       `signals:${auditTopicId}`,
-      () => client.getTopicMessages(auditTopicId, { limit: Math.min(100, Math.max(50, limit * 4)) }),
+      () => client.getTopicMessages(auditTopicId, { limit: 100 }),
     ) as Awaited<ReturnType<typeof client.getTopicMessages>>;
 
     const decoded: SignalShape[] = [];
     for (const msg of raw) {
       for (const s of decodeSignal(msg)) decoded.push(s);
     }
-    // Filter after decode so filters compose cleanly.
-    let filtered = decoded;
-    if (filter?.asset) filtered = filtered.filter((s) => s.asset.toUpperCase() === filter.asset!.toUpperCase());
-    if (filter?.source) filtered = filtered.filter((s) => s.source === filter.source);
-    return filtered.slice(0, limit);
+    const filtered = applyWhereFilter(decoded, filter);
+    return filtered.slice(skip, skip + limit);
   }
 
   function fetchPool(): Promise<PoolShape | null> {
@@ -308,22 +366,21 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
 
   async function fetchTransactions(
     limit: number,
-    filter?: { type?: string; actor?: string },
+    skip: number,
+    filter?: Record<string, unknown>,
     orderBy?: string,
     orderDirection?: 'asc' | 'desc',
   ): Promise<TxShape[]> {
     const logs = await fetchAllLogsCached();
-    const rows: TxShape[] = [];
+    let rows: TxShape[] = [];
     for (const raw of logs) {
       const log = normalizeLog(raw);
       let type: 'DEPOSIT' | 'WITHDRAW' | null = null;
       if (log.topic0 === ERC4626_TOPICS.Deposited) type = 'DEPOSIT';
       else if (log.topic0 === ERC4626_TOPICS.Withdrawn) type = 'WITHDRAW';
       if (!type) continue;
-      if (filter?.type && filter.type !== type) continue;
 
       const actor = topicToAddress(log.indexedTopics[0]);
-      if (filter?.actor && filter.actor.toLowerCase() !== actor) continue;
 
       // Deposited(amount, shares) — amount first
       // Withdrawn(shares, amount) — shares first
@@ -345,6 +402,8 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
       });
     }
 
+    rows = applyWhereFilter(rows, filter);
+
     // Sort in-place if the caller specified an orderBy the schema declares.
     // Uses BigInt compare for the numeric columns so 32-byte values sort right.
     const sortable: Record<string, (r: TxShape) => bigint> = {
@@ -360,11 +419,11 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
       return av === bv ? 0 : (av < bv ? -1 : 1) * dir;
     });
 
-    return rows.slice(0, limit);
+    return rows.slice(skip, skip + limit);
   }
 
   async function findTransactionById(id: string): Promise<TxShape | null> {
-    const rows = await fetchTransactions(1000);
+    const rows = await fetchTransactions(1000, 0);
     return rows.find((t) => t.id === id) ?? null;
   }
 
@@ -374,7 +433,7 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
   }
 
   async function fetchMembers(limit: number): Promise<MemberShape[]> {
-    const txs = await fetchTransactions(200);
+    const txs = await fetchTransactions(200, 0);
     const acc = new Map<string, MemberShape>();
     for (const tx of txs) {
       let m = acc.get(tx.actor);
@@ -417,29 +476,34 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
           if (args.id.toLowerCase() !== vaultAddress) return null;
           return await fetchPool();
         },
-        pools: async (_r: unknown, args: { first?: number; where?: { id?: string; network?: string } }) => {
-          if (args.where?.id && args.where.id.toLowerCase() !== vaultAddress) return [];
-          if (args.where?.network && args.where.network !== networkLabel) return [];
+        pools: async (_r: unknown, args: { first?: number; skip?: number; where?: Record<string, unknown> }) => {
           const p = await fetchPool();
-          return p ? [p].slice(0, args.first ?? 10) : [];
+          const all: PoolShape[] = p ? [p] : [];
+          const filtered = applyWhereFilter(all as unknown as Record<string, unknown>[], args.where) as unknown as PoolShape[];
+          const skip = args.skip ?? 0;
+          return filtered.slice(skip, skip + (args.first ?? 10));
         },
         transaction: async (_r: unknown, args: { id: string }) => {
           return await findTransactionById(args.id);
         },
-        transactions: async (_r: unknown, args: { first?: number; where?: { type?: string; actor?: string }; orderBy?: string; orderDirection?: 'asc' | 'desc' }) => {
-          return await fetchTransactions(args.first ?? 25, args.where, args.orderBy, args.orderDirection);
+        transactions: async (_r: unknown, args: { first?: number; skip?: number; where?: Record<string, unknown>; orderBy?: string; orderDirection?: 'asc' | 'desc' }) => {
+          return await fetchTransactions(args.first ?? 25, args.skip ?? 0, args.where, args.orderBy, args.orderDirection);
         },
         member: async (_r: unknown, args: { id: string }) => {
           return await findMemberById(args.id);
         },
-        members: async (_r: unknown, args: { first?: number }) => {
-          return await fetchMembers(args.first ?? 25);
+        members: async (_r: unknown, args: { first?: number; skip?: number }) => {
+          const all = await fetchMembers(1000);
+          const skip = args.skip ?? 0;
+          return all.slice(skip, skip + (args.first ?? 25));
         },
-        signals: async (_r: unknown, args: { first?: number; where?: { asset?: string; source?: string } }) => {
-          return await fetchSignals(args.first ?? 25, args.where);
+        signals: async (_r: unknown, args: { first?: number; skip?: number; where?: Record<string, unknown> }) => {
+          return await fetchSignals(args.first ?? 25, args.skip ?? 0, args.where);
         },
-        navHistory: async (_r: unknown, args: { first?: number }) => {
-          return await fetchNavHistory(args.first ?? 100);
+        navHistory: async (_r: unknown, args: { first?: number; skip?: number }) => {
+          const all = await fetchNavHistory(1000);
+          const skip = args.skip ?? 0;
+          return all.slice(skip, skip + (args.first ?? 100));
         },
         _meta: async () => {
           // Fast path — Mirror's /blocks endpoint is one call vs walking

@@ -62,6 +62,19 @@ interface GraphQLBody {
   operationName?: string;
 }
 
+// CORS for browser-based Graph tooling (Studio playground, Apollo, etc.)
+// GraphQL over HTTP is a public read surface — permissive CORS is safe.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
+};
+
+export async function OPTIONS(): Promise<NextResponse> {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: GraphQLBody;
   try {
@@ -86,7 +99,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const status = result.errors && result.errors.length > 0 && !result.data ? 400 : 200;
     return NextResponse.json(result, {
       status,
-      headers: { 'Cache-Control': 'no-store' },
+      headers: { 'Cache-Control': 'no-store', ...CORS_HEADERS },
     });
   } catch (e) {
     logger.warn('[subgraph/hedera] adapter execute failed', {

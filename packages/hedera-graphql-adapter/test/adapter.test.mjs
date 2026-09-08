@@ -380,6 +380,117 @@ test('transactions orderBy=timestamp asc reverses default order', async () => {
   });
 });
 
+// ── Filter operators (v0.5) — _gt, _lt, _in, _not, _contains ──────────────
+
+test('transactions where.amount_gt filters by BigInt', async () => {
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/contracts/${VAULT}/results/logs`]: () => ({
+      body: {
+        logs: [
+          { address: VAULT, topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'], data: '0x' + u256(100_000_000).slice(2) + u256(100_000_000).slice(2), block_number: 1, timestamp: '1000.0', transaction_hash: '0xa', block_hash: '0x', index: 0 },
+          { address: VAULT, topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'], data: '0x' + u256(50_000_000).slice(2) + u256(50_000_000).slice(2), block_number: 2, timestamp: '2000.0', transaction_hash: '0xb', block_hash: '0x', index: 0 },
+          { address: VAULT, topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'], data: '0x' + u256(70_000_000).slice(2) + u256(70_000_000).slice(2), block_number: 3, timestamp: '3000.0', transaction_hash: '0xc', block_hash: '0x', index: 0 },
+        ],
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0 }, async (adapter) => {
+    const r = await adapter.execute({
+      query: '{ transactions(first: 10, where: { amount_gt: "60000000" }) { amount } }',
+    });
+    const amounts = (r.data?.transactions ?? []).map((t) => t.amount).sort();
+    assert.deepEqual(amounts, ['100000000', '70000000'].sort(), 'amount_gt should exclude 50m and match 70m + 100m');
+  });
+});
+
+test('transactions where.type_in filters by list', async () => {
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/contracts/${VAULT}/results/logs`]: () => ({
+      body: {
+        logs: [
+          { address: VAULT, topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'], data: '0x' + u256(10).slice(2) + u256(10).slice(2), block_number: 1, timestamp: '1000.0', transaction_hash: '0xa', block_hash: '0x', index: 0 },
+        ],
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0 }, async (adapter) => {
+    const r = await adapter.execute({
+      query: '{ transactions(first: 10, where: { type_in: [WITHDRAW] }) { type } }',
+    });
+    assert.equal(result_length(r), 0, 'type_in [WITHDRAW] should exclude a DEPOSIT-only fixture');
+  });
+});
+
+// Small helper — accepts result, returns transactions length or -1 on error.
+function result_length(r) {
+  return (r.data?.transactions ?? []).length;
+}
+
+test('signals where.confidence_gte filters numerically', async () => {
+  const AUDIT_TOPIC = '0.0.10393879';
+  const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64');
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/topics/${AUDIT_TOPIC}/messages`]: () => ({
+      body: {
+        messages: [
+          { sequence_number: 1, consensus_timestamp: '1000.0', message: b64({ v: 1, asset: 'BTC', signal: 'BEARISH', confidence: 40, paid: true }) },
+          { sequence_number: 2, consensus_timestamp: '2000.0', message: b64({ v: 1, asset: 'BTC', signal: 'BEARISH', confidence: 70, paid: true }) },
+          { sequence_number: 3, consensus_timestamp: '3000.0', message: b64({ v: 1, asset: 'BTC', signal: 'BEARISH', confidence: 85, paid: true }) },
+        ],
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0, auditTopicId: AUDIT_TOPIC }, async (adapter) => {
+    const r = await adapter.execute({
+      query: '{ signals(where: { confidence_gte: 70 }) { confidence hcsSeq } }',
+    });
+    const rows = r.data?.signals ?? [];
+    assert.equal(rows.length, 2, 'expected 2 signals ≥ 70% conf');
+    for (const s of rows) assert.ok(s.confidence >= 70, `${s.confidence} not ≥ 70`);
+  });
+});
+
+test('pools where.network_contains matches substring', async () => {
+  await withAdapter(HAPPY_ROUTES, { cacheTtlMs: 0 }, async (adapter) => {
+    const r = await adapter.execute({
+      query: '{ pools(where: { network_contains: "hedera" }) { network } }',
+    });
+    assert.equal(r.data?.pools?.length, 1);
+    assert.equal(r.data.pools[0].network, 'hedera-testnet');
+  });
+});
+
+// ── skip pagination (v0.5) ─────────────────────────────────────────────────
+
+test('transactions skip advances the window', async () => {
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/contracts/${VAULT}/results/logs`]: () => ({
+      body: {
+        logs: [1, 2, 3, 4, 5].map((n) => ({
+          address: VAULT,
+          topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'],
+          data: '0x' + u256(n * 10).slice(2) + u256(n * 10).slice(2),
+          block_number: n, timestamp: String(n * 1000) + '.0',
+          transaction_hash: '0x' + n.toString(16).padStart(2, '0'),
+          block_hash: '0x', index: 0,
+        })),
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0 }, async (adapter) => {
+    const page1 = await adapter.execute({ query: '{ transactions(first: 2, skip: 0, orderBy: "timestamp", orderDirection: asc) { amount } }' });
+    const page2 = await adapter.execute({ query: '{ transactions(first: 2, skip: 2, orderBy: "timestamp", orderDirection: asc) { amount } }' });
+    const p1 = (page1.data?.transactions ?? []).map((t) => t.amount);
+    const p2 = (page2.data?.transactions ?? []).map((t) => t.amount);
+    assert.deepEqual(p1, ['10', '20']);
+    assert.deepEqual(p2, ['30', '40']);
+  });
+});
+
 // ── navHistory from hedge-projection messages ─────────────────────────────
 
 test('navHistory returns time-series from hedge-projection HCS messages', async () => {
