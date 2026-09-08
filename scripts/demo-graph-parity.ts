@@ -21,7 +21,7 @@
  */
 
 const BASE_URL = (process.env.BASE_URL || 'https://www.zkward.com').replace(/\/$/, '');
-const STUDIO_URL = 'https://api.studio.thegraph.com/query/1758819/zkward/v0.1.1';
+const STUDIO_URL = 'https://api.studio.thegraph.com/query/1758819/zkward/v0.2.0';
 const HEDERA_URL = `${BASE_URL}/api/subgraph/hedera`;
 const HEDERA_ATTEST_URL = `${HEDERA_URL}?attest=1`;
 const VERIFY_URL = `${BASE_URL}/api/subgraph/verify`;
