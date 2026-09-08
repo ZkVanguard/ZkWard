@@ -285,6 +285,101 @@ test('hung Mirror is aborted by mirrorTimeoutMs', async () => {
   });
 });
 
+// ── Singular resolvers (regression: SDL declared them without impl) ────────
+
+test('transaction(id) singular resolver returns the row by exact id match', async () => {
+  await withAdapter(HAPPY_ROUTES, { cacheTtlMs: 0 }, async (adapter) => {
+    // First get the id from a list query, then look it up singularly.
+    const list = await adapter.execute({ query: '{ transactions(first: 1) { id } }' });
+    const id = list.data?.transactions?.[0]?.id;
+    assert.ok(id, 'expected at least one transaction in fixture');
+
+    const single = await adapter.execute({
+      query: `query($id: Bytes!) { transaction(id: $id) { id type actor amount } }`,
+      variables: { id },
+    });
+    assert.equal(single.errors, undefined);
+    assert.ok(single.data?.transaction, 'transaction(id) returned null for a real id');
+    assert.equal(single.data.transaction.id, id);
+    assert.equal(single.data.transaction.type, 'DEPOSIT');
+  });
+});
+
+test('transaction(id) returns null for unknown id', async () => {
+  await withAdapter(HAPPY_ROUTES, { cacheTtlMs: 0 }, async (adapter) => {
+    const r = await adapter.execute({ query: '{ transaction(id: "no-such-tx") { id } }' });
+    assert.equal(r.errors, undefined);
+    assert.equal(r.data?.transaction, null);
+  });
+});
+
+test('member(id) singular resolver returns the row', async () => {
+  await withAdapter(HAPPY_ROUTES, { cacheTtlMs: 0 }, async (adapter) => {
+    const list = await adapter.execute({ query: '{ members(first: 1) { id address } }' });
+    const id = list.data?.members?.[0]?.id;
+    assert.ok(id);
+    const single = await adapter.execute({
+      query: `query($id: Bytes!) { member(id: $id) { id address currentShares } }`,
+      variables: { id },
+    });
+    assert.equal(single.errors, undefined);
+    assert.ok(single.data?.member);
+    assert.equal(single.data.member.id, id);
+  });
+});
+
+// ── orderBy / orderDirection (regression: SDL declared, silently ignored) ──
+
+test('transactions orderBy=amount desc sorts by BigInt amount', async () => {
+  // Multiple deposits with different amounts.
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/contracts/${VAULT}/results/logs`]: () => ({
+      body: {
+        logs: [
+          {
+            address: VAULT,
+            topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'],
+            data: '0x' + u256(50_000_000).slice(2) + u256(50_000_000).slice(2),
+            block_number: 100, timestamp: '1000.0', transaction_hash: '0xa', block_hash: '0x', index: 0,
+          },
+          {
+            address: VAULT,
+            topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'],
+            data: '0x' + u256(90_000_000).slice(2) + u256(90_000_000).slice(2),
+            block_number: 200, timestamp: '2000.0', transaction_hash: '0xb', block_hash: '0x', index: 0,
+          },
+          {
+            address: VAULT,
+            topics: [DEPOSITED_TOPIC, '0x000000000000000000000000db89ec1c81dcd362fb0f9ca3da232697b583bc8a'],
+            data: '0x' + u256(70_000_000).slice(2) + u256(70_000_000).slice(2),
+            block_number: 150, timestamp: '1500.0', transaction_hash: '0xc', block_hash: '0x', index: 0,
+          },
+        ],
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0 }, async (adapter) => {
+    const r = await adapter.execute({
+      query: '{ transactions(first: 5, orderBy: "amount", orderDirection: desc) { amount } }',
+    });
+    const amounts = (r.data?.transactions ?? []).map((t) => t.amount);
+    assert.deepEqual(amounts, ['90000000', '70000000', '50000000'], `expected desc sort, got ${JSON.stringify(amounts)}`);
+  });
+});
+
+test('transactions orderBy=timestamp asc reverses default order', async () => {
+  await withAdapter(HAPPY_ROUTES, { cacheTtlMs: 0 }, async (adapter) => {
+    const r = await adapter.execute({
+      query: '{ transactions(first: 5, orderBy: "timestamp", orderDirection: asc) { timestamp } }',
+    });
+    const ts = (r.data?.transactions ?? []).map((t) => Number(t.timestamp));
+    for (let i = 1; i < ts.length; i++) {
+      assert.ok(ts[i] >= ts[i - 1], `expected asc order, got ${JSON.stringify(ts)}`);
+    }
+  });
+});
+
 // ── Signals from HCS audit topic ───────────────────────────────────────────
 
 test('signals resolver decodes x402-payment-receipt + hedge-projection', async () => {

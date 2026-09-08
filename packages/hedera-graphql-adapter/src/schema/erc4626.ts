@@ -258,7 +258,12 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
     return memo(`logs:${vaultAddress}`, () => client.getContractLogs(vaultAddress, { limit: 100 })) as Promise<ReturnType<typeof client.getContractLogs>>;
   }
 
-  async function fetchTransactions(limit: number, filter?: { type?: string; actor?: string }): Promise<TxShape[]> {
+  async function fetchTransactions(
+    limit: number,
+    filter?: { type?: string; actor?: string },
+    orderBy?: string,
+    orderDirection?: 'asc' | 'desc',
+  ): Promise<TxShape[]> {
     const logs = await fetchAllLogsCached();
     const rows: TxShape[] = [];
     for (const raw of logs) {
@@ -290,9 +295,34 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
         timestamp: String(log.timestampSec),
         transactionHash: log.transactionHash,
       });
-      if (rows.length >= limit) break;
     }
-    return rows;
+
+    // Sort in-place if the caller specified an orderBy the schema declares.
+    // Uses BigInt compare for the numeric columns so 32-byte values sort right.
+    const sortable: Record<string, (r: TxShape) => bigint> = {
+      timestamp: (r) => BigInt(r.timestamp),
+      blockNumber: (r) => BigInt(r.blockNumber),
+      amount: (r) => BigInt(r.amount),
+      shares: (r) => BigInt(r.shares),
+    };
+    const key = orderBy && sortable[orderBy] ? sortable[orderBy] : sortable.timestamp;
+    const dir = orderDirection === 'asc' ? 1 : -1;
+    rows.sort((a, b) => {
+      const av = key(a), bv = key(b);
+      return av === bv ? 0 : (av < bv ? -1 : 1) * dir;
+    });
+
+    return rows.slice(0, limit);
+  }
+
+  async function findTransactionById(id: string): Promise<TxShape | null> {
+    const rows = await fetchTransactions(1000);
+    return rows.find((t) => t.id === id) ?? null;
+  }
+
+  async function findMemberById(id: string): Promise<MemberShape | null> {
+    const rows = await fetchMembers(1000);
+    return rows.find((m) => m.id.toLowerCase() === id.toLowerCase()) ?? null;
   }
 
   async function fetchMembers(limit: number): Promise<MemberShape[]> {
@@ -345,8 +375,14 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
           const p = await fetchPool();
           return p ? [p].slice(0, args.first ?? 10) : [];
         },
-        transactions: async (_r: unknown, args: { first?: number; where?: { type?: string; actor?: string } }) => {
-          return await fetchTransactions(args.first ?? 25, args.where);
+        transaction: async (_r: unknown, args: { id: string }) => {
+          return await findTransactionById(args.id);
+        },
+        transactions: async (_r: unknown, args: { first?: number; where?: { type?: string; actor?: string }; orderBy?: string; orderDirection?: 'asc' | 'desc' }) => {
+          return await fetchTransactions(args.first ?? 25, args.where, args.orderBy, args.orderDirection);
+        },
+        member: async (_r: unknown, args: { id: string }) => {
+          return await findMemberById(args.id);
         },
         members: async (_r: unknown, args: { first?: number }) => {
           return await fetchMembers(args.first ?? 25);
