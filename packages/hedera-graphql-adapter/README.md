@@ -179,6 +179,7 @@ interface AdapterConfig {
   mirrorTimeoutMs?: number;          // per-request abort, default 10 000
   mirrorFetch?: typeof fetch;        // inject custom fetch (retries, proxy, logging)
   cacheTtlMs?: number;               // dedupe window, default 30 000; 0 disables
+  auditTopicId?: string;             // enables `signals` query — HCS topic id (0.0.x)
 }
 ```
 
@@ -207,9 +208,10 @@ The suite covers constructor validation, happy-path pool/transactions/members/_m
 ## Roadmap (see DESIGN.md)
 
 - **v0.1** — first release: `erc4626` preset, HCS attestation, Next.js/Express recipes.
-- **v0.2** (this release) — timeout + custom `fetch` injection + real `hasIndexingErrors` propagation + 15-test suite.
-- **v0.3** — `custom` preset (bring your own events/entities), multi-contract data sources.
-- **v0.4** — Historical replay from arbitrary start block, subgraph.yaml compatibility.
+- **v0.2** — timeout + custom `fetch` injection + real `hasIndexingErrors` propagation + 15-test suite.
+- **v0.3** (this release) — `signals` query decodes AI decision receipts from an HCS audit topic (x402 payment receipts + hedge projections). AI agents can query the same substrate the trader wrote. 18-test suite.
+- **v0.4** — `custom` preset (bring your own events/entities), multi-contract data sources.
+- **v0.5** — Historical replay from arbitrary start block, subgraph.yaml compatibility.
 
 ## License
 

@@ -64,6 +64,25 @@ export const SHARED_TYPEDEFS = /* GraphQL */ `
     hasIndexingErrors: Boolean!
   }
 
+  """
+  AI-agent decision signal reconstructed from the HCS audit trail.
+  Every x402 paid-inference call and every hedge-projection message
+  writes { asset, signal, confidence } to Hedera Consensus Service —
+  this query surfaces that history as GraphQL, so an AI consumer can
+  read the same substrate the trader wrote.
+  Requires the adapter to be constructed with auditTopicId set.
+  """
+  type Signal {
+    id: ID!
+    asset: String!
+    direction: String!
+    confidence: Int!
+    source: String!
+    timestamp: BigInt!
+    hcsSeq: Int
+    hcsTxId: String
+  }
+
   input Pool_filter {
     id: Bytes
     network: String
@@ -74,6 +93,11 @@ export const SHARED_TYPEDEFS = /* GraphQL */ `
     actor: Bytes
   }
 
+  input Signal_filter {
+    asset: String
+    source: String
+  }
+
   type Query {
     pool(id: Bytes!): Pool
     pools(first: Int = 10, where: Pool_filter): [Pool!]!
@@ -81,6 +105,7 @@ export const SHARED_TYPEDEFS = /* GraphQL */ `
     transactions(first: Int = 25, orderBy: String, orderDirection: OrderDirection, where: Transaction_filter): [Transaction!]!
     member(id: Bytes!): Member
     members(first: Int = 25): [Member!]!
+    signals(first: Int = 25, where: Signal_filter): [Signal!]!
     _meta: _Meta_
   }
 `;

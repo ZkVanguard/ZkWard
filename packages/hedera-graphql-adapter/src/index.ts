@@ -83,6 +83,7 @@ export function createHederaGraphQLAdapter(config: AdapterConfig): Adapter {
     contract: config.contract,
     network: config.network,
     cacheTtlMs: config.cacheTtlMs,
+    auditTopicId: config.auditTopicId,
   });
 
   const schema = buildSchema(SHARED_TYPEDEFS);

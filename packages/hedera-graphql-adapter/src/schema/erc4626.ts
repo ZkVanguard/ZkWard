@@ -101,6 +101,76 @@ export interface Erc4626PresetOptions {
   decimals?: number;
   /** TTL for pool / logs cache in ms. Default 30000. Set to 0 to disable. */
   cacheTtlMs?: number;
+  /** Optional HCS topic ID (0.0.x) carrying x402 receipts + hedge projections
+   *  to expose via the `signals` GraphQL query. */
+  auditTopicId?: string;
+}
+
+interface SignalShape {
+  id: string;
+  asset: string;
+  direction: string;
+  confidence: number;
+  source: string;
+  timestamp: string;
+  hcsSeq: number | null;
+  hcsTxId: string | null;
+}
+
+/** Reconstruct a Signal from any HCS message we know how to parse. */
+function decodeSignal(msg: {
+  sequence_number: number;
+  consensus_timestamp: string;
+  message: string;
+}): SignalShape[] {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(Buffer.from(msg.message, 'base64').toString('utf8'));
+  } catch {
+    return [];
+  }
+  if (!payload || typeof payload !== 'object') return [];
+  const p = payload as Record<string, unknown>;
+  const seq = msg.sequence_number;
+  const ts = String(parseInt(msg.consensus_timestamp.split('.')[0] || '0', 10));
+  const baseId = `hcs-${seq}`;
+
+  // x402-payment-receipt: { asset, signal, confidence, paid, ts }
+  if (typeof p.asset === 'string' && typeof p.signal === 'string' && typeof p.confidence === 'number') {
+    return [{
+      id: baseId,
+      asset: p.asset,
+      direction: p.signal,
+      confidence: Math.round(p.confidence),
+      source: 'x402-payment-receipt',
+      timestamp: ts,
+      hcsSeq: seq,
+      hcsTxId: null,
+    }];
+  }
+
+  // hedge-projection: { kind: 'hedge-projection', positions: [{ symbol, side, signalConfidence }] }
+  if (p.kind === 'hedge-projection' && Array.isArray(p.positions)) {
+    const rows: SignalShape[] = [];
+    for (const pos of p.positions as Array<Record<string, unknown>>) {
+      if (typeof pos.symbol !== 'string' || typeof pos.side !== 'string') continue;
+      // side is LONG/SHORT → normalize to BULLISH/BEARISH so consumers can filter
+      const direction = pos.side === 'SHORT' ? 'BEARISH' : pos.side === 'LONG' ? 'BULLISH' : String(pos.side);
+      rows.push({
+        id: `${baseId}-${String(pos.symbol)}`,
+        asset: pos.symbol,
+        direction,
+        confidence: typeof pos.signalConfidence === 'number' ? Math.round(pos.signalConfidence) : 0,
+        source: 'hedge-projection',
+        timestamp: ts,
+        hcsSeq: seq,
+        hcsTxId: null,
+      });
+    }
+    return rows;
+  }
+
+  return [];
 }
 
 /**
@@ -122,10 +192,30 @@ function ttlMemo<T>(ttlMs: number): (key: string, fn: () => Promise<T>) => Promi
 }
 
 export function createErc4626Preset(opts: Erc4626PresetOptions) {
-  const { client, contract, network, networkLabel = `hedera-${network}`, decimals = 6, cacheTtlMs = 30_000 } = opts;
+  const { client, contract, network, networkLabel = `hedera-${network}`, decimals = 6, cacheTtlMs = 30_000, auditTopicId } = opts;
   const decimalsMultiplier = 10n ** BigInt(decimals);
   const vaultAddress = contract.toLowerCase();
   const memo = ttlMemo<unknown>(cacheTtlMs);
+
+  async function fetchSignals(limit: number, filter?: { asset?: string; source?: string }): Promise<SignalShape[]> {
+    if (!auditTopicId) return [];
+    // Pull enough messages that filtering can still return `limit` rows.
+    // Multiplier keeps this responsive without paginating.
+    const raw = await memo(
+      `signals:${auditTopicId}`,
+      () => client.getTopicMessages(auditTopicId, { limit: Math.min(100, Math.max(50, limit * 4)) }),
+    ) as Awaited<ReturnType<typeof client.getTopicMessages>>;
+
+    const decoded: SignalShape[] = [];
+    for (const msg of raw) {
+      for (const s of decodeSignal(msg)) decoded.push(s);
+    }
+    // Filter after decode so filters compose cleanly.
+    let filtered = decoded;
+    if (filter?.asset) filtered = filtered.filter((s) => s.asset.toUpperCase() === filter.asset!.toUpperCase());
+    if (filter?.source) filtered = filtered.filter((s) => s.source === filter.source);
+    return filtered.slice(0, limit);
+  }
 
   function fetchPool(): Promise<PoolShape | null> {
     return memo(`pool:${vaultAddress}`, async () => {
@@ -260,6 +350,9 @@ export function createErc4626Preset(opts: Erc4626PresetOptions) {
         },
         members: async (_r: unknown, args: { first?: number }) => {
           return await fetchMembers(args.first ?? 25);
+        },
+        signals: async (_r: unknown, args: { first?: number; where?: { asset?: string; source?: string } }) => {
+          return await fetchSignals(args.first ?? 25, args.where);
         },
         _meta: async () => {
           // Fast path — Mirror's /blocks endpoint is one call vs walking

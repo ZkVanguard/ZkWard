@@ -250,6 +250,34 @@ async function checkNpmPackage(): Promise<CheckResult> {
   };
 }
 
+async function checkSignalsQuery(origin: string): Promise<CheckResult> {
+  const t = await timed(async () => {
+    const r = await fetch(`${origin}/api/subgraph/hedera`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: '{ signals(first: 5) { id asset direction confidence source hcsSeq timestamp } }',
+      }),
+    });
+    if (!r.ok) throw new Error(`http ${r.status}`);
+    const j = await r.json() as { data?: { signals?: Array<{ asset: string; direction: string; source: string; hcsSeq?: number }> }; errors?: Array<{ message: string }> };
+    if (j.errors?.length) throw new Error(j.errors.map((e) => e.message).join('; '));
+    const signals = j.data?.signals ?? [];
+    if (signals.length === 0) throw new Error('no signals returned — audit topic empty or auditTopicId not configured');
+    return { signals };
+  });
+  return {
+    id: 'signals-graphql',
+    label: 'AI decision history queryable via GraphQL (signals)',
+    ok: !!t.value,
+    detail: t.value
+      ? `${t.value.signals.length} signals: ${t.value.signals.slice(0, 3).map((s) => `${s.asset} ${s.direction}@${s.hcsSeq}`).join(', ')}`
+      : t.error ?? 'unknown',
+    link: `${origin}/api/subgraph/hedera`,
+    latencyMs: t.latencyMs,
+  };
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const origin = new URL(req.url).origin;
 
@@ -262,6 +290,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     checkA2A(origin),
     checkAdapterHealth(origin),
     checkVerifiableGraphQL(origin),
+    checkSignalsQuery(origin),
     checkStudioSubgraph(),
     checkNpmPackage(),
   ]);

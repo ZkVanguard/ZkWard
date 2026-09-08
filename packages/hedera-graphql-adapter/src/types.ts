@@ -87,6 +87,18 @@ export interface AdapterConfig {
    * pools.
    */
   cacheTtlMs?: number;
+  /**
+   * Optional Hedera Consensus Service topic that carries AI decision
+   * receipts (x402 paid-inference calls, hedge projections, query
+   * attestations). When set, the adapter exposes a `signals` query that
+   * reconstructs `{ asset, direction, confidence, source, timestamp }`
+   * from the topic messages — turning the HCS audit trail into
+   * GraphQL-queryable decision history.
+   *
+   * Example: `0.0.10393879` on Hedera testnet.
+   * Omit to disable — `signals` returns an empty array.
+   */
+  auditTopicId?: string;
 }
 
 export interface ExecuteInput {

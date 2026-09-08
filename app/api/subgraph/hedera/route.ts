@@ -37,13 +37,20 @@ export const maxDuration = 20;
 // Module-scope singleton — reused across requests, no cold-start cost per call.
 const VAULT = HEDERA_CONTRACT_ADDRESSES.testnet.communityPool.toLowerCase();
 
+const HCS_AUDIT_TOPIC_ID = (process.env.HCS_AUDIT_TOPIC_ID || '').trim();
+
 const adapter = createHederaGraphQLAdapter({
   network: 'testnet',
   contract: VAULT,
   preset: 'erc4626',
+  // v0.3.0 — expose HCS audit trail as `signals` query. Same topic that
+  // carries the response attestations also carries the AI decision
+  // receipts (x402 payments + hedge projections); the adapter reconstructs
+  // { asset, direction, confidence, source, timestamp } from each message.
+  auditTopicId: HCS_AUDIT_TOPIC_ID || undefined,
   attestation: {
     enabled: (process.env.HCS_AUDIT_ENABLED || '').trim() === '1',
-    topicId: (process.env.HCS_AUDIT_TOPIC_ID || '').trim(),
+    topicId: HCS_AUDIT_TOPIC_ID,
     operatorId: (process.env.HEDERA_OPERATOR_ID || '').trim(),
     operatorKey: (process.env.HEDERA_OPERATOR_KEY || '').trim(),
   },
@@ -100,7 +107,13 @@ export async function GET(): Promise<NextResponse> {
     backend: 'Hedera Mirror Node (testnet)',
     vault: VAULT,
     schemaParity: 'Matches Studio subgraph at https://api.studio.thegraph.com/query/1758819/zkward — same query works on both.',
-    supportedQueries: ['pool', 'pools', 'transactions', 'members', '_meta'],
+    supportedQueries: ['pool', 'pools', 'transactions', 'members', 'signals', '_meta'],
+    signalsQuery: {
+      enabled: HCS_AUDIT_TOPIC_ID.length > 0,
+      auditTopic: HCS_AUDIT_TOPIC_ID || 'not configured',
+      description: 'v0.3.0 — reconstructs AI decision history from HCS audit topic (x402 payment receipts + hedge projections). Same substrate the trader wrote to.',
+      example: '{ signals(first: 5, where: { asset: "BTC" }) { asset direction confidence source hcsSeq timestamp } }',
+    },
     method: 'POST',
     exampleBody: {
       query: '{ pools { id network totalShares totalNav sharePrice memberCount } transactions(first: 5) { type actor amount timestamp } _meta { block { number timestamp } deployment hasIndexingErrors } }',

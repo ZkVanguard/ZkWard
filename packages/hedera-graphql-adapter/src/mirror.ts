@@ -119,6 +119,24 @@ export class MirrorClient {
     return r?.logs ?? [];
   }
 
+  /**
+   * Pull the latest messages from an HCS topic. Base64-encoded payloads
+   * are returned as-is; consumers decode. `limit` is capped at 100 by the
+   * public Mirror; pass `next` from a previous response to page back further.
+   */
+  async getTopicMessages(
+    topicId: string,
+    opts: { limit?: number; order?: 'asc' | 'desc' } = {},
+  ): Promise<Array<{ sequence_number: number; consensus_timestamp: string; message: string; running_hash?: string; payer_account_id?: string }>> {
+    const params = new URLSearchParams();
+    params.set('limit', String(Math.min(100, opts.limit ?? 25)));
+    params.set('order', opts.order ?? 'desc');
+    const r = await this.fetchJson<{ messages?: Array<{ sequence_number: number; consensus_timestamp: string; message: string; running_hash?: string; payer_account_id?: string }> }>(
+      `/topics/${topicId}/messages?${params.toString()}`,
+    );
+    return r?.messages ?? [];
+  }
+
   /** Latest block — cheap way to source _meta.block. */
   async getLatestBlock(): Promise<{ number: number; timestampSec: number } | null> {
     const r = await this.fetchJson<{ blocks?: Array<{ number?: number; timestamp?: { from?: string } }> }>(

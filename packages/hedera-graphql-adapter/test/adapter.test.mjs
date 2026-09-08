@@ -285,6 +285,98 @@ test('hung Mirror is aborted by mirrorTimeoutMs', async () => {
   });
 });
 
+// ── Signals from HCS audit topic ───────────────────────────────────────────
+
+test('signals resolver decodes x402-payment-receipt + hedge-projection', async () => {
+  const AUDIT_TOPIC = '0.0.10393879';
+  const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64');
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/topics/${AUDIT_TOPIC}/messages`]: () => ({
+      body: {
+        messages: [
+          {
+            sequence_number: 55,
+            consensus_timestamp: '1788804617.225947156',
+            message: b64({ v: 1, asset: 'BTC', signal: 'BEARISH', confidence: 63, paid: true, ts: '2026-09-07T18:10:16.733Z' }),
+          },
+          {
+            sequence_number: 52,
+            consensus_timestamp: '1788800426.566787104',
+            message: b64({
+              v: 1,
+              kind: 'hedge-projection',
+              poolNavUsd: 987.36,
+              positions: [
+                { symbol: 'BTC', side: 'SHORT', signalConfidence: 62 },
+                { symbol: 'ETH', side: 'SHORT', signalConfidence: 56 },
+                { symbol: 'SUI', side: 'LONG',  signalConfidence: 0 },
+              ],
+              submittedAt: '2026-09-07T17:00:25.690Z',
+            }),
+          },
+        ],
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0, auditTopicId: AUDIT_TOPIC }, async (adapter) => {
+    const result = await adapter.execute({
+      query: '{ signals(first: 10) { id asset direction confidence source hcsSeq timestamp } }',
+    });
+    assert.equal(result.errors, undefined);
+    const sigs = result.data?.signals ?? [];
+    // 1 x402 receipt + 3 hedge legs = 4 rows
+    assert.equal(sigs.length, 4, `expected 4 signals, got ${sigs.length}`);
+
+    const receipt = sigs.find((s) => s.source === 'x402-payment-receipt');
+    assert.ok(receipt);
+    assert.equal(receipt.asset, 'BTC');
+    assert.equal(receipt.direction, 'BEARISH');
+    assert.equal(receipt.confidence, 63);
+    assert.equal(receipt.hcsSeq, 55);
+
+    const btcHedge = sigs.find((s) => s.source === 'hedge-projection' && s.asset === 'BTC');
+    assert.ok(btcHedge);
+    assert.equal(btcHedge.direction, 'BEARISH'); // SHORT → BEARISH
+    assert.equal(btcHedge.confidence, 62);
+
+    const suiHedge = sigs.find((s) => s.source === 'hedge-projection' && s.asset === 'SUI');
+    assert.equal(suiHedge.direction, 'BULLISH'); // LONG → BULLISH
+  });
+});
+
+test('signals filter by asset', async () => {
+  const AUDIT_TOPIC = '0.0.10393879';
+  const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64');
+  const routes = {
+    ...HAPPY_ROUTES,
+    [`/topics/${AUDIT_TOPIC}/messages`]: () => ({
+      body: {
+        messages: [
+          { sequence_number: 1, consensus_timestamp: '1000.0', message: b64({ v: 1, asset: 'BTC', signal: 'BEARISH', confidence: 60, paid: true }) },
+          { sequence_number: 2, consensus_timestamp: '2000.0', message: b64({ v: 1, asset: 'ETH', signal: 'BULLISH', confidence: 70, paid: true }) },
+        ],
+      },
+    }),
+  };
+  await withAdapter(routes, { cacheTtlMs: 0, auditTopicId: AUDIT_TOPIC }, async (adapter) => {
+    const result = await adapter.execute({
+      query: '{ signals(where: { asset: "BTC" }) { asset direction } }',
+    });
+    const sigs = result.data?.signals ?? [];
+    assert.equal(sigs.length, 1);
+    assert.equal(sigs[0].asset, 'BTC');
+  });
+});
+
+test('signals returns empty when auditTopicId not configured', async () => {
+  await withAdapter(HAPPY_ROUTES, { cacheTtlMs: 0 }, async (adapter) => {
+    const result = await adapter.execute({ query: '{ signals(first: 5) { asset } }' });
+    assert.equal(result.errors, undefined);
+    assert.deepEqual(result.data?.signals, []);
+  });
+});
+
 // ── SDL / config plumbing ──────────────────────────────────────────────────
 
 test('getSchemaSDL returns the standardized vault SDL', async () => {
